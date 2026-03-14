@@ -100,7 +100,7 @@ export class Lexer {
       return;
     }
 
-    if (ch === '"' || ch === "'") {
+    if (ch === '"') {
       this.readQuotedString();
       return;
     }
@@ -148,7 +148,7 @@ export class Lexer {
     // Unary prefix operators: - or + before a term
     if ((ch === '-' || ch === '+') && this.pos + 1 < this.input.length) {
       const next = this.peekAt(1);
-      if (next && (this.isAlpha(next) || next === '"' || next === "'" || next === '(' || next === '#' || next === '!')) {
+      if (next && (this.isAlpha(next) || next === '"' || next === '(' || next === '#' || next === '!')) {
         this.tokens.push({
           type: TokenType.PREFIX_OP,
           value: ch,
@@ -201,7 +201,7 @@ export class Lexer {
     // Read a word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
-           this.peek() !== '(' && this.peek() !== ')' && this.peek() !== '"' && this.peek() !== "'" &&
+           this.peek() !== '(' && this.peek() !== ')' && this.peek() !== '"' &&
            this.peek() !== '~' && this.peek() !== '^' &&
            !(this.peek() === '&' && this.peekAt(1) === '&') &&
            !(this.peek() === '|' && this.peekAt(1) === '|')) {
@@ -257,7 +257,7 @@ export class Lexer {
       return;
     }
 
-    if (ch === '"' || ch === "'") {
+    if (ch === '"') {
       this.readQuotedString();
       this.state = LexerState.EXPECT_TERM;
       return;
@@ -301,7 +301,7 @@ export class Lexer {
     // Read value word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
-           this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' && this.peek() !== "'" &&
+           this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' &&
            this.peek() !== '~' && this.peek() !== '^') {
       // Backslash escaping: consume escaped pair as literal
       if (this.peek() === '\\' && this.pos + 1 < this.input.length) {

@@ -17,10 +17,11 @@ Input `status:active` produces tokens: `FIELD_NAME("status")`, `COLON(":")`, `VA
 
 ### 1.2 Quoted Values
 
-Both `"double"` and `'single'` quotes are supported. Unclosed quotes are tokenized gracefully without errors. Escaped characters inside quotes (e.g., `\"`) are preserved.
+Only **double quotes** (`"`) are recognized as phrase delimiters, consistent with Elasticsearch query_string syntax. Single quotes (`'`) are treated as regular characters (apostrophes). Unclosed double quotes are tokenized gracefully (the token runs to end-of-input). Escaped characters inside quotes (e.g., `\"`) are preserved.
 
 - `status:"hello world"` → `FIELD_NAME`, `COLON`, `QUOTED_VALUE("\"hello world\"")`
-- **Tests:** `Lexer.test.ts` → "tokenizes quoted values", "handles single-quoted values", "handles unclosed quotes gracefully", "handles escaped characters in quotes"
+- `name:'Jane'` → `FIELD_NAME`, `COLON`, `VALUE("'Jane'")` (single quotes are literal)
+- **Tests:** `Lexer.test.ts` → "tokenizes quoted values", "treats single quotes as regular characters", "handles unclosed quotes gracefully", "handles escaped characters in quotes"
 
 ### 1.3 Boolean Operators
 
@@ -264,7 +265,6 @@ The parser detects common structural/syntax mistakes and reports them via `parse
 | `a OR AND b` | `AND` | "Unexpected AND" |
 | `"hello world` | `"` | "Missing closing quote" |
 | `status:"hello` | `"` | "Missing closing quote" |
-| `'unclosed` | `'` | "Missing closing quote" |
 
 Empty groups `()` are **not** flagged — the user is likely mid-typing. Properly closed quotes (`"hello"`, `'world'`) produce no error.
 
@@ -462,7 +462,7 @@ When typing a bare quoted phrase (not after a colon), **no suggestions appear**.
 - `status:active "foo|` → no suggestions
 - `status:"act|` → **does** show value suggestions (after colon)
 
-- **Tests:** `AutocompleteEngine.test.ts` → "typing a bare double-quote shows no suggestions", "typing an unclosed quoted phrase shows no suggestions", "typing a closed quoted phrase shows no suggestions", "quote after a field:value pair shows no field suggestions", "unclosed quote after field:value shows no suggestions", "quoted value AFTER colon still shows field value suggestions", "bare single-quote shows no suggestions", "bare single-quoted phrase shows no suggestions"
+- **Tests:** `AutocompleteEngine.test.ts` → "typing a bare double-quote shows no suggestions", "typing an unclosed quoted phrase shows no suggestions", "typing a closed quoted phrase shows no suggestions", "quote after a field:value pair shows no field suggestions", "unclosed quote after field:value shows no suggestions", "quoted value AFTER colon still shows field value suggestions", "bare single-quote is treated as regular text", "single-quoted phrase is treated as regular text"
 
 ---
 

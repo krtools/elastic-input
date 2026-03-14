@@ -356,12 +356,15 @@ describe('AutocompleteEngine', () => {
       expect(result.suggestions.map(s => s.text)).toContain('active');
     });
 
-    it('bare single-quote shows no suggestions', () => {
+    it('bare single-quote is treated as regular text (no field match)', () => {
       const result = getSuggestions("'");
+      // Single quote is not a quote delimiter — it's a regular character
+      // No field name matches "'" so no suggestions
       expect(result.suggestions).toHaveLength(0);
     });
 
-    it('bare single-quoted phrase shows no suggestions', () => {
+    it('single-quoted phrase is treated as regular text', () => {
+      // Without quote-delimiter behavior, "'hello" and "world'" are just bare terms
       const result = getSuggestions("'hello world'");
       expect(result.suggestions).toHaveLength(0);
     });

@@ -69,7 +69,7 @@ export interface ColorConfig {
   operator?: string;
   /** Boolean operators (`AND`, `OR`, `NOT`). */
   booleanOp?: string;
-  /** Quoted string values (`"hello world"`). */
+  /** Double-quoted phrase values (`"hello world"`). Single quotes are not quote delimiters. */
   quoted?: string;
   /** Parentheses (`(`, `)`). */
   paren?: string;

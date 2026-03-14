@@ -714,17 +714,13 @@ describe('Parser', () => {
       });
     });
 
-    it('reports unclosed single quote on bare term', () => {
-      const { ast, errors } = parseWithErrors("'hello world");
+    it('treats single quotes as regular characters (not quote delimiters)', () => {
+      const { ast, errors } = parseWithErrors("'hello");
       expect(ast).not.toBeNull();
       expect(ast!.type).toBe('BareTerm');
-      expect((ast as any).value).toBe('hello world');
-      expect(errors).toHaveLength(1);
-      expect(errors[0]).toMatchObject({
-        message: 'Missing closing quote',
-        start: 0,
-        end: 1,
-      });
+      expect((ast as any).value).toBe("'hello");
+      expect((ast as any).quoted).toBe(false);
+      expect(errors).toHaveLength(0);
     });
 
     it('reports unclosed quote on field value', () => {
@@ -743,8 +739,10 @@ describe('Parser', () => {
       expect(errors).toHaveLength(0);
     });
 
-    it('does not report error for closed single quotes', () => {
-      const { errors } = parseWithErrors("'hello world'");
+    it('treats single-quoted phrase as bare terms (not quoted)', () => {
+      const { ast, errors } = parseWithErrors("'hello world'");
+      expect(ast).not.toBeNull();
+      // Single quotes aren't delimiters, so this parses as two bare terms: "'hello" and "world'"
       expect(errors).toHaveLength(0);
     });
 

@@ -48,10 +48,11 @@ describe('Lexer', () => {
       expect(lexValues('name:"John Doe"')).toEqual(['name', ':', '"John Doe"']);
     });
 
-    it('handles single-quoted values', () => {
+    it('treats single quotes as regular characters (not quote delimiters)', () => {
       expect(lexTypes("name:'Jane'")).toEqual([
-        TokenType.FIELD_NAME, TokenType.COLON, TokenType.QUOTED_VALUE,
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
       ]);
+      expect(lexValues("name:'Jane'")).toEqual(['name', ':', "'Jane'"]);
     });
 
     it('handles unclosed quotes gracefully', () => {

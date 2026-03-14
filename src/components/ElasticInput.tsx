@@ -568,18 +568,21 @@ export function ElasticInput(props: ElasticInputProps) {
   // Re-render highlighted HTML when cursor moves (for paren matching)
   const prevParenMatchRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    if (!editorRef.current || !isFocused) return;
+    if (!editorRef.current) return;
     const currentTokens = stateRef.current.tokens;
     if (currentTokens.length === 0) return;
 
+    // When blurred, clear paren highlighting
+    const effectiveCursor = isFocused ? cursorOffset : -1;
+
     // Compute new match and compare to previous to avoid unnecessary DOM updates
-    const match = findMatchingParen(currentTokens, cursorOffset);
+    const match = findMatchingParen(currentTokens, effectiveCursor);
     const matchKey = match ? `${match.openStart},${match.closeStart}` : null;
     if (matchKey === prevParenMatchRef.current) return;
     prevParenMatchRef.current = matchKey;
 
     const savedOffset = getCaretCharOffset(editorRef.current);
-    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset });
+    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, savedOffset);
   }, [cursorOffset, isFocused, colors]);

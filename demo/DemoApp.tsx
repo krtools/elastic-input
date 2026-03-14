@@ -2,14 +2,14 @@ import * as React from 'react';
 import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
 import { ValidationError } from '../src/validation/Validator';
-import { ColorConfig, FieldConfig } from '../src/types';
+import { FieldConfig } from '../src/types';
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
   SAMPLE_SAVED_SEARCHES, SAMPLE_HISTORY,
   mockFetchSuggestions,
 } from './DemoConfig';
-import { lightTheme, darkTheme, getAppStyles, ThemeColors } from './styles';
+import { lightTheme, darkTheme, getAppStyles } from './styles';
 
 type TabId = 'crm' | 'logs' | 'ecommerce';
 
@@ -26,190 +26,162 @@ const TABS: TabConfig[] = [
   { id: 'ecommerce', label: 'E-Commerce', fields: ECOMMERCE_FIELDS, placeholder: 'Search products... e.g. category:electronics AND price:<100' },
 ];
 
-interface DemoAppState {
-  isDark: boolean;
-  activeTab: TabId;
-  showInspector: boolean;
-  lastQuery: string;
-  lastAST: ASTNode | null;
-  searchResult: string;
-  validationErrors: ValidationError[];
-}
+export function DemoApp() {
+  const [isDark, setIsDark] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<TabId>('crm');
+  const [showInspector, setShowInspector] = React.useState(false);
+  const [lastQuery, setLastQuery] = React.useState('');
+  const [lastAST, setLastAST] = React.useState<ASTNode | null>(null);
+  const [searchResult, setSearchResult] = React.useState('');
+  const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
 
-export class DemoApp extends React.Component<{}, DemoAppState> {
-  constructor(props: {}) {
-    super(props);
-    this.state = {
-      isDark: false,
-      activeTab: 'crm',
-      showInspector: false,
-      lastQuery: '',
-      lastAST: null,
-      searchResult: '',
-      validationErrors: [],
-    };
-  }
+  const theme = isDark ? darkTheme : lightTheme;
+  const colors = isDark ? DARK_COLORS : DEFAULT_COLORS;
+  const styles = getAppStyles(theme);
+  const tab = TABS.find(t => t.id === activeTab) || TABS[0];
 
-  private getTheme(): ThemeColors {
-    return this.state.isDark ? darkTheme : lightTheme;
-  }
+  const handleSearch = React.useCallback((query: string, ast: ASTNode | null) => {
+    setSearchResult(query ? `Searching: ${query}` : '');
+    setLastQuery(query);
+    setLastAST(ast);
+  }, []);
 
-  private getColors(): ColorConfig {
-    return this.state.isDark ? DARK_COLORS : DEFAULT_COLORS;
-  }
+  const handleChange = React.useCallback((query: string, ast: ASTNode | null) => {
+    setLastQuery(query);
+    setLastAST(ast);
+  }, []);
 
-  private getActiveTab(): TabConfig {
-    return TABS.find(t => t.id === this.state.activeTab) || TABS[0];
-  }
+  const switchTab = React.useCallback((id: TabId) => {
+    setActiveTab(id);
+    setLastQuery('');
+    setLastAST(null);
+    setSearchResult('');
+  }, []);
 
-  private handleSearch = (query: string, ast: ASTNode | null) => {
-    this.setState({
-      searchResult: query ? `Searching: ${query}` : '',
-      lastQuery: query,
-      lastAST: ast,
-    });
-  };
-
-  private handleChange = (query: string, ast: ASTNode | null) => {
-    this.setState({ lastQuery: query, lastAST: ast });
-  };
-
-  private handleValidationChange = (errors: ValidationError[]) => {
-    this.setState({ validationErrors: errors });
-  };
-
-  render() {
-    const { isDark, activeTab, showInspector, lastQuery, lastAST, searchResult, validationErrors } = this.state;
-    const theme = this.getTheme();
-    const styles = getAppStyles(theme);
-    const tab = this.getActiveTab();
-    const colors = this.getColors();
-
-    return (
-      <div style={styles.app}>
-        {/* Header */}
-        <div style={styles.header}>
-          <div>
-            <div style={styles.title}>Elastic Input</div>
-            <div style={styles.subtitle}>
-              Syntax-aware smart autocomplete input for Elastic query syntax
-            </div>
+  return (
+    <div style={styles.app}>
+      {/* Header */}
+      <div style={styles.header}>
+        <div>
+          <div style={styles.title}>Elastic Input</div>
+          <div style={styles.subtitle}>
+            Syntax-aware smart autocomplete input for Elastic query syntax
           </div>
+        </div>
+        <button
+          style={styles.themeToggle}
+          onClick={() => setIsDark(d => !d)}
+        >
+          {isDark ? 'Light Mode' : 'Dark Mode'}
+        </button>
+      </div>
+
+      {/* Main content */}
+      <div style={styles.main}>
+        {/* Tabs */}
+        <div style={styles.tabs}>
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              style={styles.tab(t.id === activeTab)}
+              onClick={() => switchTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search section */}
+        <div style={styles.searchSection}>
+          <div style={styles.searchRow}>
+            <div style={{ flex: 1 }}>
+              <ElasticInput
+                fields={tab.fields}
+                colors={colors}
+                placeholder={tab.placeholder}
+                onSearch={handleSearch}
+                onChange={handleChange}
+                onValidationChange={setValidationErrors}
+                savedSearches={SAMPLE_SAVED_SEARCHES}
+                searchHistory={SAMPLE_HISTORY}
+                fetchSuggestions={mockFetchSuggestions}
+                maxSuggestions={8}
+              />
+            </div>
+            <button
+              style={styles.searchButton}
+              onClick={() => handleSearch(lastQuery, lastAST)}
+            >
+              Search
+            </button>
+          </div>
+          {searchResult && <div style={styles.queryResult}>{searchResult}</div>}
+        </div>
+
+        {/* Inspector toggle */}
+        <div style={{ marginBottom: '16px' }}>
           <button
-            style={styles.themeToggle}
-            onClick={() => this.setState({ isDark: !isDark })}
+            style={styles.inspectorToggle}
+            onClick={() => setShowInspector(s => !s)}
           >
-            {isDark ? 'Light Mode' : 'Dark Mode'}
+            {showInspector ? 'Hide Inspector' : 'Show Token/AST Inspector'}
           </button>
         </div>
 
-        {/* Main content */}
-        <div style={styles.main}>
-          {/* Tabs */}
-          <div style={styles.tabs}>
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                style={styles.tab(t.id === activeTab)}
-                onClick={() => this.setState({ activeTab: t.id, lastQuery: '', lastAST: null, searchResult: '' })}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Search section */}
-          <div style={styles.searchSection}>
-            <div style={styles.searchRow}>
-              <div style={{ flex: 1 }}>
-                <ElasticInput
-                  fields={tab.fields}
-                  colors={colors}
-                  placeholder={tab.placeholder}
-                  onSearch={this.handleSearch}
-                  onChange={this.handleChange}
-                  onValidationChange={this.handleValidationChange}
-                  savedSearches={SAMPLE_SAVED_SEARCHES}
-                  searchHistory={SAMPLE_HISTORY}
-                  fetchSuggestions={mockFetchSuggestions}
-                  maxSuggestions={8}
-                />
-              </div>
-              <button
-                style={styles.searchButton}
-                onClick={() => this.handleSearch(lastQuery, lastAST)}
-              >
-                Search
-              </button>
+        {/* Inspector */}
+        {showInspector && (
+          <div style={styles.inspector}>
+            <div style={{ marginBottom: '8px', fontWeight: 600 }}>Query:</div>
+            <div style={{ marginBottom: '12px' }}>{lastQuery || '(empty)'}</div>
+            <div style={{ marginBottom: '8px', fontWeight: 600 }}>Validation Errors:</div>
+            <div style={{ marginBottom: '12px', color: validationErrors.length > 0 ? '#cf222e' : undefined }}>
+              {validationErrors.length > 0
+                ? validationErrors.map((e, i) => (
+                    <div key={i}>
+                      {`[${e.start}-${e.end}] ${e.message}${e.field ? ` (field: ${e.field})` : ''}`}
+                    </div>
+                  ))
+                : '(none)'}
             </div>
-            {searchResult && <div style={styles.queryResult}>{searchResult}</div>}
+            <div style={{ marginBottom: '8px', fontWeight: 600 }}>AST:</div>
+            <div>{lastAST ? JSON.stringify(lastAST, null, 2) : '(none)'}</div>
           </div>
+        )}
 
-          {/* Inspector toggle */}
-          <div style={{ marginBottom: '16px' }}>
-            <button
-              style={styles.inspectorToggle}
-              onClick={() => this.setState({ showInspector: !showInspector })}
-            >
-              {showInspector ? 'Hide Inspector' : 'Show Token/AST Inspector'}
-            </button>
-          </div>
-
-          {/* Inspector */}
-          {showInspector && (
-            <div style={styles.inspector}>
-              <div style={{ marginBottom: '8px', fontWeight: 600 }}>Query:</div>
-              <div style={{ marginBottom: '12px' }}>{lastQuery || '(empty)'}</div>
-              <div style={{ marginBottom: '8px', fontWeight: 600 }}>Validation Errors:</div>
-              <div style={{ marginBottom: '12px', color: validationErrors.length > 0 ? '#cf222e' : undefined }}>
-                {validationErrors.length > 0
-                  ? validationErrors.map((e, i) => (
-                      <div key={i}>
-                        {`[${e.start}-${e.end}] ${e.message}${e.field ? ` (field: ${e.field})` : ''}`}
-                      </div>
-                    ))
-                  : '(none)'}
-              </div>
-              <div style={{ marginBottom: '8px', fontWeight: 600 }}>AST:</div>
-              <div>{lastAST ? JSON.stringify(lastAST, null, 2) : '(none)'}</div>
+        {/* Feature showcase */}
+        <div style={styles.featureGrid}>
+          {[
+            { title: 'Syntax Highlighting', desc: 'Fields, values, operators, and special tokens are color-coded in real time.' },
+            { title: 'Smart Autocomplete', desc: 'Context-aware suggestions for field names, enum values, and operators.' },
+            { title: 'Date Picker', desc: 'Visual calendar picker with range support for date-type fields.' },
+            { title: 'Validation', desc: 'Red squiggly underlines for type mismatches, unknown fields, and custom rules.' },
+            { title: 'Saved Searches (#)', desc: 'Type # to quickly access saved search shortcuts.' },
+            { title: 'History (!)', desc: 'Type ! to search through previous queries.' },
+            { title: 'Boolean Logic', desc: 'AND, OR, NOT operators with implicit AND between terms.' },
+            { title: 'Theme Support', desc: 'Fully customizable color scheme with light and dark presets.' },
+          ].map((feature, i) => (
+            <div key={i} style={styles.featureCard}>
+              <div style={styles.featureTitle}>{feature.title}</div>
+              <div style={styles.featureDesc}>{feature.desc}</div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {/* Feature showcase */}
-          <div style={styles.featureGrid}>
-            {[
-              { title: 'Syntax Highlighting', desc: 'Fields, values, operators, and special tokens are color-coded in real time.' },
-              { title: 'Smart Autocomplete', desc: 'Context-aware suggestions for field names, enum values, and operators.' },
-              { title: 'Date Picker', desc: 'Visual calendar picker with range support for date-type fields.' },
-              { title: 'Validation', desc: 'Red squiggly underlines for type mismatches, unknown fields, and custom rules.' },
-              { title: 'Saved Searches (#)', desc: 'Type # to quickly access saved search shortcuts.' },
-              { title: 'History (!)', desc: 'Type ! to search through previous queries.' },
-              { title: 'Boolean Logic', desc: 'AND, OR, NOT operators with implicit AND between terms.' },
-              { title: 'Theme Support', desc: 'Fully customizable color scheme with light and dark presets.' },
-            ].map((feature, i) => (
-              <div key={i} style={styles.featureCard}>
-                <div style={styles.featureTitle}>{feature.title}</div>
-                <div style={styles.featureDesc}>{feature.desc}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Usage hints */}
-          <div style={{ ...styles.card, marginTop: '24px' }}>
-            <div style={styles.cardTitle}>Try These</div>
-            <div style={{ fontSize: '13px', lineHeight: 1.8, color: theme.textSecondary }}>
-              <div>Type a field name (e.g. "status") to see autocomplete</div>
-              <div>Type "status:" to see enum value suggestions</div>
-              <div>Type "created:" to open the date picker</div>
-              <div>Type "xyz:hello" to see red squiggly on unknown field "xyz"</div>
-              <div>Type "status:bad" then press Home or click before it to see validation squiggly</div>
-              <div>Type "#" for saved searches, "!" for history</div>
-              <div>Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay</div>
-              <div>Use AND, OR, NOT, and parentheses for complex queries</div>
-            </div>
+        {/* Usage hints */}
+        <div style={{ ...styles.card, marginTop: '24px' }}>
+          <div style={styles.cardTitle}>Try These</div>
+          <div style={{ fontSize: '13px', lineHeight: 1.8, color: theme.textSecondary }}>
+            <div>Type a field name (e.g. "status") to see autocomplete</div>
+            <div>Type "status:" to see enum value suggestions</div>
+            <div>Type "created:" to open the date picker</div>
+            <div>Type "xyz:hello" to see red squiggly on unknown field "xyz"</div>
+            <div>Type "status:bad" then press Home or click before it to see validation squiggly</div>
+            <div>Type "#" for saved searches, "!" for history</div>
+            <div>Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay</div>
+            <div>Use AND, OR, NOT, and parentheses for complex queries</div>
           </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 }

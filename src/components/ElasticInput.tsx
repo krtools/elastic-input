@@ -126,7 +126,8 @@ export function ElasticInput(props: ElasticInputProps) {
     new AutocompleteEngine(
       fields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
-      { showSavedSearchHint, showHistoryHint }
+      { showSavedSearchHint, showHistoryHint },
+      !!fetchSuggestionsProp,
     )
   );
   const validatorRef = React.useRef(new Validator(fields));
@@ -501,7 +502,8 @@ export function ElasticInput(props: ElasticInputProps) {
     engineRef.current = new AutocompleteEngine(
       fields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
-      { showSavedSearchHint, showHistoryHint }
+      { showSavedSearchHint, showHistoryHint },
+      !!fetchSuggestionsProp,
     );
     validatorRef.current = new Validator(fields);
     // Re-load async data for new engine

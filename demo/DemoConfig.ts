@@ -7,7 +7,7 @@ export const CRM_FIELDS: FieldConfig[] = [
     validate: (v) => /^[\d\-\+\(\)\s]+$/.test(v) ? null : 'Invalid phone format' },
   { name: 'status', label: 'Status', type: 'enum',
     suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
-    description: 'Contact status' },
+    description: 'Contact status', placeholder: 'Search statuses...' },
   { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...' },
   { name: 'deal_value', label: 'Deal Value', type: 'number', description: 'Deal value in dollars' },
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
@@ -63,22 +63,30 @@ const MOCK_BRANDS = [
   'Bose', 'LG', 'Dell', 'HP', 'Lenovo', 'Canon', 'Dyson',
 ];
 
-export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
-  const data: Record<string, string[]> = {
-    company: MOCK_COMPANIES,
-    brand: MOCK_BRANDS,
-  };
+/** Build a lookup of all field values across all demo field configs. */
+const ALL_FIELD_VALUES: Record<string, string[]> = {};
+for (const field of [...CRM_FIELDS, ...LOG_FIELDS, ...ECOMMERCE_FIELDS]) {
+  if (field.suggestions && !ALL_FIELD_VALUES[field.name]) {
+    ALL_FIELD_VALUES[field.name] = field.suggestions;
+  }
+}
+// Add async-only fields (no static suggestions)
+ALL_FIELD_VALUES['company'] = MOCK_COMPANIES;
+ALL_FIELD_VALUES['brand'] = MOCK_BRANDS;
 
-  const items = data[fieldName];
+export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
+  const items = ALL_FIELD_VALUES[fieldName];
   if (!items) return Promise.resolve([]);
 
+  const lower = partial.toLowerCase();
   const filtered = items
-    .filter(item => item.toLowerCase().includes(partial.toLowerCase()))
+    .filter(item => item.toLowerCase().includes(lower))
     .slice(0, 8)
     .map(item => ({ text: item, description: `${fieldName} match` }));
 
-  // 800ms delay to visually demonstrate async loading
-  return new Promise(resolve => setTimeout(() => resolve(filtered), 800));
+  // Simulate network delay — longer for async-only fields, shorter for enum fields
+  const delay = (fieldName === 'company' || fieldName === 'brand') ? 800 : 150;
+  return new Promise(resolve => setTimeout(() => resolve(filtered), delay));
 }
 
 export const SAMPLE_SAVED_SEARCHES: SavedSearch[] = [

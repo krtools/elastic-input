@@ -380,7 +380,7 @@ Shown in `FIELD_VALUE` context. Behavior depends on field type:
 
 | Field Type | Behavior |
 |------------|----------|
-| `enum` | Shows `field.suggestions` filtered by partial (startsWith > includes) |
+| `enum` | Shows `field.suggestions` filtered by partial (startsWith > includes). Skipped when `fetchSuggestions` is provided — async is the single source of truth. |
 | `boolean` | Shows `true`, `false` filtered by partial |
 | `date` | Opens a date picker (no text suggestions) |
 | `number` | Shows hint: "Enter a number" (persists while typing) |

@@ -763,9 +763,6 @@ export function ElasticInput(props: ElasticInputProps) {
       const selRange = getSelectionCharRange(editorRef.current);
       setCursorOffset(selRange.start);
       setSelectionEnd(selRange.end);
-      // Don't open dropdown or re-render when text is selected — that would
-      // destroy the selection (innerHTML replacement collapses it).
-      if (selRange.start !== selRange.end) return;
       updateSuggestionsFromTokens(stateRef.current.tokens, selRange.start);
     }
   }, [updateSuggestionsFromTokens]);

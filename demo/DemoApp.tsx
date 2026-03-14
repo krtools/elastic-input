@@ -85,119 +85,131 @@ export class DemoApp extends React.Component<{}, DemoAppState> {
     const tab = this.getActiveTab();
     const colors = this.getColors();
 
-    return React.createElement('div', { style: styles.app },
-      // Header
-      React.createElement('div', { style: styles.header },
-        React.createElement('div', null,
-          React.createElement('div', { style: styles.title }, 'Elastic Input'),
-          React.createElement('div', { style: styles.subtitle },
-            'Syntax-aware smart autocomplete input for Elastic query syntax'
-          ),
-        ),
-        React.createElement('button', {
-          style: styles.themeToggle,
-          onClick: () => this.setState({ isDark: !isDark }),
-        }, isDark ? 'Light Mode' : 'Dark Mode'),
-      ),
+    return (
+      <div style={styles.app}>
+        {/* Header */}
+        <div style={styles.header}>
+          <div>
+            <div style={styles.title}>Elastic Input</div>
+            <div style={styles.subtitle}>
+              Syntax-aware smart autocomplete input for Elastic query syntax
+            </div>
+          </div>
+          <button
+            style={styles.themeToggle}
+            onClick={() => this.setState({ isDark: !isDark })}
+          >
+            {isDark ? 'Light Mode' : 'Dark Mode'}
+          </button>
+        </div>
 
-      // Main content
-      React.createElement('div', { style: styles.main },
-        // Tabs
-        React.createElement('div', { style: styles.tabs },
-          TABS.map(t =>
-            React.createElement('button', {
-              key: t.id,
-              style: styles.tab(t.id === activeTab),
-              onClick: () => this.setState({ activeTab: t.id, lastQuery: '', lastAST: null, searchResult: '' }),
-            }, t.label)
-          ),
-        ),
+        {/* Main content */}
+        <div style={styles.main}>
+          {/* Tabs */}
+          <div style={styles.tabs}>
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                style={styles.tab(t.id === activeTab)}
+                onClick={() => this.setState({ activeTab: t.id, lastQuery: '', lastAST: null, searchResult: '' })}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-        // Search section
-        React.createElement('div', { style: styles.searchSection },
-          React.createElement('div', { style: styles.searchRow },
-            React.createElement('div', { style: { flex: 1 } },
-              React.createElement(ElasticInput, {
-                fields: tab.fields,
-                colors,
-                placeholder: tab.placeholder,
-                onSearch: this.handleSearch,
-                onChange: this.handleChange,
-                onValidationChange: this.handleValidationChange,
-                savedSearches: SAMPLE_SAVED_SEARCHES,
-                searchHistory: SAMPLE_HISTORY,
-                fetchSuggestions: mockFetchSuggestions,
-                maxSuggestions: 8,
-              }),
-            ),
-            React.createElement('button', {
-              style: styles.searchButton,
-              onClick: () => this.handleSearch(lastQuery, lastAST),
-            }, 'Search'),
-          ),
-          searchResult ? React.createElement('div', { style: styles.queryResult }, searchResult) : null,
-        ),
+          {/* Search section */}
+          <div style={styles.searchSection}>
+            <div style={styles.searchRow}>
+              <div style={{ flex: 1 }}>
+                <ElasticInput
+                  fields={tab.fields}
+                  colors={colors}
+                  placeholder={tab.placeholder}
+                  onSearch={this.handleSearch}
+                  onChange={this.handleChange}
+                  onValidationChange={this.handleValidationChange}
+                  savedSearches={SAMPLE_SAVED_SEARCHES}
+                  searchHistory={SAMPLE_HISTORY}
+                  fetchSuggestions={mockFetchSuggestions}
+                  maxSuggestions={8}
+                />
+              </div>
+              <button
+                style={styles.searchButton}
+                onClick={() => this.handleSearch(lastQuery, lastAST)}
+              >
+                Search
+              </button>
+            </div>
+            {searchResult && <div style={styles.queryResult}>{searchResult}</div>}
+          </div>
 
-        // Inspector toggle
-        React.createElement('div', { style: { marginBottom: '16px' } },
-          React.createElement('button', {
-            style: styles.inspectorToggle,
-            onClick: () => this.setState({ showInspector: !showInspector }),
-          }, showInspector ? 'Hide Inspector' : 'Show Token/AST Inspector'),
-        ),
+          {/* Inspector toggle */}
+          <div style={{ marginBottom: '16px' }}>
+            <button
+              style={styles.inspectorToggle}
+              onClick={() => this.setState({ showInspector: !showInspector })}
+            >
+              {showInspector ? 'Hide Inspector' : 'Show Token/AST Inspector'}
+            </button>
+          </div>
 
-        // Inspector
-        showInspector && React.createElement('div', { style: styles.inspector },
-          React.createElement('div', { style: { marginBottom: '8px', fontWeight: 600 } }, 'Query:'),
-          React.createElement('div', { style: { marginBottom: '12px' } }, lastQuery || '(empty)'),
-          React.createElement('div', { style: { marginBottom: '8px', fontWeight: 600 } }, 'Validation Errors:'),
-          React.createElement('div', { style: { marginBottom: '12px', color: validationErrors.length > 0 ? '#cf222e' : undefined } },
-            validationErrors.length > 0
-              ? validationErrors.map((e, i) =>
-                  React.createElement('div', { key: i },
-                    `[${e.start}-${e.end}] ${e.message}${e.field ? ` (field: ${e.field})` : ''}`
-                  )
-                )
-              : '(none)'
-          ),
-          React.createElement('div', { style: { marginBottom: '8px', fontWeight: 600 } }, 'AST:'),
-          React.createElement('div', null, lastAST ? JSON.stringify(lastAST, null, 2) : '(none)'),
-        ),
+          {/* Inspector */}
+          {showInspector && (
+            <div style={styles.inspector}>
+              <div style={{ marginBottom: '8px', fontWeight: 600 }}>Query:</div>
+              <div style={{ marginBottom: '12px' }}>{lastQuery || '(empty)'}</div>
+              <div style={{ marginBottom: '8px', fontWeight: 600 }}>Validation Errors:</div>
+              <div style={{ marginBottom: '12px', color: validationErrors.length > 0 ? '#cf222e' : undefined }}>
+                {validationErrors.length > 0
+                  ? validationErrors.map((e, i) => (
+                      <div key={i}>
+                        {`[${e.start}-${e.end}] ${e.message}${e.field ? ` (field: ${e.field})` : ''}`}
+                      </div>
+                    ))
+                  : '(none)'}
+              </div>
+              <div style={{ marginBottom: '8px', fontWeight: 600 }}>AST:</div>
+              <div>{lastAST ? JSON.stringify(lastAST, null, 2) : '(none)'}</div>
+            </div>
+          )}
 
-        // Feature showcase
-        React.createElement('div', { style: styles.featureGrid },
-          ...[
-            { title: 'Syntax Highlighting', desc: 'Fields, values, operators, and special tokens are color-coded in real time.' },
-            { title: 'Smart Autocomplete', desc: 'Context-aware suggestions for field names, enum values, and operators.' },
-            { title: 'Date Picker', desc: 'Visual calendar picker with range support for date-type fields.' },
-            { title: 'Validation', desc: 'Red squiggly underlines for type mismatches, unknown fields, and custom rules.' },
-            { title: 'Saved Searches (#)', desc: 'Type # to quickly access saved search shortcuts.' },
-            { title: 'History (!)', desc: 'Type ! to search through previous queries.' },
-            { title: 'Boolean Logic', desc: 'AND, OR, NOT operators with implicit AND between terms.' },
-            { title: 'Theme Support', desc: 'Fully customizable color scheme with light and dark presets.' },
-          ].map((feature, i) =>
-            React.createElement('div', { key: i, style: styles.featureCard },
-              React.createElement('div', { style: styles.featureTitle }, feature.title),
-              React.createElement('div', { style: styles.featureDesc }, feature.desc),
-            )
-          ),
-        ),
+          {/* Feature showcase */}
+          <div style={styles.featureGrid}>
+            {[
+              { title: 'Syntax Highlighting', desc: 'Fields, values, operators, and special tokens are color-coded in real time.' },
+              { title: 'Smart Autocomplete', desc: 'Context-aware suggestions for field names, enum values, and operators.' },
+              { title: 'Date Picker', desc: 'Visual calendar picker with range support for date-type fields.' },
+              { title: 'Validation', desc: 'Red squiggly underlines for type mismatches, unknown fields, and custom rules.' },
+              { title: 'Saved Searches (#)', desc: 'Type # to quickly access saved search shortcuts.' },
+              { title: 'History (!)', desc: 'Type ! to search through previous queries.' },
+              { title: 'Boolean Logic', desc: 'AND, OR, NOT operators with implicit AND between terms.' },
+              { title: 'Theme Support', desc: 'Fully customizable color scheme with light and dark presets.' },
+            ].map((feature, i) => (
+              <div key={i} style={styles.featureCard}>
+                <div style={styles.featureTitle}>{feature.title}</div>
+                <div style={styles.featureDesc}>{feature.desc}</div>
+              </div>
+            ))}
+          </div>
 
-        // Usage hints
-        React.createElement('div', { style: { ...styles.card, marginTop: '24px' } },
-          React.createElement('div', { style: styles.cardTitle }, 'Try These'),
-          React.createElement('div', { style: { fontSize: '13px', lineHeight: 1.8, color: theme.textSecondary } },
-            React.createElement('div', null, 'Type a field name (e.g. "status") to see autocomplete'),
-            React.createElement('div', null, 'Type "status:" to see enum value suggestions'),
-            React.createElement('div', null, 'Type "created:" to open the date picker'),
-            React.createElement('div', null, 'Type "xyz:hello" to see red squiggly on unknown field "xyz"'),
-            React.createElement('div', null, 'Type "status:bad" then press Home or click before it to see validation squiggly'),
-            React.createElement('div', null, 'Type "#" for saved searches, "!" for history'),
-            React.createElement('div', null, 'Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay'),
-            React.createElement('div', null, 'Use AND, OR, NOT, and parentheses for complex queries'),
-          ),
-        ),
-      ),
+          {/* Usage hints */}
+          <div style={{ ...styles.card, marginTop: '24px' }}>
+            <div style={styles.cardTitle}>Try These</div>
+            <div style={{ fontSize: '13px', lineHeight: 1.8, color: theme.textSecondary }}>
+              <div>Type a field name (e.g. "status") to see autocomplete</div>
+              <div>Type "status:" to see enum value suggestions</div>
+              <div>Type "created:" to open the date picker</div>
+              <div>Type "xyz:hello" to see red squiggly on unknown field "xyz"</div>
+              <div>Type "status:bad" then press Home or click before it to see validation squiggly</div>
+              <div>Type "#" for saved searches, "!" for history</div>
+              <div>Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay</div>
+              <div>Use AND, OR, NOT, and parentheses for complex queries</div>
+            </div>
+          </div>
+        </div>
+      </div>
     );
   }
 }

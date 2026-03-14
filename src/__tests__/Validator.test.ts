@@ -298,4 +298,22 @@ describe('Field-scoped group validation', () => {
   it('accepts relative dates in group', () => {
     expect(validate('created:(now now-7d now-1d/d)')).toHaveLength(0);
   });
+
+  it('accepts range value inside field group', () => {
+    expect(validate('created:([now-1d TO now])')).toHaveLength(0);
+  });
+
+  it('accepts {range} inside field group', () => {
+    expect(validate('created:({now-30d TO now})')).toHaveLength(0);
+  });
+
+  it('flags invalid range inside field group', () => {
+    const errors = validate('created:([invalid TO now])');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Range start');
+  });
+
+  it('accepts multiple ranges in field group', () => {
+    expect(validate('created:([now-7d TO now] OR [now-30d TO now-7d])')).toHaveLength(0);
+  });
 });

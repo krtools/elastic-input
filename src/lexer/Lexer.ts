@@ -117,6 +117,12 @@ export class Lexer {
       return;
     }
 
+    // Range syntax: [start TO end] or {start TO end}
+    if (ch === '[' || ch === '{') {
+      this.readRangeValue();
+      return;
+    }
+
     if (ch === '#') {
       this.readSavedSearch();
       return;
@@ -284,16 +290,15 @@ export class Lexer {
 
   private readRangeValue(): void {
     const start = this.pos;
-    const openBracket = this.advance(); // consume [ or {
-    const closeBracket = openBracket === '[' ? ']' : '}';
+    this.advance(); // consume [ or {
 
-    // Consume everything until matching close bracket or end of input
-    while (this.pos < this.input.length && this.peek() !== closeBracket) {
+    // Consume everything until any close bracket (] or }) or end of input
+    while (this.pos < this.input.length && this.peek() !== ']' && this.peek() !== '}') {
       this.advance();
     }
 
     // Consume close bracket if present
-    if (this.pos < this.input.length && this.peek() === closeBracket) {
+    if (this.pos < this.input.length && (this.peek() === ']' || this.peek() === '}')) {
       this.advance();
     }
 

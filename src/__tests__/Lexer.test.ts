@@ -420,5 +420,27 @@ describe('Lexer', () => {
       const values = lexValues('created:[now-7d TO now');
       expect(values).toEqual(['created', ':', '[now-7d TO now']);
     });
+
+    it('tokenizes range value inside field group', () => {
+      const types = lexTypes('created:([now-1d TO now])');
+      expect(types).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON,
+        TokenType.LPAREN, TokenType.VALUE, TokenType.RPAREN,
+      ]);
+      const values = lexValues('created:([now-1d TO now])');
+      expect(values).toEqual(['created', ':', '(', '[now-1d TO now]', ')']);
+    });
+
+    it('tokenizes {range} inside field group', () => {
+      const values = lexValues('price:({10 TO 100})');
+      expect(values).toEqual(['price', ':', '(', '{10 TO 100}', ')']);
+    });
+
+    it('tokenizes standalone range value in EXPECT_TERM', () => {
+      const types = lexTypes('[now-7d TO now]');
+      expect(types).toEqual([TokenType.VALUE]);
+      const values = lexValues('[now-7d TO now]');
+      expect(values).toEqual(['[now-7d TO now]']);
+    });
   });
 });

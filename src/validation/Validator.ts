@@ -3,11 +3,17 @@ import { FieldConfig } from '../types';
 import { validateNumber } from './numberValidator';
 import { validateDate } from './dateValidator';
 
+/** A validation or syntax error with character offsets for squiggly underline display. */
 export interface ValidationError {
+  /** Human-readable error description. */
   message: string;
+  /** Start character offset (inclusive) in the input string. */
   start: number;
+  /** End character offset (exclusive) in the input string. */
   end: number;
+  /** The field name this error relates to, if applicable. */
   field?: string;
+  /** Severity level. `'warning'` renders amber squiggles; `'error'` (default) renders red. */
   severity?: 'error' | 'warning';
 }
 

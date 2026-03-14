@@ -15,7 +15,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition } from '../utils/domUtils';
-import { getPlainText, WRAP_PAIRS, wrapSelection } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars } from '../utils/textUtils';
 import {
   mergeColors,
   mergeStyles,
@@ -80,6 +80,18 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
 // ElasticInput — main component
 // ---------------------------------------------------------------------------
 
+/**
+ * A rich search input component with Elasticsearch query_string syntax support.
+ *
+ * Features syntax highlighting, autocomplete, field validation, date picking,
+ * saved search/history references, and real-time error squiggles.
+ *
+ * Pasted text is automatically normalized (smart quotes → ASCII, em dashes → hyphens, etc.).
+ * Selected text can be wrapped with brackets/quotes by typing the opening character (VS Code style).
+ *
+ * @see {@link ElasticInputProps} for available props
+ * @see {@link ElasticInputAPI} for the imperative API (via `inputRef`)
+ */
 export function ElasticInput(props: ElasticInputProps) {
   const {
     fields, onSearch, onChange, onValidationChange, value, defaultValue,
@@ -499,8 +511,16 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    const text = getPlainText(editorRef.current);
-    const cursorPos = getCaretCharOffset(editorRef.current);
+    let text = getPlainText(editorRef.current);
+    let cursorPos = getCaretCharOffset(editorRef.current);
+
+    // Normalize typographic characters (smart quotes, em dashes, etc.)
+    const normalized = normalizeTypographicChars(text);
+    if (normalized !== text) {
+      text = normalized;
+      // Length might change (e.g. ellipsis → 3 dots), adjust cursor
+      cursorPos = Math.min(cursorPos, text.length);
+    }
     currentValueRef.current = text;
 
     // Group consecutive typing: replace current entry, then after a pause push a new one
@@ -687,7 +707,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedText = e.clipboardData.getData('text/plain');
+    const pastedText = normalizeTypographicChars(e.clipboardData.getData('text/plain'));
 
     // Break typing group so paste is its own undo entry
     if (typingGroupTimerRef.current) {

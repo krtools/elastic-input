@@ -610,7 +610,24 @@ When no text is selected, the bracket/quote character is inserted normally.
 
 Escape closes the autocomplete dropdown or date picker without accepting anything.
 
-### 7.7 Arrow Keys — Navigate / Move Cursor
+### 7.7 Typographic Character Normalization
+
+Pasted and typed text is automatically normalized to replace typographic/smart characters with their ASCII equivalents. This prevents issues when queries are copied from Outlook, Word, Google Docs, or other rich-text sources.
+
+| Character(s) | Normalized To | Source |
+|--------------|---------------|--------|
+| `\u201C` `\u201D` `\u201E` `\u201F` `\u2033` `\u00AB` `\u00BB` | `"` | Smart double quotes, guillemets |
+| `\u2018` `\u2019` `\u201A` `\u201B` `\u2032` | `'` | Smart single quotes, apostrophes |
+| `\u2013` `\u2014` | `-` | En dash, em dash |
+| `\u2026` | `...` | Horizontal ellipsis |
+| `\u00A0` `\u202F` `\u2007` | ` ` | Non-breaking / figure spaces |
+| `\uFF01`–`\uFF5E` | ASCII equivalent | Fullwidth ASCII (CJK input) |
+
+Normalization runs on both paste and regular input events. The original text is never stored — only the normalized version enters the lexer.
+
+- **Tests:** `normalizeTypographic.test.ts` → 26 tests covering all character categories and mixed input
+
+### 7.8 Arrow Keys — Navigate / Move Cursor
 
 - **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
 - **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position

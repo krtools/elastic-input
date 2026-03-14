@@ -1,5 +1,6 @@
 import { ColorConfig, StyleConfig } from './types';
 
+/** Default color palette for light backgrounds (GitHub-inspired). */
 export const DEFAULT_COLORS: Required<ColorConfig> = {
   fieldName: '#0550ae',
   fieldValue: '#1a7f37',
@@ -29,6 +30,7 @@ export const DEFAULT_COLORS: Required<ColorConfig> = {
   warning: '#d4a72c',
 };
 
+/** Dark mode color palette (GitHub Dark-inspired). */
 export const DARK_COLORS: Required<ColorConfig> = {
   fieldName: '#79c0ff',
   fieldValue: '#7ee787',
@@ -58,6 +60,7 @@ export const DARK_COLORS: Required<ColorConfig> = {
   warning: '#e3b341',
 };
 
+/** Default layout/structural styles for light mode. */
 export const DEFAULT_STYLES: Required<StyleConfig> = {
   fontFamily: "'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace",
   fontSize: '14px',
@@ -86,6 +89,7 @@ export const DEFAULT_STYLES: Required<StyleConfig> = {
   typeBadgeSelectedColor: '#ffffff',
 };
 
+/** Dark mode style overrides. Extends `DEFAULT_STYLES` with darker borders, shadows, and badges. */
 export const DARK_STYLES: Required<StyleConfig> = {
   ...DEFAULT_STYLES,
   inputBorderColor: '#30363d',
@@ -99,8 +103,12 @@ export const DARK_STYLES: Required<StyleConfig> = {
   typeBadgeColor: '#8b949e',
 };
 
+/** Recognized boolean operators in query syntax. */
 export const BOOLEAN_OPERATORS = ['AND', 'OR', 'NOT'];
+/** Recognized comparison operators for numeric and date fields. */
 export const COMPARISON_OPERATORS = ['>=', '<=', '>', '<'];
 
+/** Default debounce delay (ms) for async `fetchSuggestions` calls. */
 export const DEFAULT_DEBOUNCE_MS = 200;
+/** Default maximum number of suggestions shown in the autocomplete dropdown. */
 export const DEFAULT_MAX_SUGGESTIONS = 10;

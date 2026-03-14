@@ -315,6 +315,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const partial = result.context.partial;
       const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
 
+      const isFirstEntry = !asyncActiveRef.current;
       asyncActiveRef.current = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
@@ -327,25 +328,29 @@ export function ElasticInput(props: ElasticInputProps) {
         const start = token ? token.start : offset;
         const end = token ? token.end : offset;
 
-        // Show loading indicator if fetch takes > 500ms
-        loadingTimerRef.current = setTimeout(() => {
-          // Only show spinner if this is still the latest request
-          if (fetchIdRef.current !== currentFetchId) return;
-          const loadingSuggestion: Suggestion = {
-            text: '',
-            label: 'Searching...',
-            type: 'loading',
-            replaceStart: start,
-            replaceEnd: end,
-          };
-          setSuggestions([loadingSuggestion]);
-          setSelectedSuggestionIndex(0);
-          requestAnimationFrame(() => {
-            const rect = getCaretRect();
-            setShowDropdown(true);
-            setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
-          });
-        }, 500);
+        // Show loading indicator if fetch takes > 500ms — only on first
+        // entry into the field value. On subsequent keystrokes, keep the
+        // previous results visible instead of flashing a spinner.
+        if (isFirstEntry) {
+          loadingTimerRef.current = setTimeout(() => {
+            // Only show spinner if this is still the latest request
+            if (fetchIdRef.current !== currentFetchId) return;
+            const loadingSuggestion: Suggestion = {
+              text: '',
+              label: 'Searching...',
+              type: 'loading',
+              replaceStart: start,
+              replaceEnd: end,
+            };
+            setSuggestions([loadingSuggestion]);
+            setSelectedSuggestionIndex(0);
+            requestAnimationFrame(() => {
+              const rect = getCaretRect();
+              setShowDropdown(true);
+              setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
+            });
+          }, 500);
+        }
 
         try {
           const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);

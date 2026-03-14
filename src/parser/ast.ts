@@ -14,6 +14,9 @@ export interface FieldValueNode {
   operator: string; // ':', '>', '<', '>=', '<='
   value: string;
   quoted: boolean;
+  boost?: number;
+  fuzzy?: number;
+  proximity?: number;
   start: number;
   end: number;
 }
@@ -59,6 +62,9 @@ export interface BareTermNode {
   type: 'BareTerm';
   value: string;
   quoted: boolean;
+  boost?: number;
+  fuzzy?: number;
+  proximity?: number;
   start: number;
   end: number;
 }

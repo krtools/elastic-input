@@ -278,6 +278,98 @@ describe('Lexer', () => {
     });
   });
 
+  describe('&& and || operators', () => {
+    it('tokenizes && as AND', () => {
+      expect(lexTypes('a && b')).toEqual([TokenType.VALUE, TokenType.AND, TokenType.VALUE]);
+      expect(lexValues('a && b')).toEqual(['a', '&&', 'b']);
+    });
+
+    it('tokenizes || as OR', () => {
+      expect(lexTypes('a || b')).toEqual([TokenType.VALUE, TokenType.OR, TokenType.VALUE]);
+      expect(lexValues('a || b')).toEqual(['a', '||', 'b']);
+    });
+
+    it('tokenizes && without spaces', () => {
+      expect(lexTypes('a&&b')).toEqual([TokenType.VALUE, TokenType.AND, TokenType.VALUE]);
+    });
+
+    it('tokenizes || without spaces', () => {
+      expect(lexTypes('a||b')).toEqual([TokenType.VALUE, TokenType.OR, TokenType.VALUE]);
+    });
+
+    it('mixes && and || in same query', () => {
+      expect(lexTypes('a && b || c')).toEqual([
+        TokenType.VALUE, TokenType.AND, TokenType.VALUE, TokenType.OR, TokenType.VALUE,
+      ]);
+    });
+
+    it('single & is not treated as operator', () => {
+      // Single & is consumed as part of a word
+      const tokens = lex('a&b');
+      const nonWs = tokens.filter(t => t.type !== TokenType.WHITESPACE);
+      expect(nonWs).toHaveLength(1);
+      expect(nonWs[0].value).toBe('a&b');
+    });
+  });
+
+  describe('tilde (fuzzy/proximity)', () => {
+    it('tokenizes term~N as VALUE + TILDE', () => {
+      expect(lexTypes('abc~1')).toEqual([TokenType.VALUE, TokenType.TILDE]);
+      expect(lexValues('abc~1')).toEqual(['abc', '~1']);
+    });
+
+    it('tokenizes quoted phrase~N as QUOTED_VALUE + TILDE', () => {
+      expect(lexTypes('"hello world"~5')).toEqual([TokenType.QUOTED_VALUE, TokenType.TILDE]);
+      expect(lexValues('"hello world"~5')).toEqual(['"hello world"', '~5']);
+    });
+
+    it('tokenizes ~ without number', () => {
+      expect(lexTypes('abc~')).toEqual([TokenType.VALUE, TokenType.TILDE]);
+      expect(lexValues('abc~')).toEqual(['abc', '~']);
+    });
+
+    it('tokenizes field:value~N', () => {
+      expect(lexTypes('name:john~1')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE, TokenType.TILDE,
+      ]);
+      expect(lexValues('name:john~1')).toEqual(['name', ':', 'john', '~1']);
+    });
+
+    it('preserves offsets for tilde', () => {
+      const tokens = lex('abc~2');
+      const tilde = tokens.find(t => t.type === TokenType.TILDE)!;
+      expect(tilde.start).toBe(3);
+      expect(tilde.end).toBe(5);
+    });
+  });
+
+  describe('boost (caret)', () => {
+    it('tokenizes term^N as VALUE + BOOST', () => {
+      expect(lexTypes('abc^2')).toEqual([TokenType.VALUE, TokenType.BOOST]);
+      expect(lexValues('abc^2')).toEqual(['abc', '^2']);
+    });
+
+    it('tokenizes field:value^N', () => {
+      expect(lexTypes('name:john^3')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE, TokenType.BOOST,
+      ]);
+    });
+
+    it('tokenizes ^ with decimal', () => {
+      expect(lexValues('abc^1.5')).toEqual(['abc', '^1.5']);
+    });
+
+    it('tokenizes ^ without number', () => {
+      expect(lexTypes('abc^')).toEqual([TokenType.VALUE, TokenType.BOOST]);
+      expect(lexValues('abc^')).toEqual(['abc', '^']);
+    });
+
+    it('combined ~N^N produces VALUE + TILDE + BOOST', () => {
+      expect(lexTypes('abc~1^2')).toEqual([TokenType.VALUE, TokenType.TILDE, TokenType.BOOST]);
+      expect(lexValues('abc~1^2')).toEqual(['abc', '~1', '^2']);
+    });
+  });
+
   describe('range values', () => {
     it('tokenizes [date TO date] as single value', () => {
       const types = lexTypes('created:[now-7d TO now]');

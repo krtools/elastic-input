@@ -88,6 +88,7 @@ export class Lexer {
       start,
       end: this.pos,
     });
+    this.tryReadModifier();
     this.state = LexerState.EXPECT_TERM;
   }
 
@@ -141,6 +142,21 @@ export class Lexer {
       }
     }
 
+    // && and || as boolean operator aliases
+    if (ch === '&' && this.peekAt(1) === '&') {
+      this.tokens.push({ type: TokenType.AND, value: '&&', start: this.pos, end: this.pos + 2 });
+      this.advance();
+      this.advance();
+      return;
+    }
+
+    if (ch === '|' && this.peekAt(1) === '|') {
+      this.tokens.push({ type: TokenType.OR, value: '||', start: this.pos, end: this.pos + 2 });
+      this.advance();
+      this.advance();
+      return;
+    }
+
     // Comparison operators
     if ((ch === '>' || ch === '<') && this.state === LexerState.EXPECT_TERM) {
       const start = this.pos;
@@ -161,7 +177,10 @@ export class Lexer {
     // Read a word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
-           this.peek() !== '(' && this.peek() !== ')' && this.peek() !== '"' && this.peek() !== "'") {
+           this.peek() !== '(' && this.peek() !== ')' && this.peek() !== '"' && this.peek() !== "'" &&
+           this.peek() !== '~' && this.peek() !== '^' &&
+           !(this.peek() === '&' && this.peekAt(1) === '&') &&
+           !(this.peek() === '|' && this.peekAt(1) === '|')) {
       if (this.peek() === ':') {
         // Everything before colon is field name
         if (this.pos > start) {
@@ -195,6 +214,7 @@ export class Lexer {
       } else {
         this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
       }
+      this.tryReadModifier();
     }
   }
 
@@ -244,7 +264,8 @@ export class Lexer {
     // Read value word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
-           this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' && this.peek() !== "'") {
+           this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' && this.peek() !== "'" &&
+           this.peek() !== '~' && this.peek() !== '^') {
       this.advance();
     }
 
@@ -255,6 +276,7 @@ export class Lexer {
       } else {
         this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
       }
+      this.tryReadModifier();
     }
 
     this.state = LexerState.EXPECT_TERM;
@@ -283,6 +305,25 @@ export class Lexer {
     });
 
     this.state = LexerState.EXPECT_TERM;
+  }
+
+  private tryReadModifier(): void {
+    // After emitting a value/quoted/wildcard token, check for ~ or ^
+    while (this.pos < this.input.length && (this.peek() === '~' || this.peek() === '^')) {
+      const start = this.pos;
+      const ch = this.advance(); // consume ~ or ^
+      const type = ch === '~' ? TokenType.TILDE : TokenType.BOOST;
+      // consume optional digits and decimal point (for boost like ^1.5)
+      while (this.pos < this.input.length && /[0-9.]/.test(this.peek())) {
+        this.advance();
+      }
+      this.tokens.push({
+        type,
+        value: this.input.slice(start, this.pos),
+        start,
+        end: this.pos,
+      });
+    }
   }
 
   private readSavedSearch(): void {

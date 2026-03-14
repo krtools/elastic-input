@@ -26,6 +26,32 @@ export class Validator {
 
   private walkNode(node: ASTNode, errors: ValidationError[]): void {
     switch (node.type) {
+      case 'BareTerm': {
+        // Validate modifiers on bare terms
+        if (node.fuzzy !== undefined && node.fuzzy > 2) {
+          errors.push({
+            message: `Fuzzy edit distance must be 0, 1, or 2 (got ${node.fuzzy})`,
+            start: node.start,
+            end: node.end,
+          });
+        }
+        if (node.proximity !== undefined && node.proximity < 0) {
+          errors.push({
+            message: `Proximity value must be non-negative (got ${node.proximity})`,
+            start: node.start,
+            end: node.end,
+          });
+        }
+        if (node.boost !== undefined && node.boost <= 0) {
+          errors.push({
+            message: `Boost value must be positive (got ${node.boost})`,
+            start: node.start,
+            end: node.end,
+          });
+        }
+        break;
+      }
+
       case 'FieldValue': {
         const field = this.fields.get(node.field);
         if (!field) {
@@ -39,6 +65,24 @@ export class Validator {
         }
 
         if (node.value === '') return;
+
+        // Validate modifiers
+        if (node.fuzzy !== undefined && node.fuzzy > 2) {
+          errors.push({
+            message: `Fuzzy edit distance must be 0, 1, or 2 (got ${node.fuzzy})`,
+            start: node.start,
+            end: node.end,
+            field: node.field,
+          });
+        }
+        if (node.boost !== undefined && node.boost <= 0) {
+          errors.push({
+            message: `Boost value must be positive (got ${node.boost})`,
+            start: node.start,
+            end: node.end,
+            field: node.field,
+          });
+        }
 
         // Type-specific validation
         let error: string | null = null;

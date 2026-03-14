@@ -17,6 +17,8 @@ const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
   [TokenType.HISTORY_REF]: 'historyRef',
   [TokenType.PREFIX_OP]: 'operator',
   [TokenType.WILDCARD]: 'wildcard',
+  [TokenType.TILDE]: 'operator',
+  [TokenType.BOOST]: 'operator',
   [TokenType.WHITESPACE]: 'text',
   [TokenType.UNKNOWN]: 'error',
 };

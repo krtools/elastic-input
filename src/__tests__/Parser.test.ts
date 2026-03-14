@@ -381,4 +381,155 @@ describe('Parser', () => {
       expect(ast.end).toBe(14);
     });
   });
+
+  describe('&& and || aliases', () => {
+    it('parses a && b same as a AND b', () => {
+      const ast = parse('a && b')!;
+      expect(ast).toMatchObject({
+        type: 'BooleanExpr',
+        operator: 'AND',
+      });
+    });
+
+    it('parses a || b same as a OR b', () => {
+      const ast = parse('a || b')!;
+      expect(ast).toMatchObject({
+        type: 'BooleanExpr',
+        operator: 'OR',
+      });
+    });
+
+    it('respects precedence: a && b || c', () => {
+      const ast = parse('a && b || c')!;
+      expect(ast).toMatchObject({
+        type: 'BooleanExpr',
+        operator: 'OR',
+        left: {
+          type: 'BooleanExpr',
+          operator: 'AND',
+        },
+      });
+    });
+
+    it('works with field:value pairs', () => {
+      const ast = parse('status:active && level:ERROR')!;
+      expect(ast).toMatchObject({
+        type: 'BooleanExpr',
+        operator: 'AND',
+        left: { type: 'FieldValue', field: 'status' },
+        right: { type: 'FieldValue', field: 'level' },
+      });
+    });
+  });
+
+  describe('fuzzy operator (~N)', () => {
+    it('parses bare term with fuzzy', () => {
+      const ast = parse('abc~1')!;
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: 'abc',
+        fuzzy: 1,
+      });
+    });
+
+    it('parses fuzzy 0', () => {
+      const ast = parse('abc~0')!;
+      expect(ast).toMatchObject({ type: 'BareTerm', fuzzy: 0 });
+    });
+
+    it('parses fuzzy without number as 0', () => {
+      const ast = parse('abc~')!;
+      expect(ast).toMatchObject({ type: 'BareTerm', fuzzy: 0 });
+    });
+
+    it('tracks end offset including tilde', () => {
+      const ast = parse('abc~2')!;
+      expect(ast.end).toBe(5);
+    });
+
+    it('parses field:value~N', () => {
+      const ast = parse('name:john~1')!;
+      expect(ast).toMatchObject({
+        type: 'FieldValue',
+        field: 'name',
+        value: 'john',
+        fuzzy: 1,
+      });
+    });
+  });
+
+  describe('proximity operator (~N on quoted)', () => {
+    it('parses quoted phrase with proximity', () => {
+      const ast = parse('"hello world"~5')!;
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: 'hello world',
+        quoted: true,
+        proximity: 5,
+      });
+    });
+
+    it('proximity on quoted field value', () => {
+      const ast = parse('title:"quick fox"~3')!;
+      expect(ast).toMatchObject({
+        type: 'FieldValue',
+        field: 'title',
+        quoted: true,
+        proximity: 3,
+      });
+    });
+  });
+
+  describe('boost operator (^N)', () => {
+    it('parses bare term with boost', () => {
+      const ast = parse('abc^2')!;
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: 'abc',
+        boost: 2,
+      });
+    });
+
+    it('parses decimal boost', () => {
+      const ast = parse('abc^1.5')!;
+      expect(ast).toMatchObject({ type: 'BareTerm', boost: 1.5 });
+    });
+
+    it('parses field:value^N', () => {
+      const ast = parse('status:active^3')!;
+      expect(ast).toMatchObject({
+        type: 'FieldValue',
+        field: 'status',
+        value: 'active',
+        boost: 3,
+      });
+    });
+
+    it('tracks end offset including caret', () => {
+      const ast = parse('abc^2')!;
+      expect(ast.end).toBe(5);
+    });
+  });
+
+  describe('combined modifiers', () => {
+    it('parses fuzzy + boost: abc~1^2', () => {
+      const ast = parse('abc~1^2')!;
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: 'abc',
+        fuzzy: 1,
+        boost: 2,
+      });
+    });
+
+    it('parses proximity + boost: "phrase"~5^2', () => {
+      const ast = parse('"hello world"~5^2')!;
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        quoted: true,
+        proximity: 5,
+        boost: 2,
+      });
+    });
+  });
 });

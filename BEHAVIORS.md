@@ -67,6 +67,42 @@ Whitespace is preserved as `WHITESPACE` tokens for lossless offset mapping. Lead
 
 - **Tests:** `Lexer.test.ts` → "preserves whitespace tokens", "handles leading whitespace", "handles trailing whitespace"
 
+### 1.9 Boolean Operator Aliases (`&&`, `||`)
+
+`&&` is an alias for `AND` and `||` is an alias for `OR`. They produce `TokenType.AND` and `TokenType.OR` respectively, with the original text preserved as the token value (`"&&"` or `"||"`).
+
+- Works with and without spaces: `a&&b`, `a && b`
+- Single `&` or `|` is not treated as an operator (consumed as part of a word)
+- **Tests:** `Lexer.test.ts` → "tokenizes && as AND", "tokenizes || as OR", "tokenizes && without spaces", "tokenizes || without spaces", "mixes && and || in same query", "single & is not treated as operator"
+
+### 1.10 Tilde Modifier (`~N`)
+
+After a value or quoted string, `~` followed by optional digits is tokenized as a `TILDE` token. Used for fuzzy matching (on bare terms) and proximity/slop (on quoted phrases).
+
+- `abc~1` → `VALUE("abc")`, `TILDE("~1")`
+- `"hello world"~5` → `QUOTED_VALUE`, `TILDE("~5")`
+- `field:value~2` → `FIELD_NAME`, `COLON`, `VALUE`, `TILDE("~2")`
+- `abc~` → `VALUE("abc")`, `TILDE("~")` (no number)
+- **Tests:** `Lexer.test.ts` → "tokenizes term~N as VALUE + TILDE", "tokenizes quoted phrase~N as QUOTED_VALUE + TILDE", "tokenizes ~ without number", "tokenizes field:value~N", "preserves offsets for tilde"
+
+### 1.11 Boost Modifier (`^N`)
+
+After a value or quoted string, `^` followed by optional digits (including decimals) is tokenized as a `BOOST` token.
+
+- `abc^2` → `VALUE("abc")`, `BOOST("^2")`
+- `abc^1.5` → `VALUE("abc")`, `BOOST("^1.5")`
+- Combined: `abc~1^2` → `VALUE`, `TILDE("~1")`, `BOOST("^2")`
+- **Tests:** `Lexer.test.ts` → "tokenizes term^N as VALUE + BOOST", "tokenizes field:value^N", "tokenizes ^ with decimal", "tokenizes ^ without number", "combined ~N^N produces VALUE + TILDE + BOOST"
+
+### 1.12 Range Values (`[`, `{`)
+
+After a colon, `[` or `{` starts a range value that consumes everything until the matching `]` or `}` as a single token. This supports Lucene-style range syntax.
+
+- `created:[now-7d TO now]` → `FIELD_NAME`, `COLON`, `VALUE("[now-7d TO now]")`
+- `created:{now-30d TO now}` → `FIELD_NAME`, `COLON`, `VALUE("{now-30d TO now}")`
+- Mixed brackets and unclosed ranges are handled gracefully
+- **Tests:** `Lexer.test.ts` → "tokenizes [date TO date] as single value", "tokenizes {date TO date} as single value", "tokenizes range with absolute dates", "preserves offsets for range value", "range in compound query", "handles unclosed range bracket"
+
 ---
 
 ## 2. Parser (AST)
@@ -126,6 +162,31 @@ Parentheses override precedence. Empty and unclosed parens are handled gracefull
 All AST nodes track `start` and `end` character offsets from the original input.
 
 - **Tests:** `Parser.test.ts` → "tracks start and end offsets for field:value", "tracks offsets in boolean expression", "tracks offsets with prefix operator"
+
+### 2.8 `&&` and `||` Aliases
+
+`&&` and `||` parse identically to `AND` and `OR`, including precedence rules.
+
+- `a && b` → `BooleanExpr(AND, a, b)`
+- `a || b` → `BooleanExpr(OR, a, b)`
+- `a && b || c` → `OR(AND(a, b), c)` (same precedence as AND/OR)
+- **Tests:** `Parser.test.ts` → "parses a && b same as a AND b", "parses a || b same as a OR b", "respects precedence: a && b || c", "works with field:value pairs"
+
+### 2.9 Fuzzy, Proximity, and Boost Modifiers
+
+`BareTerm` and `FieldValue` nodes may have optional `fuzzy`, `proximity`, and `boost` fields:
+
+| Modifier | Applies To | AST Field | Example |
+|----------|-----------|-----------|---------|
+| `~N` | Unquoted terms | `fuzzy` | `abc~1` → `fuzzy: 1` |
+| `~N` | Quoted phrases | `proximity` | `"a b"~5` → `proximity: 5` |
+| `^N` | Any term | `boost` | `abc^2` → `boost: 2` |
+
+Modifiers can be combined: `abc~1^2` sets both `fuzzy: 1` and `boost: 2`.
+
+The `end` offset of the node is extended to include the modifier tokens.
+
+- **Tests:** `Parser.test.ts` → "parses bare term with fuzzy", "parses fuzzy 0", "parses fuzzy without number as 0", "tracks end offset including tilde", "parses field:value~N", "parses quoted phrase with proximity", "proximity on quoted field value", "parses bare term with boost", "parses decimal boost", "parses field:value^N", "tracks end offset including caret", "parses fuzzy + boost: abc~1^2", "parses proximity + boost"
 
 ---
 
@@ -602,7 +663,25 @@ Validation recurses through boolean expressions, groups, and NOT nodes. Multiple
 
 - **Tests:** `Validator.test.ts` → "validates nested boolean expressions", "validates inside groups", "validates inside NOT", "collects multiple errors"
 
-### 9.11 Non-Validated Cases
+### 9.11 Modifier Validation
+
+Fuzzy, proximity, and boost modifiers are validated for valid ranges:
+
+| Modifier | Valid Range | Error |
+|----------|-----------|-------|
+| `~N` (fuzzy) | 0, 1, or 2 | "Fuzzy edit distance must be 0, 1, or 2" |
+| `~N` (proximity) | ≥ 0 | "Proximity value must be non-negative" |
+| `^N` (boost) | > 0 | "Boost value must be positive" |
+
+- **Tests:** `Validator.test.ts` → "accepts valid fuzzy value (0-2)", "flags fuzzy value > 2", "accepts valid boost value", "flags boost value <= 0", "flags fuzzy > 2 on bare term", "accepts valid proximity on bare quoted phrase", "accepts combined fuzzy + boost"
+
+### 9.12 Date Range Validation
+
+Date ranges `[start TO end]`, `{start TO end}`, and mixed bracket variants are validated by checking each bound independently. Rounding syntax (`now/d`, `now-1d/d`) is accepted.
+
+- **Tests:** `Validator.test.ts` → "accepts [date TO date] range", "accepts {date TO date} exclusive range", "accepts mixed bracket range", "accepts range with rounding syntax", "flags invalid range start", "flags invalid range end"
+
+### 9.13 Non-Validated Cases
 
 - Bare terms (freeform search words) are not validated
 - Empty values pass validation

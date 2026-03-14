@@ -199,3 +199,43 @@ describe('Date range validation', () => {
     expect(errors[0].message).toContain('Range end');
   });
 });
+
+describe('Modifier validation', () => {
+  it('accepts valid fuzzy value (0-2)', () => {
+    expect(validate('name:john~1')).toHaveLength(0);
+    expect(validate('name:john~0')).toHaveLength(0);
+    expect(validate('name:john~2')).toHaveLength(0);
+  });
+
+  it('flags fuzzy value > 2', () => {
+    const errors = validate('name:john~5');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Fuzzy edit distance');
+    expect(errors[0].message).toContain('0, 1, or 2');
+  });
+
+  it('accepts valid boost value', () => {
+    expect(validate('name:john^2')).toHaveLength(0);
+    expect(validate('name:john^1.5')).toHaveLength(0);
+  });
+
+  it('flags boost value <= 0', () => {
+    const errors = validate('name:john^0');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Boost value must be positive');
+  });
+
+  it('flags fuzzy > 2 on bare term', () => {
+    const errors = validate('hello~3');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Fuzzy edit distance');
+  });
+
+  it('accepts valid proximity on bare quoted phrase', () => {
+    expect(validate('"hello world"~5')).toHaveLength(0);
+  });
+
+  it('accepts combined fuzzy + boost', () => {
+    expect(validate('name:john~1^2')).toHaveLength(0);
+  });
+});

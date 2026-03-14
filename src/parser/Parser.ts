@@ -121,6 +121,34 @@ export class Parser {
     return this.parsePrimary();
   }
 
+  private applyModifiers(node: ASTNode): ASTNode {
+    if (node.type !== 'BareTerm' && node.type !== 'FieldValue') return node;
+
+    // Check for tilde (fuzzy/proximity)
+    if (this.peek()?.type === TokenType.TILDE) {
+      const tilde = this.advance();
+      const numStr = tilde.value.slice(1);
+      const n = parseInt(numStr, 10);
+      if (node.quoted) {
+        node.proximity = isNaN(n) ? 0 : n;
+      } else {
+        node.fuzzy = isNaN(n) ? 0 : n;
+      }
+      node.end = tilde.end;
+    }
+
+    // Check for boost (caret)
+    if (this.peek()?.type === TokenType.BOOST) {
+      const caret = this.advance();
+      const numStr = caret.value.slice(1);
+      const n = parseFloat(numStr);
+      node.boost = isNaN(n) ? 1 : n;
+      node.end = caret.end;
+    }
+
+    return node;
+  }
+
   private parsePrimary(): ASTNode {
     const token = this.peek();
 
@@ -219,7 +247,7 @@ export class Parser {
           const val = this.advance();
           const isQuoted = val.type === TokenType.QUOTED_VALUE;
           const rawValue = isQuoted ? val.value.slice(1, -1) : val.value;
-          return {
+          return this.applyModifiers({
             type: 'FieldValue',
             field: field.value,
             operator,
@@ -227,7 +255,7 @@ export class Parser {
             quoted: isQuoted,
             start: field.start,
             end: val.end,
-          };
+          });
         }
         // Field with colon but no value yet
         return {
@@ -276,37 +304,37 @@ export class Parser {
     // Quoted value as bare term
     if (token.type === TokenType.QUOTED_VALUE) {
       const t = this.advance();
-      return {
+      return this.applyModifiers({
         type: 'BareTerm',
         value: t.value.slice(1, -1),
         quoted: true,
         start: t.start,
         end: t.end,
-      };
+      });
     }
 
     // Wildcard as bare term
     if (token.type === TokenType.WILDCARD) {
       const t = this.advance();
-      return {
+      return this.applyModifiers({
         type: 'BareTerm',
         value: t.value,
         quoted: false,
         start: t.start,
         end: t.end,
-      };
+      });
     }
 
     // Plain value
     if (token.type === TokenType.VALUE) {
       const t = this.advance();
-      return {
+      return this.applyModifiers({
         type: 'BareTerm',
         value: t.value,
         quoted: false,
         start: t.start,
         end: t.end,
-      };
+      });
     }
 
     // Unknown/unexpected token
@@ -481,11 +509,18 @@ export class Parser {
       return { type: 'FIELD_NAME', partial: '', token: undefined };
     }
 
-    // After a complete value — suggest operators
+    // Cursor on a modifier token — treat as operator context (no suggestions needed)
+    if (currentToken?.type === TokenType.TILDE || currentToken?.type === TokenType.BOOST) {
+      return { type: 'OPERATOR', partial: '' };
+    }
+
+    // After a complete value or modifier — suggest operators
     if (prevNonWsToken && (
       prevNonWsToken.type === TokenType.VALUE ||
       prevNonWsToken.type === TokenType.QUOTED_VALUE ||
-      prevNonWsToken.type === TokenType.RPAREN
+      prevNonWsToken.type === TokenType.RPAREN ||
+      prevNonWsToken.type === TokenType.TILDE ||
+      prevNonWsToken.type === TokenType.BOOST
     )) {
       return { type: 'OPERATOR', partial: '' };
     }

@@ -99,7 +99,7 @@ export function ElasticInput(props: ElasticInputProps) {
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp,
-    inputRef,
+    inputRef, renderFieldHint,
   } = props;
 
   const multiline = multilineProp !== false; // default true
@@ -214,6 +214,19 @@ export function ElasticInput(props: ElasticInputProps) {
     if (onValidationChange) onValidationChange(newErrors);
   }, [colors, onChange, onValidationChange]);
 
+  // Apply renderFieldHint to hint suggestions when in a field value context
+  const applyFieldHint = React.useCallback((suggestions: Suggestion[], context: { type: string; fieldName?: string; partial: string }) => {
+    if (!renderFieldHint || context.type !== 'FIELD_VALUE' || !context.fieldName) return suggestions;
+    const resolved = engineRef.current.resolveField(context.fieldName);
+    if (!resolved) return suggestions;
+    return suggestions.map(s => {
+      if (s.type !== 'hint') return s;
+      const custom = renderFieldHint(resolved, context.partial);
+      if (custom == null) return s;
+      return { ...s, customContent: custom };
+    });
+  }, [renderFieldHint]);
+
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
     const contextType = result.context.type;
@@ -255,7 +268,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
 
-      const newSuggestions = result.suggestions;
+      const newSuggestions = applyFieldHint(result.suggestions, result.context);
       if (newSuggestions.length > 0) {
         setSuggestions(newSuggestions);
         setShowDropdown(false);
@@ -275,7 +288,7 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     } else {
       // First entry into an async field — show sync suggestions initially, then async takes over
-      const newSuggestions = result.suggestions;
+      const newSuggestions = applyFieldHint(result.suggestions, result.context);
       if (newSuggestions.length > 0) {
         setSuggestions(newSuggestions);
         setShowDropdown(false);
@@ -361,7 +374,10 @@ export function ElasticInput(props: ElasticInputProps) {
           } else {
             // No async results — fall back to the sync hint (e.g. "Search companies...")
             const syncResult = engineRef.current.getSuggestions(stateRef.current.tokens, stateRef.current.cursorOffset);
-            const hintSuggestions = syncResult.suggestions.filter(s => s.type === 'hint');
+            const hintSuggestions = applyFieldHint(
+              syncResult.suggestions.filter(s => s.type === 'hint'),
+              syncResult.context,
+            );
             if (hintSuggestions.length > 0) {
               setSuggestions(hintSuggestions);
               setSelectedSuggestionIndex(0);
@@ -386,7 +402,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, suggestDebounceMs]);
+  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint]);
 
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);

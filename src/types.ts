@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { ASTNode } from './parser/ast';
 import { ValidationError } from './validation/Validator';
 
@@ -248,4 +249,11 @@ export interface ElasticInputProps {
   inputRef?: (api: ElasticInputAPI) => void;
   /** Enable multiline input with Shift+Enter for line breaks. @default true */
   multiline?: boolean;
+  /**
+   * Custom renderer for field value hints in the dropdown. Called when the cursor is in a
+   * field value position. Return a React element for rich content, or `null`/`undefined` to
+   * use the default hint (e.g. "Enter a number"). Receives the resolved `FieldConfig` and
+   * the current partial value text.
+   */
+  renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;
 }

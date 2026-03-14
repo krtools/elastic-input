@@ -401,6 +401,8 @@ The hint text is configurable per field via `FieldConfig.placeholder`:
 
 When async results arrive (via `fetchSuggestions`), they replace the hint. When async results are empty, the hint is restored as a fallback.
 
+For fully custom hint rendering (e.g. multiline rich content with instructions), the `renderFieldHint` prop accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
+
 - **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows hint for string field with no suggestions", "shows hint for IP field", "keeps hint visible while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
 ### 4.3 Operator Suggestions
@@ -993,6 +995,7 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 | `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
+| `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 
 #### Async Field Loading
 

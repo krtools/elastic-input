@@ -140,8 +140,11 @@ export function AutocompleteDropdown({
         // Non-interactive hints (freeform type hints like "Enter a number")
         if (suggestion.type === 'hint') {
           return (
-            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: 0.6 }}>
-              <span style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
+            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: suggestion.customContent ? 1 : 0.6 }}>
+              {suggestion.customContent
+                ? suggestion.customContent
+                : <span style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
+              }
             </div>
           );
         }

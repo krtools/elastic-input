@@ -874,6 +874,51 @@ describe('Parser', () => {
         upper: 'def',
       });
     });
+
+    it('parses +[range] as the range itself (adjusted start)', () => {
+      const ast = parse('+[abc TO def]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: 'abc',
+        upper: 'def',
+      });
+      expect(ast.start).toBe(0); // includes the +
+    });
+
+    it('parses -[range] as Not > Range', () => {
+      const ast = parse('-[abc TO def]')!;
+      expect(ast).toMatchObject({
+        type: 'Not',
+        expression: {
+          type: 'Range',
+          lower: 'abc',
+          upper: 'def',
+        },
+      });
+    });
+
+    it('parses name:(+[range]) as FieldGroup with range', () => {
+      const ast = parse('name:(+[abc TO def])')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'name',
+        expression: {
+          type: 'Range',
+          lower: 'abc',
+          upper: 'def',
+        },
+      });
+    });
+
+    it('parses unclosed range with error', () => {
+      const { ast, errors } = parseWithErrors('[abc TO def');
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: 'abc',
+        upper: 'def',
+      });
+      expect(errors.some(e => e.message.includes('Unclosed range'))).toBe(true);
+    });
   });
 
   describe('field-scoped groups', () => {

@@ -544,6 +544,31 @@ describe('Lexer', () => {
       expect(lexTypes('[* TO 100]')).toEqual([TokenType.RANGE]);
       expect(lexValues('[* TO 100]')).toEqual(['[* TO 100]']);
     });
+
+    it('tokenizes +[range] as PREFIX_OP + RANGE', () => {
+      expect(lexTypes('+[abc TO def]')).toEqual([TokenType.PREFIX_OP, TokenType.RANGE]);
+    });
+
+    it('tokenizes +{range} as PREFIX_OP + RANGE', () => {
+      expect(lexTypes('+{abc TO def}')).toEqual([TokenType.PREFIX_OP, TokenType.RANGE]);
+    });
+
+    it('tokenizes -{range} as PREFIX_OP + RANGE', () => {
+      expect(lexTypes('-{abc TO def}')).toEqual([TokenType.PREFIX_OP, TokenType.RANGE]);
+    });
+
+    it('range followed by boost is RANGE + BOOST', () => {
+      expect(lexTypes('[abc TO def]^2')).toEqual([TokenType.RANGE, TokenType.BOOST]);
+    });
+
+    it('range followed by tilde is RANGE + TILDE', () => {
+      expect(lexTypes('[abc TO def]~')).toEqual([TokenType.RANGE, TokenType.TILDE]);
+    });
+
+    it('range containing quoted value with spaces', () => {
+      const values = lexValues('name:["abc def" TO "xyz"]');
+      expect(values).toEqual(['name', ':', '["abc def" TO "xyz"]']);
+    });
   });
 
   describe('multiline / newlines', () => {

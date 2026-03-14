@@ -235,6 +235,12 @@ export class Lexer {
       return; // stay in EXPECT_VALUE
     }
 
+    // Range syntax: [start TO end] or {start TO end}
+    if (ch === '[' || ch === '{') {
+      this.readRangeValue();
+      return;
+    }
+
     // Read value word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
@@ -250,6 +256,31 @@ export class Lexer {
         this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
       }
     }
+
+    this.state = LexerState.EXPECT_TERM;
+  }
+
+  private readRangeValue(): void {
+    const start = this.pos;
+    const openBracket = this.advance(); // consume [ or {
+    const closeBracket = openBracket === '[' ? ']' : '}';
+
+    // Consume everything until matching close bracket or end of input
+    while (this.pos < this.input.length && this.peek() !== closeBracket) {
+      this.advance();
+    }
+
+    // Consume close bracket if present
+    if (this.pos < this.input.length && this.peek() === closeBracket) {
+      this.advance();
+    }
+
+    this.tokens.push({
+      type: TokenType.VALUE,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
 
     this.state = LexerState.EXPECT_TERM;
   }

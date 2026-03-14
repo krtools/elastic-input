@@ -157,3 +157,45 @@ describe('Validator', () => {
     expect(errors).toHaveLength(2);
   });
 });
+
+describe('Date range validation', () => {
+  it('accepts [date TO date] range', () => {
+    expect(validate('created:[now-7d TO now]')).toHaveLength(0);
+  });
+
+  it('accepts [date TO date] with absolute dates', () => {
+    expect(validate('created:[2024-01-01 TO 2024-12-31]')).toHaveLength(0);
+  });
+
+  it('accepts {date TO date} exclusive range', () => {
+    expect(validate('created:{now-30d TO now}')).toHaveLength(0);
+  });
+
+  it('accepts mixed bracket range [date TO date}', () => {
+    expect(validate('created:[now-7d TO now}')).toHaveLength(0);
+  });
+
+  it('accepts mixed bracket range {date TO date]', () => {
+    expect(validate('created:{now-7d TO now]')).toHaveLength(0);
+  });
+
+  it('accepts range with rounding syntax now/d', () => {
+    expect(validate('created:[now/d TO now]')).toHaveLength(0);
+  });
+
+  it('accepts range with relative+rounding syntax now-1d/d', () => {
+    expect(validate('created:[now-1d/d TO now/d]')).toHaveLength(0);
+  });
+
+  it('flags invalid range start', () => {
+    const errors = validate('created:[invalid TO now]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Range start');
+  });
+
+  it('flags invalid range end', () => {
+    const errors = validate('created:[now TO invalid]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Range end');
+  });
+});

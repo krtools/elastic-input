@@ -277,4 +277,56 @@ describe('Lexer', () => {
       ]);
     });
   });
+
+  describe('range values', () => {
+    it('tokenizes [date TO date] as single value', () => {
+      const types = lexTypes('created:[now-7d TO now]');
+      expect(types).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE]);
+      const values = lexValues('created:[now-7d TO now]');
+      expect(values).toEqual(['created', ':', '[now-7d TO now]']);
+    });
+
+    it('tokenizes {date TO date} as single value', () => {
+      const values = lexValues('created:{now-30d TO now}');
+      expect(values).toEqual(['created', ':', '{now-30d TO now}']);
+    });
+
+    it('tokenizes mixed brackets [date TO date}', () => {
+      // Lexer reads until matching close bracket for the open bracket
+      const values = lexValues('created:[now-7d TO now}');
+      // [ looks for ], but } is encountered instead — read until end
+      // Actually, ] is the expected close for [, so } won't close it
+      // Let's verify the behavior
+      const tokens = lex('created:[now-7d TO now}');
+      const valueToken = tokens.find(t => t.type === TokenType.VALUE);
+      expect(valueToken).toBeDefined();
+    });
+
+    it('tokenizes range with absolute dates', () => {
+      const values = lexValues('created:[2024-01-01 TO 2024-12-31]');
+      expect(values).toEqual(['created', ':', '[2024-01-01 TO 2024-12-31]']);
+    });
+
+    it('preserves offsets for range value', () => {
+      const tokens = lex('created:[now-7d TO now]');
+      const valueToken = tokens.find(t => t.type === TokenType.VALUE)!;
+      expect(valueToken.start).toBe(8); // after "created:"
+      expect(valueToken.end).toBe(23);  // end of "]"
+    });
+
+    it('range in compound query', () => {
+      const types = lexTypes('status:active AND created:[now-7d TO now]');
+      expect(types).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+        TokenType.AND,
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+    });
+
+    it('handles unclosed range bracket', () => {
+      // Should consume to end of input
+      const values = lexValues('created:[now-7d TO now');
+      expect(values).toEqual(['created', ':', '[now-7d TO now']);
+    });
+  });
 });

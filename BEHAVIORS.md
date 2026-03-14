@@ -1023,10 +1023,22 @@ Each `FieldConfig` can declare `aliases: string[]`. An alias is treated identica
 
 Each `FieldConfig` can set `asyncSearch: true` to indicate that the field's values are provided by the `fetchSuggestions` callback. This controls the initial dropdown behavior when entering a value for that field:
 
-- **`asyncSearch: true`**: Shows "Searching..." spinner immediately on first entry. The `fetchSuggestions` callback is invoked. Subsequent keystrokes preserve previous results until new ones arrive.
+- **`asyncSearch: true`**: Shows a loading spinner immediately on first entry. The `fetchSuggestions` callback is invoked. Subsequent keystrokes preserve previous results until new ones arrive.
 - **`asyncSearch: false` (default)**: Shows the sync hint (e.g. "Enter a number", "Type to search..."). The `fetchSuggestions` callback is **not** invoked for this field.
 
-This prevents fields without an async data source (e.g. `email`, `price`) from flashing "Searching..." before falling back to a static hint.
+This prevents fields without an async data source (e.g. `email`, `price`) from flashing a loading spinner before falling back to a static hint.
+
+#### `asyncSearchLabel`
+
+Customizes the loading spinner label for async fields. Accepts a static string or a callback receiving the current partial text. Defaults to `"Searching..."`.
+
+```ts
+// Static string
+{ name: 'company', asyncSearch: true, asyncSearchLabel: 'Searching companies...' }
+
+// Dynamic callback
+{ name: 'company', asyncSearch: true, asyncSearchLabel: (partial) => `Searching for "${partial}"...` }
+```
 
 ### 10.2 Style Configuration
 

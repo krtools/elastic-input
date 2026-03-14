@@ -8,7 +8,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'status', label: 'Status', type: 'enum',
     suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
     description: 'Contact status', placeholder: 'Search statuses...' },
-  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true },
+  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true, asyncSearchLabel: 'Searching companies...' },
   { name: 'deal_value', label: 'Deal Value', type: 'number', description: 'Deal value in dollars' },
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
   { name: 'last_contact', label: 'Last Contact', type: 'date', description: 'Last interaction date' },

@@ -297,9 +297,13 @@ export function ElasticInput(props: ElasticInputProps) {
       const token = result.context.token;
       const start = token ? token.start : offset;
       const end = token ? token.end : offset;
+      const asyncLabel = resolvedField?.asyncSearchLabel;
+      const loadingLabel = typeof asyncLabel === 'function'
+        ? asyncLabel(result.context.partial)
+        : asyncLabel || 'Searching...';
       const loadingSuggestion: Suggestion = {
         text: '',
-        label: 'Searching...',
+        label: loadingLabel,
         type: 'loading',
         replaceStart: start,
         replaceEnd: end,

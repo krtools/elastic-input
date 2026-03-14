@@ -27,6 +27,8 @@ export interface FieldConfig {
   placeholder?: string | false;
   /** When `true`, the dropdown shows a "Searching..." spinner immediately when entering this field's value (instead of the sync hint). Use for fields whose values are provided by `fetchSuggestions`. @default false */
   asyncSearch?: boolean;
+  /** Label shown next to the loading spinner for async fields. Accepts a static string or a callback receiving the current partial text. @default "Searching..." */
+  asyncSearchLabel?: string | ((partial: string) => string);
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */

@@ -441,16 +441,35 @@ Within the same priority, items retain their relevance-based ordering.
 
 When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
 
-#### 4.8.1 Loading Spinner
+#### 4.8.1 Async Lifecycle & Dropdown Content
+
+The dropdown content follows strict rules to prevent stale results from flashing:
+
+| Phase | Dropdown Shows | Notes |
+|-------|---------------|-------|
+| First keystroke in async field | Sync suggestions (if any) | Initial entry; async cycle starts |
+| Subsequent keystrokes (debounce pending) | Previous results preserved | No flash to empty/sync |
+| Debounce fires, fetch starts | Previous results preserved | Last-good results stay visible |
+| 500ms elapses without response | "Searching..." spinner | Replaces stale results with loading indicator |
+| Fetch resolves (current) | New results | Fresh data shown |
+| Fetch resolves (stale) | Ignored | Monotonic fetch ID prevents old results from overwriting newer ones |
+| Fetch errors | Dropdown closes | No stale results left behind |
+| Context changes (cursor moves away, different field) | Cleared | In-flight fetch cancelled, async state reset |
+
+#### 4.8.2 Staleness Guard
+
+Each async fetch is tagged with a monotonic request ID. When results arrive, they are discarded if the ID does not match the latest request. This prevents slow responses from overwriting results from faster, newer requests.
+
+#### 4.8.3 Loading Spinner
 
 If the async fetch takes longer than **500ms**, a non-selectable "Searching..." loading item appears in the dropdown with an animated CSS spinner. The loading indicator:
 
 - Only appears after the 500ms threshold (not immediately)
+- Only appears if the request is still the latest (checked via fetch ID)
 - Is cleared when the fetch completes, errors, or the dropdown closes
-- Does not block other suggestions from appearing
 - Uses the `placeholder` color for the spinner border
 
-#### 4.8.2 Debouncing
+#### 4.8.4 Debouncing
 
 Async fetches are debounced by `suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
 

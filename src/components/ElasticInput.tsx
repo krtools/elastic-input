@@ -118,6 +118,8 @@ export function ElasticInput(props: ElasticInputProps) {
   const typingGroupTimerRef = React.useRef<any>(null);
   const isUndoRedoRef = React.useRef(false);
   const loadingTimerRef = React.useRef<any>(null);
+  const fetchIdRef = React.useRef(0);       // monotonic counter to discard stale async results
+  const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -194,7 +196,19 @@ export function ElasticInput(props: ElasticInputProps) {
     const result = engineRef.current.getSuggestions(toks, offset);
     const contextType = result.context.type;
 
+    // Determine if this context will trigger an async fetch
+    const willFetchAsync = !!(
+      fetchSuggestionsProp &&
+      result.context.type === 'FIELD_VALUE' &&
+      result.context.fieldName
+    );
+
     if (result.showDatePicker) {
+      // Context changed to date picker — cancel any async cycle
+      asyncActiveRef.current = false;
+      fetchIdRef.current++;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       setSuggestions([]);
       setShowDropdown(false);
       setAutocompleteContext(contextType);
@@ -206,34 +220,70 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    const newSuggestions = result.suggestions;
+    // If we're in an async field and a fetch is already active/pending,
+    // don't flash sync suggestions — keep the current dropdown content.
+    if (willFetchAsync && asyncActiveRef.current) {
+      // Just update context and kick off a new debounced fetch below;
+      // don't touch suggestions/dropdown state (preserves last-good results or spinner).
+      setAutocompleteContext(contextType);
+    } else if (!willFetchAsync) {
+      // Context changed away from async field — cancel any in-flight async work
+      asyncActiveRef.current = false;
+      fetchIdRef.current++;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
 
-    if (newSuggestions.length > 0) {
-      setSuggestions(newSuggestions);
-      setShowDropdown(false);
-      setShowDatePicker(false);
-      setSelectedSuggestionIndex(0);
-      setAutocompleteContext(contextType);
-      requestAnimationFrame(() => {
-        const rect = getCaretRect();
-        setShowDropdown(true);
-        setDropdownPosition(rect ? getDropdownPosition(rect, newSuggestions.length * 32, 300) : null);
-      });
+      const newSuggestions = result.suggestions;
+      if (newSuggestions.length > 0) {
+        setSuggestions(newSuggestions);
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSelectedSuggestionIndex(0);
+        setAutocompleteContext(contextType);
+        requestAnimationFrame(() => {
+          const rect = getCaretRect();
+          setShowDropdown(true);
+          setDropdownPosition(rect ? getDropdownPosition(rect, newSuggestions.length * 32, 300) : null);
+        });
+      } else {
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSuggestions([]);
+        setAutocompleteContext(contextType);
+      }
     } else {
-      setShowDropdown(false);
-      setShowDatePicker(false);
-      setSuggestions([]);
-      setAutocompleteContext(contextType);
+      // First entry into an async field — show sync suggestions initially, then async takes over
+      const newSuggestions = result.suggestions;
+      if (newSuggestions.length > 0) {
+        setSuggestions(newSuggestions);
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSelectedSuggestionIndex(0);
+        setAutocompleteContext(contextType);
+        requestAnimationFrame(() => {
+          const rect = getCaretRect();
+          setShowDropdown(true);
+          setDropdownPosition(rect ? getDropdownPosition(rect, newSuggestions.length * 32, 300) : null);
+        });
+      } else {
+        setShowDatePicker(false);
+        setAutocompleteContext(contextType);
+      }
     }
 
     // Handle async fetchSuggestions
-    if (fetchSuggestionsProp && result.context.type === 'FIELD_VALUE' && result.context.fieldName) {
-      const fieldName = result.context.fieldName;
+    if (willFetchAsync) {
+      const fieldName = result.context.fieldName!;
       const partial = result.context.partial;
       const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
 
+      asyncActiveRef.current = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
+      // Increment fetch ID — any in-flight fetch with a lower ID is stale
+      const currentFetchId = ++fetchIdRef.current;
+
       debounceTimerRef.current = setTimeout(async () => {
         const token = result.context.token;
         const start = token ? token.start : offset;
@@ -241,6 +291,8 @@ export function ElasticInput(props: ElasticInputProps) {
 
         // Show loading indicator if fetch takes > 500ms
         loadingTimerRef.current = setTimeout(() => {
+          // Only show spinner if this is still the latest request
+          if (fetchIdRef.current !== currentFetchId) return;
           const loadingSuggestion: Suggestion = {
             text: '',
             label: 'Searching...',
@@ -260,6 +312,10 @@ export function ElasticInput(props: ElasticInputProps) {
         try {
           const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);
           if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
+          // Discard stale results — a newer fetch has been initiated
+          if (fetchIdRef.current !== currentFetchId) return;
+
           const mapped: Suggestion[] = fetchedSuggestions.map(s => ({
             text: s.text,
             label: s.label || s.text,
@@ -279,10 +335,16 @@ export function ElasticInput(props: ElasticInputProps) {
             });
           } else {
             setShowDropdown(false);
+            setSuggestions([]);
           }
         } catch (e) {
           if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
-          // Silently ignore fetch errors
+          // Only close dropdown if this is still the latest request
+          if (fetchIdRef.current === currentFetchId) {
+            setShowDropdown(false);
+            setSuggestions([]);
+            asyncActiveRef.current = false;
+          }
         }
       }, debounceMs);
     }
@@ -293,6 +355,10 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDatePicker(false);
     setSuggestions([]);
     setSelectedSuggestionIndex(0);
+    // Cancel any in-flight async work
+    asyncActiveRef.current = false;
+    fetchIdRef.current++;
+    if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
     if (loadingTimerRef.current) { clearTimeout(loadingTimerRef.current); loadingTimerRef.current = null; }
   }, []);
 

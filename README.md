@@ -413,12 +413,12 @@ const errors = validator.validate(ast);
 
 | Browser | Minimum Version |
 |---------|----------------|
-| Chrome  | 61+            |
-| Firefox | 36+            |
-| Safari  | 15.4+          |
-| Edge    | 79+ (Chromium) |
+| Chrome  | 85+            |
+| Firefox | 103+           |
+| Safari  | 16.4+          |
+| Edge    | 85+ (Chromium) |
 
-The compiled output targets **ES2018**. The most restrictive browser API is `scrollIntoView({ block: 'nearest' })` (Safari 15.4+).
+The compiled output targets **ES2018**. Uses modern Range/Selection APIs for text insertion (no deprecated `document.execCommand`).
 
 ### Build / Development
 

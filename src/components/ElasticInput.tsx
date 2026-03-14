@@ -14,7 +14,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange } from '../utils/cursorUtils';
-import { getCaretRect, getDropdownPosition } from '../utils/domUtils';
+import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars } from '../utils/textUtils';
 import {
   mergeColors,
@@ -755,7 +755,8 @@ export function ElasticInput(props: ElasticInputProps) {
     // Shift+Enter inserts a newline when multiline is enabled
     if (e.key === 'Enter' && e.shiftKey && multiline) {
       e.preventDefault();
-      document.execCommand('insertLineBreak');
+      insertLineBreakAtCursor();
+      handleInput();
       return;
     }
 
@@ -819,7 +820,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }
     });
-  }, [updateSuggestionsFromTokens]);
+  }, [handleInput, updateSuggestionsFromTokens]);
 
   const handleBlur = React.useCallback(() => {
     setIsFocused(false);
@@ -847,11 +848,10 @@ export function ElasticInput(props: ElasticInputProps) {
       typingGroupTimerRef.current = null;
     }
 
-    // Insert text via execCommand so it respects cursor/selection
-    document.execCommand('insertText', false, pastedText);
-
-    // handleInput will fire and record this as a new undo group
-  }, []);
+    // Insert text at cursor, replacing any selection
+    insertTextAtCursor(pastedText);
+    handleInput();
+  }, [handleInput]);
 
   const handleDateSelect = React.useCallback((dateStr: string) => {
     const s = stateRef.current;

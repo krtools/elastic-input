@@ -1,0 +1,682 @@
+# ElasticInput — Behavior Reference
+
+This document describes every behavior of the ElasticInput component. Each section includes examples and references the unit test(s) that verify the claim.
+
+---
+
+## 1. Lexer (Tokenization)
+
+The lexer converts raw input text into a stream of typed tokens with character offsets.
+
+### 1.1 Field:Value Pairs
+
+Input `status:active` produces tokens: `FIELD_NAME("status")`, `COLON(":")`, `VALUE("active")`.
+
+- Character offsets are preserved: `FIELD_NAME(0,6)`, `COLON(6,7)`, `VALUE(7,13)`.
+- **Tests:** `Lexer.test.ts` → "tokenizes a simple field:value pair", "preserves character offsets"
+
+### 1.2 Quoted Values
+
+Both `"double"` and `'single'` quotes are supported. Unclosed quotes are tokenized gracefully without errors. Escaped characters inside quotes (e.g., `\"`) are preserved.
+
+- `status:"hello world"` → `FIELD_NAME`, `COLON`, `QUOTED_VALUE("\"hello world\"")`
+- **Tests:** `Lexer.test.ts` → "tokenizes quoted values", "handles single-quoted values", "handles unclosed quotes gracefully", "handles escaped characters in quotes"
+
+### 1.3 Boolean Operators
+
+`AND`, `OR`, `NOT` are recognized as distinct token types. They are **case-insensitive** (`and`, `or`, `not` also work).
+
+- **Tests:** `Lexer.test.ts` → "tokenizes AND operator", "tokenizes OR operator", "tokenizes NOT operator", "is case-insensitive for boolean operators"
+
+### 1.4 Comparison Operators
+
+After a colon, `>`, `>=`, `<`, `<=` are tokenized as `COMPARISON_OP`.
+
+- `price:>100` → `FIELD_NAME("price")`, `COLON`, `COMPARISON_OP(">")`, `VALUE("100")`
+- **Tests:** `Lexer.test.ts` → "tokenizes > after colon", "tokenizes >= after colon", "tokenizes < and <="
+
+### 1.5 Parentheses
+
+`(` and `)` produce `LPAREN` and `RPAREN` tokens. Nesting is supported.
+
+- `(status:active AND level:ERROR)` tokenizes with field:value pairs inside parens.
+- **Tests:** `Lexer.test.ts` → "tokenizes parentheses", "tokenizes nested parentheses", "tokenizes field:value inside parens", "tokenizes complex expression in parens"
+
+### 1.6 Special Tokens
+
+| Prefix | Token Type | Example |
+|--------|------------|---------|
+| `#` | `SAVED_SEARCH` | `#my-search` |
+| `!` | `HISTORY_REF` | `!recent` |
+| `*` | `WILDCARD` | `stat*`, `*` |
+
+- Bare `#` and `!` are also valid tokens (for autocomplete).
+- **Tests:** `Lexer.test.ts` → "tokenizes saved search (#)", "tokenizes bare # as saved search", "tokenizes history ref (!)", "tokenizes bare ! as history ref", "tokenizes wildcards", "tokenizes bare wildcard term"
+
+### 1.7 Prefix Operators (`-`, `+`)
+
+A `-` or `+` immediately before a term (field name, quoted string, paren, `#`, `!`) is tokenized as `PREFIX_OP`. Hyphens within field names (e.g., `last-contact`) are **not** treated as prefix operators.
+
+- `-status:active` → `PREFIX_OP("-")`, `FIELD_NAME("status")`, `COLON`, `VALUE("active")`
+- `last-contact:x` → `FIELD_NAME("last-contact")`, `COLON`, `VALUE("x")`
+- **Tests:** `Lexer.test.ts` → "tokenizes - as prefix operator before a field", "tokenizes + as prefix operator before a field", "tokenizes - before a bare term", "tokenizes - before parenthesized group", "tokenizes - before quoted string", "tokenizes - before saved search", "preserves hyphen in mid-word field names", "does not treat standalone - as prefix op"
+
+### 1.8 Whitespace
+
+Whitespace is preserved as `WHITESPACE` tokens for lossless offset mapping. Leading and trailing whitespace is preserved.
+
+- **Tests:** `Lexer.test.ts` → "preserves whitespace tokens", "handles leading whitespace", "handles trailing whitespace"
+
+---
+
+## 2. Parser (AST)
+
+The parser builds an AST from tokens using recursive descent with precedence: **OR < AND < NOT < Primary**.
+
+### 2.1 AST Node Types
+
+| Node Type | Example Input |
+|-----------|--------------|
+| `FieldValue` | `status:active` |
+| `BooleanExpr` | `a AND b`, `a OR b` |
+| `Not` | `NOT x`, `-x` |
+| `Group` | `(a OR b)` |
+| `BareTerm` | `hello`, `"phrase"` |
+| `SavedSearch` | `#my-search` |
+| `HistoryRef` | `!recent` |
+| `Error` | unexpected tokens |
+
+### 2.2 Implicit AND
+
+Adjacent terms without an explicit operator are treated as implicit AND.
+
+- `status:active level:ERROR` → `BooleanExpr(AND, FieldValue, FieldValue)`
+- **Tests:** `Parser.test.ts` → "parses implicit AND between adjacent terms"
+
+### 2.3 Operator Precedence
+
+`NOT` binds tightest, then `AND`, then `OR`.
+
+- `a OR b AND c` → `OR(a, AND(b, c))`
+- **Tests:** `Parser.test.ts` → "OR has lower precedence than AND", "NOT has higher precedence than AND"
+
+### 2.4 Grouping
+
+Parentheses override precedence. Empty and unclosed parens are handled gracefully.
+
+- `(a OR b) AND c` → `AND(Group(OR(a, b)), c)`
+- **Tests:** `Parser.test.ts` → "parses a grouped expression", "parses group overriding precedence", "parses nested groups", "handles empty parens gracefully", "handles unclosed parens gracefully"
+
+### 2.5 Comparison Operators
+
+`>`, `>=`, `<`, `<=` after a colon are stored in the `operator` field of `FieldValue` nodes.
+
+- `price:>100` → `FieldValue(field="price", operator=">", value="100")`
+- **Tests:** `Parser.test.ts` → "parses field:>value", "parses field:>=value", "parses field:<value", "parses field:<=value"
+
+### 2.6 Prefix Operators in AST
+
+`-term` becomes a `Not` node. `+term` is a passthrough (no transformation).
+
+- `-status:active` → `Not(FieldValue("status", "active"))`
+- **Tests:** `Parser.test.ts` → "parses -field:value as NOT", "parses +field:value (required)", "parses - before a group", "parses - before quoted string", "preserves hyphenated field names"
+
+### 2.7 Offset Tracking
+
+All AST nodes track `start` and `end` character offsets from the original input.
+
+- **Tests:** `Parser.test.ts` → "tracks start and end offsets for field:value", "tracks offsets in boolean expression", "tracks offsets with prefix operator"
+
+---
+
+## 3. Cursor Context Detection
+
+`Parser.getCursorContext(tokens, cursorOffset)` determines what kind of input the user is entering based on cursor position.
+
+### 3.1 Context Types
+
+| Context | When | Example (cursor at `|`) |
+|---------|------|------------------------|
+| `EMPTY` | Empty or whitespace-only input | `\|` |
+| `FIELD_NAME` | Typing a field name or at start of new term | `sta\|`, `AND \|`, `(\|` |
+| `FIELD_VALUE` | After a colon, typing a value | `status:\|`, `status:act\|` |
+| `OPERATOR` | After a complete value with space | `status:active \|` |
+| `SAVED_SEARCH` | After `#` | `#my\|` |
+| `HISTORY_REF` | After `!` | `!rec\|` |
+
+### 3.2 Empty / Whitespace
+
+- `""` at offset 0 → `EMPTY`
+- `"   "` at any offset → `EMPTY`
+- **Tests:** `CursorContext.test.ts` → "returns EMPTY for empty input", "returns EMPTY for whitespace-only input"
+
+### 3.3 Field Name Context
+
+Returned when typing a bare word that could be a field name.
+
+- `sta|` → `FIELD_NAME`, partial=`"status"` (full token value)
+- Cursor at position 0 in `status:active` → `FIELD_NAME`, partial=`"status"`
+- After `AND ` → `FIELD_NAME`, partial=`""`
+- After `-` prefix → `FIELD_NAME`, partial=`""`
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_NAME while typing a word", "returns FIELD_NAME with cursor mid-word", "returns FIELD_NAME after AND", "returns FIELD_NAME after OR", "returns FIELD_NAME after NOT", "returns FIELD_NAME while typing after AND"
+
+### 3.4 Field Value Context
+
+Returned when the cursor is after a colon (or comparison operator) belonging to a field.
+
+- `status:|` → `FIELD_VALUE`, fieldName=`"status"`, partial=`""`
+- `status:act|` → `FIELD_VALUE`, fieldName=`"status"`, partial=`"active"` (full token value)
+- `price:>|` → `FIELD_VALUE`, fieldName=`"price"`, partial=`""`
+- Works inside parens: `(status:act|)` → `FIELD_VALUE`
+- Works after prefix op: `-status:act|` → `FIELD_VALUE`
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_VALUE right after colon", "returns FIELD_VALUE while typing value", "returns FIELD_VALUE after comparison operator", "returns FIELD_VALUE for field:value inside parens", "returns FIELD_VALUE for field:partial inside parens"
+
+### 3.5 Colon-Value Boundary
+
+When cursor is exactly at the colon's end and a VALUE token follows, the context includes that VALUE token so replacements cover it.
+
+- `status:active` at offset 7 → `FIELD_VALUE`, partial=`"active"`, token covers `(7,13)`
+- `status:` at offset 7 → `FIELD_VALUE`, partial=`""`, no token
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_VALUE with cursor at colon end"; `ReplacementRange.test.ts` → "cursor at colon end with following value returns FIELD_VALUE with token", "cursor at colon end with no following value returns empty partial", "cursor at colon end in compound query picks up following value"
+
+### 3.6 Operator Context
+
+After a complete value followed by whitespace.
+
+- `status:active |` → `OPERATOR`
+- `(a OR b) |` → `OPERATOR`
+- **Tests:** `CursorContext.test.ts` → "returns OPERATOR after a complete field:value", "returns OPERATOR after a quoted value", "returns OPERATOR after closing paren"
+
+### 3.7 After Open Paren
+
+Cursor at or after `(` returns `FIELD_NAME` (start of new sub-expression), **not** `OPERATOR`.
+
+- `status:active (|` → `FIELD_NAME` (not OPERATOR)
+- `(|` → `FIELD_NAME`
+- **Tests:** `CursorContext.test.ts` → "cursor right after open paren suggests fields", "cursor after \"status:active (\" suggests fields, not operators", "cursor after \"a AND (\" suggests fields", "cursor inside paren with space suggests fields"
+
+### 3.8 Saved Search / History Ref Context
+
+- `#my|` → `SAVED_SEARCH`, partial=`"my"`
+- `!rec|` → `HISTORY_REF`, partial=`"rec"`
+- **Tests:** `CursorContext.test.ts` → "returns SAVED_SEARCH for #", "returns SAVED_SEARCH for #partial", "returns HISTORY_REF for !", "returns HISTORY_REF for !partial"
+
+### 3.9 Prefix Operator Context
+
+After a prefix operator (`-` or `+`), context is `FIELD_NAME`.
+
+- `-|` → `FIELD_NAME`, partial=`""`
+- `-sta|` → `FIELD_NAME`, partial=`"sta"`
+- `-status:|` → `FIELD_VALUE`, fieldName=`"status"`
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_NAME after - prefix", "returns FIELD_NAME while typing after - prefix", "returns FIELD_VALUE for -field:", "returns FIELD_VALUE for -field:partial"
+
+---
+
+## 4. Autocomplete Suggestions
+
+### 4.1 Field Name Suggestions
+
+Shown in `FIELD_NAME` and `EMPTY` contexts. Fields are scored and ranked:
+
+| Match Type | Score | Example: partial=`"dat"` |
+|------------|-------|--------------------------|
+| Name starts with partial | 4 | — |
+| Label starts with partial | 3 | — |
+| Name contains partial | 2 | — |
+| Label contains partial | 1 | `"Created Date"` (label contains "dat") |
+
+Suggestion text includes a trailing colon: `"status:"`.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all fields on empty input", "filters fields by prefix (startsWith name)", "filters fields by prefix (startsWith label)", "matches fields by includes (name contains)", "matches fields by includes (label contains)", "ranks startsWith higher than includes", "appends colon to field suggestion text"
+
+### 4.2 Field Value Suggestions
+
+Shown in `FIELD_VALUE` context. Behavior depends on field type:
+
+| Field Type | Behavior |
+|------------|----------|
+| `enum` | Shows `field.suggestions` filtered by partial (startsWith > includes) |
+| `boolean` | Shows `true`, `false` filtered by partial |
+| `date` | Opens a date picker (no text suggestions) |
+| `number` | Shows hint: "Enter a number" |
+| `string` | Shows hint: "Type to search..." |
+| `ip` | Shows hint: "Enter an IP address" |
+
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows hint for string field with no suggestions", "shows hint for IP field"
+
+### 4.3 Operator Suggestions
+
+Shown in `OPERATOR` context (after a complete value + space). Suggests `AND`, `OR`, `NOT` **plus all field names** (since space acts as implicit AND).
+
+- `status:active |` → `[AND, OR, NOT, #saved-search, !history, status:, level:, ...]`
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests operators after a complete value", "suggests operators after closing paren", "also suggests fields in operator context (implicit AND)", "suggests fields after closing paren with space"
+
+### 4.4 Saved Search Suggestions
+
+Shown in `SAVED_SEARCH` context (after `#`). Filtered by prefix match on saved search name.
+
+- `#vip|` → matches `"vip-active"` → suggestion text: `"#vip-active"`
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests saved searches for #", "filters saved searches by prefix", "includes # in suggestion text", "includes description"
+
+### 4.5 History Suggestions
+
+Shown in `HISTORY_REF` context (after `!`). Filtered by substring match. Complex history queries (containing AND/OR) are wrapped in parentheses.
+
+- `!API|` → matches history entry "API errors" → suggestion text: `"level:ERROR AND service:api"` wrapped as `"(level:ERROR AND service:api)"`
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests history for !", "filters history by partial (includes)", "wraps history with boolean ops in parens", "does not wrap simple history in parens"
+
+### 4.6 `#` and `!` Hint Suggestions
+
+When saved searches or history entries are configured, hint suggestions appear to inform the user about `#` and `!` features. These hints:
+
+- Only appear when the partial is **empty** (start of a new expression)
+- Disappear as soon as the user starts typing
+- Do not appear in `FIELD_VALUE` context
+- Are configurable via `showSavedSearchHint` (default: `true`) and `showHistoryHint` (default: `true`)
+- Do not appear when no saved searches or history entries exist
+- **Clickable:** Clicking the `#saved-search` or `!history` hint inserts the trigger character (`#` or `!`) into the input, focuses it, and immediately shows the corresponding saved search or history suggestions
+
+- **Tests:** `AutocompleteEngine.test.ts` → "shows #saved-search hint on empty input when saved searches exist", "shows !history hint on empty input when history exists", "shows hints in operator context", "shows hints in field name context after AND", "does not show hints when no saved searches or history exist", "does not show #hint when showSavedSearchHint is false", "does not show !hint when showHistoryHint is false", "does not show hints when both are disabled", "does not show hints in field value context", "no hints when user has started typing a partial", "no hints when typing partial after AND", "hints appear after AND with no partial"
+
+### 4.7 Suggestion Priority & Ordering
+
+Suggestions are sorted by descending `priority`:
+
+| Category | Priority | Position |
+|----------|----------|----------|
+| Operators (AND/OR/NOT) | 30 | First |
+| Hints (#, !) | 20 | Middle |
+| Fields | 10 | Last |
+
+Within the same priority, items retain their relevance-based ordering.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "hints appear before fields on empty input", "in operator context: operators first, then hints, then fields", "suggestions have correct priority values"
+
+### 4.8 Bare Quoted Phrases — No Suggestions
+
+When typing a bare quoted phrase (not after a colon), **no suggestions appear**. The quote character doesn't match any field name.
+
+- `"hello|` → no suggestions
+- `status:active "foo|` → no suggestions
+- `status:"act|` → **does** show value suggestions (after colon)
+
+- **Tests:** `AutocompleteEngine.test.ts` → "typing a bare double-quote shows no suggestions", "typing an unclosed quoted phrase shows no suggestions", "typing a closed quoted phrase shows no suggestions", "quote after a field:value pair shows no field suggestions", "unclosed quote after field:value shows no suggestions", "quoted value AFTER colon still shows field value suggestions", "bare single-quote shows no suggestions", "bare single-quoted phrase shows no suggestions"
+
+---
+
+## 5. Replacement Ranges
+
+When a suggestion is accepted, its `replaceStart` and `replaceEnd` define what text to replace.
+
+### 5.1 Field Name Replacement Includes Colon
+
+When the cursor is on a `FIELD_NAME` token and a `COLON` follows, the replacement range extends past the colon. This prevents double-colon bugs (e.g., `status::x`).
+
+- `status:active` with cursor on "status" → replacement range `(0, 7)` (includes colon)
+- `stat` (no colon) → replacement range `(0, 4)`
+- **Tests:** `ReplacementRange.test.ts` → "extends past colon for FIELD_NAME tokens", "does NOT extend past colon for VALUE tokens", "works for bare word", "extends past colon for FIELD_NAME inside parens", "extends past colon for FIELD_NAME after PREFIX_OP"
+
+### 5.2 Double Colon Prevention
+
+Re-selecting the same field when a colon already exists does not duplicate the colon.
+
+- Click "status" in `status:x` → accept `status:` → result: `status:x` (not `status::x`)
+- **Tests:** `ReplacementRange.test.ts` → "clicking field in \"status:x\" and re-selecting same field does not double colon", "replacement range in compound query does not double colon", "replacement range in parens does not double colon", "replacement range after PREFIX_OP does not double colon"
+
+### 5.3 Selection-Aware Replacement
+
+When the user has a browser selection (e.g., double-click to select a word), the effective replacement range is the **broader** of the token-based range and the browser selection range.
+
+- Double-click "active" in `status:active` (selects chars 7–13) → replacement covers full selection
+- Drag-select "active " (7–14, including trailing space) → replacement extends to 14
+- **Tests:** `ReplacementRange.test.ts` → "double-clicking a value and accepting replaces it correctly", "collapsed cursor (no selection) uses token range only", "double-clicking value in multi-field query replaces only that value", "selection extending beyond token uses broader range", "selecting entire field:value pair and replacing field works"
+
+### 5.4 Value Replacement Boundaries
+
+Replacing a partial value does not affect adjacent tokens.
+
+- `status:act AND x` → accept "active" → `status:active AND x`
+- **Tests:** `ReplacementRange.test.ts` → "replacing partial value does not affect rest of query", "replacing value at end of input works"
+
+---
+
+## 6. Suggestion Chaining
+
+After accepting a suggestion, the component immediately evaluates the new cursor position and shows the next appropriate suggestions.
+
+### 6.1 Field → Value
+
+Accepting a field suggestion (e.g., `status:`) immediately shows value suggestions for that field.
+
+- Type `sta` → accept `status:` → shows `[active, inactive, pending]`
+- Type `is` → accept `is_vip:` → shows `[true, false]`
+- Type `pri` → accept `price:` → shows hint "Enter a number"
+- Type `cre` → accept `created:` → opens date picker
+- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows enum value suggestions", "selecting \"level:\" shows enum value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows string hint"
+
+### 6.2 Value → Operator
+
+After accepting a value and pressing space, operator suggestions appear.
+
+- `status:active` + space → shows `[AND, OR, NOT, fields...]`
+- **Tests:** `SuggestionChaining.test.ts` → "after accepting value and pressing space, operator suggestions appear"
+
+### 6.3 Operator → Field
+
+Accepting an operator suggestion shows field suggestions.
+
+- `status:active ` → accept `AND ` → shows all field names
+- **Tests:** `SuggestionChaining.test.ts` → "selecting \"AND \" after value suggests fields"
+
+### 6.4 Full Query Building Flow
+
+A complete query can be built step-by-step using only suggestion acceptance:
+
+```
+"sta" → status: → active → [space] → AND → level: → ERROR
+```
+
+- **Tests:** `SuggestionChaining.test.ts` → "builds \"status:active AND level:ERROR\" step by step"
+
+### 6.5 Cursor Movement Updates Context
+
+Moving the cursor (via arrow keys, mouse click, Home/End) recalculates the context and updates suggestions accordingly. Suggestions update on **any** caret position change, not just mouse clicks.
+
+- Cursor in "status" of `status:active` → field name suggestions
+- Cursor after ":" → value suggestions
+- Cursor after "active " → operator suggestions
+- **Tests:** `SuggestionChaining.test.ts` → "moving cursor from value to field shows field context", "moving cursor to after colon shows value context", "moving cursor to middle of value shows value context", "moving cursor to space after value shows operator context", "moving cursor into second field shows field context", "moving cursor into second value shows value context"
+
+---
+
+## 7. Keyboard Behavior
+
+### 7.1 Tab — Accept Suggestion
+
+Tab accepts the currently highlighted suggestion. **Tab never submits the search.**
+
+When accepting a **complete term** (field value, saved search, or history ref) at the end of input, Tab appends a trailing space for easy chaining:
+
+- `status:` → Tab on "active" → `status:active ` (with space)
+- `#vip` → Tab on "#vip-active" → `#vip-active ` (with space)
+- `!Err` → Tab on "level:ERROR" → `level:ERROR ` (with space)
+
+Tab does **not** append a space for:
+- Field names: `sta` → Tab on "status:" → `status:` (no space; value entry follows)
+- Operators: `status:active ` → Tab on "AND " → `status:active AND ` (operator already has space)
+- Values not at end of input: no extra space inserted
+
+- **Tests:** `SuggestionChaining.test.ts` → "Tab on field value at end of input appends trailing space", "Tab on field value NOT at end of input does NOT append space", "Tab on field name does NOT append space", "Tab on operator does NOT append space", "Tab on boolean value at end appends space", "Tab on saved search at end appends space", "Tab on history ref at end appends space", "full flow: Tab-accept values appends spaces for easy chaining"
+
+### 7.2 Enter — Accept & Possibly Submit
+
+Enter's behavior depends on what is being selected:
+
+| Selection Type | Enter Behavior |
+|----------------|----------------|
+| Field value | Accept value **and submit search** |
+| Field name | Accept only (no submit) |
+| Operator | Accept only (no submit) |
+| Saved search | Accept only (no submit) |
+| History ref | Accept only (no submit) |
+
+When no dropdown is open, Enter submits the search.
+
+- **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value does NOT append trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"
+
+### 7.3 Ctrl+Enter — Always Submit
+
+Ctrl+Enter (or Cmd+Enter on Mac) always submits the search, bypassing any autocomplete selection. The dropdown is closed first.
+
+### 7.4 Escape — Close Dropdown
+
+Escape closes the autocomplete dropdown or date picker without accepting anything.
+
+### 7.5 Arrow Keys — Navigate / Move Cursor
+
+- **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
+- **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position
+
+---
+
+## 8. Dropdown Positioning
+
+The autocomplete dropdown and date picker are rendered via `ReactDOM.createPortal` to `document.body` with fixed positioning based on the caret's `getBoundingClientRect()`.
+
+### 8.1 Position Calculation
+
+- Position is derived from the browser's `Selection` API: `range.getBoundingClientRect()`
+- Dropdown appears below the caret by default, flips above if insufficient viewport space below
+- Clamped to viewport edges (no overflow left/right)
+
+### 8.2 Deferred Positioning
+
+To prevent a visible flash where the dropdown appears at a stale position before snapping to the correct one, positioning is deferred via `requestAnimationFrame`. The dropdown's suggestions and context are set first (with `showDropdown: false`), then after the DOM has painted, the position is calculated and the dropdown becomes visible.
+
+### 8.3 Date Picker
+
+The date picker appears when a date-type field's value is being entered. It supports single date and date range selection.
+
+#### 8.3.1 View Levels (Zoom Out)
+
+Clicking the header label (month/year) zooms out to a higher-level view:
+
+| View Level | Header Label | Grid | Click Header → |
+|------------|-------------|------|----------------|
+| Days | "March 2026" | Calendar days (7 cols) | → Months |
+| Months | "2026" | 12 month names (3 cols) | → Years |
+| Years | "2020–2029" | 12 years incl. adjacent decade (3 cols) | (no further zoom) |
+
+Selecting a month in the months view drills down to days. Selecting a year in the years view drills down to months.
+
+The left/right arrows navigate by month, year, or decade depending on the current view level.
+
+- **Tests:** `DatePicker.test.ts` → "days view shows month+year header", "months view shows year header", "years view shows decade range header", "zoom out from days goes to months", "zoom out from months goes to years", "cannot zoom out from years", "selecting a year zooms into months", "selecting a month zooms into days"
+
+#### 8.3.2 Years Grid
+
+The years view shows 12 cells: the 10 years of the current decade plus one year from the adjacent decades on each side (shown dimmed). For decade 2020–2029, the grid shows 2019, 2020–2029, 2030.
+
+- **Tests:** `DatePicker.test.ts` → "generates 12 years centered on the decade", "first and last years are out-of-range (adjacent decades)"
+
+#### 8.3.3 Navigation
+
+| View Level | Prev/Next Step |
+|------------|---------------|
+| Days | ±1 month (wraps year) |
+| Months | ±1 year |
+| Years | ±10 years (decade) |
+
+- **Tests:** `DatePicker.test.ts` → "prev/next at days level changes month", "prev/next at days level wraps year", "prev at days level wraps year backward", "prev/next at months level changes year", "prev/next at years level changes by decade"
+
+#### 8.3.4 Single / Range Mode
+
+- **Single mode**: Clicking a day emits `YYYY-MM-DD`.
+- **Range mode**: First click sets range start, second click sets range end. Emits `[YYYY-MM-DD TO YYYY-MM-DD]`. Reversed selections are auto-corrected.
+- Range presets (e.g., "Last 7 days", "Last 30 days") are shown in a 2-column grid below the calendar in range mode only. The date picker dropdown has no max-height constraint so presets are visible without scrolling.
+
+- **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly"
+
+---
+
+## 9. Validation
+
+Validation runs on the AST and produces errors with character offsets for squiggly underline display. Errors are **deferred** — they only display after the cursor leaves the error range.
+
+### 9.1 Squiggly Underlines
+
+Validation errors are rendered as red wavy underlines beneath the invalid text. The wave pattern uses an SVG-based `background-image` with a smooth sinusoidal curve (8px wavelength) for a clear, readable underline.
+
+The squigglies are absolutely positioned relative to the input container, with positions computed from DOM `Range.getBoundingClientRect()` measurements.
+
+### 9.2 Hover Tooltips
+
+Hovering over a red squiggly underline displays a styled tooltip with the error message. The tooltip:
+
+- Appears above the squiggly underline
+- Uses the configured error color for the border and text
+- Respects the configured font family and z-index from `StyleConfig`
+- Has a widened hover target area (16px height) for easier mouse targeting
+
+### 9.3 Deferred Display
+
+Errors are only shown visually after the cursor leaves the error range. This prevents distracting underlines while the user is still typing.
+
+- Cursor within error range → error hidden
+- Cursor at error start or end → error hidden
+- Cursor outside all error ranges → all errors shown
+- Multiple errors: each independently shown/hidden based on cursor position
+
+- **Tests:** `ValidationSquiggles.test.ts` → "hides error when cursor is within error range", "hides error when cursor is at error start", "hides error when cursor is at error end", "shows error when cursor is past error range", "shows error when cursor is before error range", "shows one error and hides another based on cursor position", "shows all errors when cursor is outside all error ranges", "hides value error when cursor is on the value being typed", "shows value error once cursor moves to next term"
+
+### 9.3.1 Blur Releases All Deferred Errors
+
+When the input loses focus (blur), `cursorOffset` is set to `-1`, which causes all deferred errors to become visible. This ensures errors are always shown when the user is not actively editing.
+
+- Input focused, cursor at end of `status:bad` → error on "bad" hidden (cursor within range)
+- Input blurred → error on "bad" shown (cursorOffset = -1, outside all ranges)
+
+### 9.4 External Error Access
+
+Validation errors are accessible outside the component in two ways:
+
+1. **`onValidationChange` callback** — fires on every input change with the current error array
+2. **`api.getValidationErrors()`** — returns errors on demand via the imperative API
+
+Each error has: `{ message: string, start: number, end: number, field?: string }`
+
+- **Tests:** `ValidationSquiggles.test.ts` → "errors include field name for field-specific errors", "errors include field name for unknown fields", "returns empty array for valid input", "returns empty array for empty input"
+
+### 9.5 Error Positions
+
+Errors are placed precisely on the relevant part of the input:
+
+| Error Type | Underlined Text | Example |
+|-----------|----------------|---------|
+| Unknown field | Field name | `unknown` in `unknown:value` |
+| Invalid enum value | Value | `bad` in `status:bad` |
+| Invalid number | Value | `abc` in `price:abc` |
+| Invalid boolean | Value | `maybe` in `is_vip:maybe` |
+| Invalid IP | Value | `notanip` in `ip:notanip` |
+| Custom validator | Value | `10` in `rating:10` |
+| Invalid comparison | Value | `active` in `status:>active` |
+
+- **Tests:** `ValidationSquiggles.test.ts` → "unknown field error covers the field name", "invalid enum value error covers the value", "invalid number error covers the value", "invalid boolean error covers the value", "invalid IP error covers the value", "custom validator error covers the value", "multiple errors have correct non-overlapping positions", "comparison op on non-numeric/date field produces error on value"
+
+### 9.6 Field Validation
+
+- Unknown field names are flagged
+- **Tests:** `Validator.test.ts` → "flags unknown fields"
+
+### 9.7 Type Validation
+
+| Field Type | Valid | Invalid |
+|------------|-------|---------|
+| `enum` | Values in `suggestions` list | Anything else |
+| `boolean` | `true`, `false` | Anything else |
+| `number` | Integers, decimals, negatives | Non-numeric strings |
+| `date` | ISO format, relative (`now-7d`) | Invalid formats |
+| `ip` | Valid IPv4, wildcards (`192.168.*`) | Malformed addresses |
+| `string` | Anything | — |
+
+- **Tests:** `Validator.test.ts` → "flags invalid enum values", "accepts valid enum values", "flags invalid numbers", "accepts valid numbers", "flags invalid booleans", "accepts valid booleans", "flags invalid IP addresses", "accepts valid IP addresses", "accepts wildcard IP", "flags invalid dates", "accepts valid date formats"
+
+### 9.8 Comparison Operator Validation
+
+Comparison operators (`>`, `>=`, `<`, `<=`) are only allowed on `number` and `date` fields.
+
+- `price:>100` ✓
+- `created:>2024-01-01` ✓
+- `status:>active` ✗
+- **Tests:** `Validator.test.ts` → "flags comparison operator on non-numeric/date field", "allows comparison operator on number field", "allows comparison operator on date field"
+
+### 9.9 Custom Validators
+
+Fields can provide a `validate` function that receives the value and returns an error string or `null`.
+
+- **Tests:** `Validator.test.ts` → "runs custom validator", "passes custom validator for valid value"
+
+### 9.10 Nested Validation
+
+Validation recurses through boolean expressions, groups, and NOT nodes. Multiple errors are collected.
+
+- **Tests:** `Validator.test.ts` → "validates nested boolean expressions", "validates inside groups", "validates inside NOT", "collects multiple errors"
+
+### 9.11 Non-Validated Cases
+
+- Bare terms (freeform search words) are not validated
+- Empty values pass validation
+- Null AST (empty input) passes validation
+- **Tests:** `Validator.test.ts` → "does not validate bare terms", "returns no errors for empty value", "returns no errors for null AST"
+
+---
+
+## 10. Configuration Options
+
+### 10.1 Props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `fields` | `FieldConfig[]` | required | Field definitions |
+| `onSearch` | `(query, ast) => void` | — | Called on submit (Enter on value, Ctrl+Enter) |
+| `onChange` | `(query, ast) => void` | — | Called on every input change |
+| `onValidationChange` | `(errors) => void` | — | Called when validation errors change |
+| `value` | `string` | — | Controlled value |
+| `defaultValue` | `string` | — | Initial uncontrolled value |
+| `savedSearches` | `SavedSearch[] \| () => Promise` | — | Saved search data or async loader |
+| `searchHistory` | `HistoryEntry[] \| () => Promise` | — | History data or async loader |
+| `fetchSuggestions` | `(field, partial) => Promise` | — | Async value suggestion provider |
+| `colors` | `ColorConfig` | `DEFAULT_COLORS` | Syntax highlighting colors |
+| `styles` | `StyleConfig` | `DEFAULT_STYLES` | Structural/layout style overrides |
+| `placeholder` | `string` | — | Placeholder text |
+| `className` | `string` | — | CSS class for outer container |
+| `style` | `CSSProperties` | — | Inline styles for outer container |
+| `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
+| `maxSuggestions` | `number` | `10` | Max suggestions shown |
+| `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
+| `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
+| `inputRef` | `(api) => void` | — | Provides imperative API handle |
+
+### 10.2 Style Configuration
+
+The `styles` prop accepts a `StyleConfig` object for structural/layout customization. All properties are optional; defaults come from `DEFAULT_STYLES`. A `DARK_STYLES` preset is also exported for dark-mode layouts.
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `fontFamily` | `string` | `'SF Mono', 'Fira Code', ...` | Shared font across input and dropdown |
+| `fontSize` | `string` | `14px` | Base font size for the input |
+| `inputMinHeight` | `string` | `40px` | Minimum input height |
+| `inputPadding` | `string` | `8px 12px` | Input padding (also drives placeholder position) |
+| `inputBorderWidth` | `string` | `2px` | Input border width |
+| `inputBorderColor` | `string` | `#d0d7de` | Input border color |
+| `inputBorderRadius` | `string` | `8px` | Input border radius |
+| `inputFocusBorderColor` | `string` | `#0969da` | Border color on focus |
+| `inputFocusShadow` | `string` | `0 0 0 3px rgba(...)` | Box shadow on focus |
+| `dropdownBorderColor` | `string` | `#d0d7de` | Dropdown border color |
+| `dropdownBorderRadius` | `string` | `8px` | Dropdown border radius |
+| `dropdownShadow` | `string` | `0 8px 24px rgba(...)` | Dropdown box shadow |
+| `dropdownMaxHeight` | `string` | `300px` | Dropdown max height |
+| `dropdownMinWidth` | `string` | `200px` | Dropdown min width |
+| `dropdownMaxWidth` | `string` | `400px` | Dropdown max width |
+| `dropdownZIndex` | `number` | `99999` | Dropdown z-index |
+| `dropdownItemPadding` | `string` | `6px 12px` | Dropdown item padding |
+| `dropdownItemFontSize` | `string` | `13px` | Dropdown item font size |
+| `typeBadgeBg` | `string` | `#eef1f5` | Type badge background |
+| `typeBadgeSelectedBg` | `string` | `rgba(255,255,255,0.2)` | Type badge background when selected |
+| `typeBadgeColor` | `string` | `#656d76` | Type badge text color |
+| `typeBadgeSelectedColor` | `string` | `#ffffff` | Type badge text color when selected |
+
+`DARK_STYLES` overrides border colors, focus colors, shadows, and badge colors for dark backgrounds.
+
+Placeholder positioning is automatically derived from `inputPadding` so it aligns with the input text.
+
+### 10.3 ElasticInputAPI (via `inputRef`)
+
+| Method | Description |
+|--------|-------------|
+| `getValue()` | Returns current input text |
+| `setValue(value)` | Sets input text programmatically |
+| `focus()` | Focuses the input |
+| `blur()` | Blurs the input |
+| `getAST()` | Returns current parsed AST |
+| `getValidationErrors()` | Returns current validation errors |

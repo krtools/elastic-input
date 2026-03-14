@@ -1,0 +1,284 @@
+import { Token, TokenType } from './tokens';
+
+enum LexerState {
+  EXPECT_TERM,
+  EXPECT_VALUE,
+}
+
+export class Lexer {
+  private input: string;
+  private pos: number;
+  private state: LexerState;
+  private tokens: Token[];
+
+  constructor(input: string) {
+    this.input = input;
+    this.pos = 0;
+    this.state = LexerState.EXPECT_TERM;
+    this.tokens = [];
+  }
+
+  tokenize(): Token[] {
+    this.tokens = [];
+    this.pos = 0;
+    this.state = LexerState.EXPECT_TERM;
+
+    while (this.pos < this.input.length) {
+      if ((this.state as LexerState) === LexerState.EXPECT_VALUE) {
+        this.readValue();
+      } else {
+        this.readTerm();
+      }
+    }
+
+    return this.tokens;
+  }
+
+  private peek(): string {
+    return this.input[this.pos];
+  }
+
+  private peekAt(offset: number): string | undefined {
+    return this.input[this.pos + offset];
+  }
+
+  private advance(): string {
+    return this.input[this.pos++];
+  }
+
+  private isWhitespace(ch: string): boolean {
+    return ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r';
+  }
+
+  private isAlpha(ch: string): boolean {
+    return /[a-zA-Z_]/.test(ch);
+  }
+
+  private isAlphaNumeric(ch: string): boolean {
+    return /[a-zA-Z0-9_.\-]/.test(ch);
+  }
+
+  private readWhitespace(): void {
+    const start = this.pos;
+    while (this.pos < this.input.length && this.isWhitespace(this.peek())) {
+      this.advance();
+    }
+    this.tokens.push({
+      type: TokenType.WHITESPACE,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
+  }
+
+  private readQuotedString(): void {
+    const start = this.pos;
+    const quote = this.advance(); // consume opening quote
+    while (this.pos < this.input.length) {
+      const ch = this.advance();
+      if (ch === '\\' && this.pos < this.input.length) {
+        this.advance(); // skip escaped char
+      } else if (ch === quote) {
+        break;
+      }
+    }
+    this.tokens.push({
+      type: TokenType.QUOTED_VALUE,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
+    this.state = LexerState.EXPECT_TERM;
+  }
+
+  private readTerm(): void {
+    const ch = this.peek();
+
+    if (this.isWhitespace(ch)) {
+      this.readWhitespace();
+      return;
+    }
+
+    if (ch === '"' || ch === "'") {
+      this.readQuotedString();
+      return;
+    }
+
+    if (ch === '(') {
+      this.tokens.push({ type: TokenType.LPAREN, value: '(', start: this.pos, end: this.pos + 1 });
+      this.advance();
+      return;
+    }
+
+    if (ch === ')') {
+      this.tokens.push({ type: TokenType.RPAREN, value: ')', start: this.pos, end: this.pos + 1 });
+      this.advance();
+      return;
+    }
+
+    if (ch === '#') {
+      this.readSavedSearch();
+      return;
+    }
+
+    if (ch === '!') {
+      this.readHistoryRef();
+      return;
+    }
+
+    // Unary prefix operators: - or + before a term
+    if ((ch === '-' || ch === '+') && this.pos + 1 < this.input.length) {
+      const next = this.peekAt(1);
+      if (next && (this.isAlpha(next) || next === '"' || next === "'" || next === '(' || next === '#' || next === '!')) {
+        this.tokens.push({
+          type: TokenType.PREFIX_OP,
+          value: ch,
+          start: this.pos,
+          end: this.pos + 1,
+        });
+        this.advance();
+        return;
+      }
+    }
+
+    // Comparison operators
+    if ((ch === '>' || ch === '<') && this.state === LexerState.EXPECT_TERM) {
+      const start = this.pos;
+      this.advance();
+      if (this.pos < this.input.length && this.peek() === '=') {
+        this.advance();
+      }
+      this.tokens.push({
+        type: TokenType.COMPARISON_OP,
+        value: this.input.slice(start, this.pos),
+        start,
+        end: this.pos,
+      });
+      this.state = LexerState.EXPECT_VALUE;
+      return;
+    }
+
+    // Read a word
+    const start = this.pos;
+    while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
+           this.peek() !== '(' && this.peek() !== ')' && this.peek() !== '"' && this.peek() !== "'") {
+      if (this.peek() === ':') {
+        // Everything before colon is field name
+        if (this.pos > start) {
+          this.tokens.push({
+            type: TokenType.FIELD_NAME,
+            value: this.input.slice(start, this.pos),
+            start,
+            end: this.pos,
+          });
+        }
+        this.tokens.push({ type: TokenType.COLON, value: ':', start: this.pos, end: this.pos + 1 });
+        this.advance();
+        this.state = LexerState.EXPECT_VALUE;
+        return;
+      }
+      this.advance();
+    }
+
+    if (this.pos > start) {
+      const word = this.input.slice(start, this.pos);
+      const upper = word.toUpperCase();
+
+      if (upper === 'AND') {
+        this.tokens.push({ type: TokenType.AND, value: word, start, end: this.pos });
+      } else if (upper === 'OR') {
+        this.tokens.push({ type: TokenType.OR, value: word, start, end: this.pos });
+      } else if (upper === 'NOT') {
+        this.tokens.push({ type: TokenType.NOT, value: word, start, end: this.pos });
+      } else if (word.includes('*')) {
+        this.tokens.push({ type: TokenType.WILDCARD, value: word, start, end: this.pos });
+      } else {
+        this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
+      }
+    }
+  }
+
+  private readValue(): void {
+    const ch = this.peek();
+
+    if (this.isWhitespace(ch)) {
+      this.readWhitespace();
+      this.state = LexerState.EXPECT_TERM;
+      return;
+    }
+
+    if (ch === '"' || ch === "'") {
+      this.readQuotedString();
+      this.state = LexerState.EXPECT_TERM;
+      return;
+    }
+
+    if (ch === '(' || ch === ')') {
+      this.state = LexerState.EXPECT_TERM;
+      this.readTerm();
+      return;
+    }
+
+    // Comparison operators before value
+    if (ch === '>' || ch === '<') {
+      const start = this.pos;
+      this.advance();
+      if (this.pos < this.input.length && this.peek() === '=') {
+        this.advance();
+      }
+      this.tokens.push({
+        type: TokenType.COMPARISON_OP,
+        value: this.input.slice(start, this.pos),
+        start,
+        end: this.pos,
+      });
+      return; // stay in EXPECT_VALUE
+    }
+
+    // Read value word
+    const start = this.pos;
+    while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
+           this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' && this.peek() !== "'") {
+      this.advance();
+    }
+
+    if (this.pos > start) {
+      const word = this.input.slice(start, this.pos);
+      if (word.includes('*')) {
+        this.tokens.push({ type: TokenType.WILDCARD, value: word, start, end: this.pos });
+      } else {
+        this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
+      }
+    }
+
+    this.state = LexerState.EXPECT_TERM;
+  }
+
+  private readSavedSearch(): void {
+    const start = this.pos;
+    this.advance(); // consume #
+    while (this.pos < this.input.length && this.isAlphaNumeric(this.peek())) {
+      this.advance();
+    }
+    this.tokens.push({
+      type: TokenType.SAVED_SEARCH,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
+  }
+
+  private readHistoryRef(): void {
+    const start = this.pos;
+    this.advance(); // consume !
+    while (this.pos < this.input.length && this.isAlphaNumeric(this.peek())) {
+      this.advance();
+    }
+    this.tokens.push({
+      type: TokenType.HISTORY_REF,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
+  }
+}

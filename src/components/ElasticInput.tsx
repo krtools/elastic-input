@@ -138,7 +138,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const undoStackRef = React.useRef(new UndoStack());
   const typingGroupTimerRef = React.useRef<any>(null);
   const isUndoRedoRef = React.useRef(false);
-  const loadingTimerRef = React.useRef<any>(null);
+
   const fetchIdRef = React.useRef(0);       // monotonic counter to discard stale async results
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
 
@@ -148,7 +148,6 @@ export function ElasticInput(props: ElasticInputProps) {
       initialFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint },
-      !!fetchSuggestionsProp,
     )
   );
   const validatorRef = React.useRef(new Validator(initialFields));
@@ -248,7 +247,7 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = false;
       fetchIdRef.current++;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
       setSuggestions([]);
       setShowDropdown(false);
       setAutocompleteContext(contextType);
@@ -271,7 +270,7 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = false;
       fetchIdRef.current++;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
 
       const newSuggestions = applyFieldHint(result.suggestions, result.context);
       if (newSuggestions.length > 0) {
@@ -331,7 +330,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
       asyncActiveRef.current = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
 
       // Increment fetch ID — any in-flight fetch with a lower ID is stale
       const currentFetchId = ++fetchIdRef.current;
@@ -385,7 +384,7 @@ export function ElasticInput(props: ElasticInputProps) {
             }
           }
         } catch (e) {
-          if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+    
           // Only close dropdown if this is still the latest request
           if (fetchIdRef.current === currentFetchId) {
             setShowDropdown(false);
@@ -406,7 +405,6 @@ export function ElasticInput(props: ElasticInputProps) {
     asyncActiveRef.current = false;
     fetchIdRef.current++;
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
-    if (loadingTimerRef.current) { clearTimeout(loadingTimerRef.current); loadingTimerRef.current = null; }
   }, []);
 
   const applyNewValue = React.useCallback((
@@ -536,7 +534,6 @@ export function ElasticInput(props: ElasticInputProps) {
       resolvedFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint },
-      !!fetchSuggestionsProp,
     );
     validatorRef.current = new Validator(resolvedFields);
     // Re-load async data for new engine
@@ -595,7 +592,7 @@ export function ElasticInput(props: ElasticInputProps) {
   React.useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+
     };
   }, []);
 

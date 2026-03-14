@@ -24,7 +24,6 @@ export class AutocompleteEngine {
   private searchHistory: HistoryEntry[];
   private maxSuggestions: number;
   private options: AutocompleteOptions;
-  private hasAsyncFetch: boolean;
 
   constructor(
     fields: FieldConfig[],
@@ -32,7 +31,6 @@ export class AutocompleteEngine {
     searchHistory: HistoryEntry[] = [],
     maxSuggestions: number = DEFAULT_MAX_SUGGESTIONS,
     options: AutocompleteOptions = {},
-    hasAsyncFetch: boolean = false,
   ) {
     this.fields = fields;
     this.fieldMap = new Map(fields.map(f => [f.name, f]));
@@ -46,7 +44,6 @@ export class AutocompleteEngine {
     this.savedSearches = savedSearches;
     this.searchHistory = searchHistory;
     this.maxSuggestions = maxSuggestions;
-    this.hasAsyncFetch = hasAsyncFetch;
     this.options = {
       showSavedSearchHint: options.showSavedSearchHint ?? true,
       showHistoryHint: options.showHistoryHint ?? true,
@@ -183,9 +180,9 @@ export class AutocompleteEngine {
         }));
     }
 
-    // When fetchSuggestions is available, skip static suggestions —
-    // the async callback is the single source of truth for all field values.
-    if (field.suggestions && !this.hasAsyncFetch) {
+    // Show static suggestions unless the field opts into async search,
+    // in which case fetchSuggestions is the single source of truth.
+    if (field.suggestions && !field.asyncSearch) {
       const lower = partial.toLowerCase();
       const scored = field.suggestions
         .map(s => {

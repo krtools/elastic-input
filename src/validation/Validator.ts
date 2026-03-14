@@ -133,6 +133,21 @@ export class Validator {
         break;
       }
 
+      case 'FieldGroup': {
+        const groupField = this.fields.get(node.field);
+        if (!groupField) {
+          errors.push({
+            message: `Unknown field: "${node.field}"`,
+            start: node.start,
+            end: node.start + node.field.length,
+            field: node.field,
+          });
+        } else {
+          this.walkFieldGroup(node.expression, groupField, errors);
+        }
+        break;
+      }
+
       case 'BooleanExpr':
         this.walkNode(node.left, errors);
         this.walkNode(node.right, errors);
@@ -153,6 +168,83 @@ export class Validator {
           end: node.end,
         });
         break;
+    }
+  }
+
+  /** Walk inside a FieldGroup, validating bare terms / field values against the group's field config. */
+  private walkFieldGroup(node: ASTNode, field: FieldConfig, errors: ValidationError[]): void {
+    switch (node.type) {
+      case 'BareTerm': {
+        if (node.value === '') return;
+        this.validateFieldValue(field, node.value, node.quoted, ':', node.start, node.end, errors);
+        break;
+      }
+      case 'FieldValue': {
+        // Nested field:value inside a group — validate normally
+        this.walkNode(node, errors);
+        break;
+      }
+      case 'BooleanExpr':
+        this.walkFieldGroup(node.left, field, errors);
+        this.walkFieldGroup(node.right, field, errors);
+        break;
+      case 'Group':
+        this.walkFieldGroup(node.expression, field, errors);
+        break;
+      case 'Not':
+        this.walkFieldGroup(node.expression, field, errors);
+        break;
+      default:
+        this.walkNode(node, errors);
+        break;
+    }
+  }
+
+  /** Validate a value against a field config (shared between FieldValue and FieldGroup terms). */
+  private validateFieldValue(
+    field: FieldConfig, value: string, _quoted: boolean, operator: string,
+    start: number, end: number, errors: ValidationError[],
+  ): void {
+    let error: string | null = null;
+    switch (field.type) {
+      case 'number':
+        error = validateNumber(value);
+        break;
+      case 'date':
+        error = validateDate(value);
+        break;
+      case 'boolean':
+        if (value !== 'true' && value !== 'false') {
+          error = `Expected "true" or "false", got "${value}"`;
+        }
+        break;
+      case 'enum':
+        if (field.suggestions && !field.suggestions.includes(value)) {
+          error = `"${value}" is not a valid value for ${field.name}. Options: ${field.suggestions.join(', ')}`;
+        }
+        break;
+      case 'ip':
+        if (!/^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/.test(value) && !value.includes('*')) {
+          error = `"${value}" is not a valid IP address`;
+        }
+        break;
+    }
+
+    if (operator !== ':' && field.type !== 'number' && field.type !== 'date') {
+      error = `Comparison operator "${operator}" is not valid for ${field.type} fields`;
+    }
+
+    if (!error && field.validate) {
+      error = field.validate(value);
+    }
+
+    if (error) {
+      errors.push({
+        message: error,
+        start,
+        end,
+        field: field.name,
+      });
     }
   }
 }

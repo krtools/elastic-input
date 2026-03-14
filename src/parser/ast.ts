@@ -1,5 +1,6 @@
 export type ASTNode =
   | FieldValueNode
+  | FieldGroupNode
   | BooleanExprNode
   | GroupNode
   | NotNode
@@ -17,6 +18,14 @@ export interface FieldValueNode {
   boost?: number;
   fuzzy?: number;
   proximity?: number;
+  start: number;
+  end: number;
+}
+
+export interface FieldGroupNode {
+  type: 'FieldGroup';
+  field: string;
+  expression: ASTNode;
   start: number;
   end: number;
 }

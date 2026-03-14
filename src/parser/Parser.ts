@@ -238,6 +238,30 @@ export class Parser {
           operator = compOp.value;
         }
 
+        // Field-scoped group: field:(expr)
+        if (this.peek()?.type === TokenType.LPAREN) {
+          const lparen = this.advance();
+          if (!this.peek() || this.peek()!.type === TokenType.RPAREN) {
+            const rp = this.match(TokenType.RPAREN);
+            return {
+              type: 'FieldGroup',
+              field: field.value,
+              expression: { type: 'BareTerm', value: '', quoted: false, start: lparen.end, end: lparen.end },
+              start: field.start,
+              end: rp ? rp.end : lparen.end,
+            };
+          }
+          const expr = this.parseOr();
+          const rparen = this.match(TokenType.RPAREN);
+          return {
+            type: 'FieldGroup',
+            field: field.value,
+            expression: expr,
+            start: field.start,
+            end: rparen ? rparen.end : expr.end,
+          };
+        }
+
         const valueToken = this.peek();
         if (valueToken && (
           valueToken.type === TokenType.VALUE ||

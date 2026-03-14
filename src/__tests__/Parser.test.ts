@@ -532,4 +532,98 @@ describe('Parser', () => {
       });
     });
   });
+
+  describe('field-scoped groups', () => {
+    it('parses field:(a b c) as FieldGroup', () => {
+      const ast = parse('created:(a b c)')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'created',
+        expression: {
+          type: 'BooleanExpr',
+          operator: 'AND',
+        },
+      });
+    });
+
+    it('parses field:(a OR b) as FieldGroup with OR', () => {
+      const ast = parse('status:(active OR inactive)')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'status',
+        expression: {
+          type: 'BooleanExpr',
+          operator: 'OR',
+          left: { type: 'BareTerm', value: 'active' },
+          right: { type: 'BareTerm', value: 'inactive' },
+        },
+      });
+    });
+
+    it('parses field:(single) as FieldGroup with one term', () => {
+      const ast = parse('status:(active)')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'status',
+        expression: { type: 'BareTerm', value: 'active' },
+      });
+    });
+
+    it('parses empty field group field:()', () => {
+      const ast = parse('status:()')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'status',
+        expression: { type: 'BareTerm', value: '' },
+      });
+    });
+
+    it('parses field group with NOT inside', () => {
+      const ast = parse('status:(NOT active)')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'status',
+        expression: {
+          type: 'Not',
+          expression: { type: 'BareTerm', value: 'active' },
+        },
+      });
+    });
+
+    it('parses nested groups: field:((a OR b) AND c)', () => {
+      const ast = parse('status:((a OR b) AND c)')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'status',
+        expression: {
+          type: 'BooleanExpr',
+          operator: 'AND',
+          left: {
+            type: 'Group',
+            expression: {
+              type: 'BooleanExpr',
+              operator: 'OR',
+            },
+          },
+          right: { type: 'BareTerm', value: 'c' },
+        },
+      });
+    });
+
+    it('tracks offsets for field group', () => {
+      const ast = parse('created:(a b)')!;
+      expect(ast.start).toBe(0);
+      expect(ast.end).toBe(13);
+    });
+
+    it('parses field group combined with other terms', () => {
+      const ast = parse('status:(a OR b) AND price:>100')!;
+      expect(ast).toMatchObject({
+        type: 'BooleanExpr',
+        operator: 'AND',
+        left: { type: 'FieldGroup', field: 'status' },
+        right: { type: 'FieldValue', field: 'price' },
+      });
+    });
+  });
 });

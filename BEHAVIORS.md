@@ -114,6 +114,7 @@ The parser builds an AST from tokens using recursive descent with precedence: **
 | Node Type | Example Input |
 |-----------|--------------|
 | `FieldValue` | `status:active` |
+| `FieldGroup` | `status:(a b c)` |
 | `BooleanExpr` | `a AND b`, `a OR b` |
 | `Not` | `NOT x`, `-x` |
 | `Group` | `(a OR b)` |
@@ -187,6 +188,18 @@ Modifiers can be combined: `abc~1^2` sets both `fuzzy: 1` and `boost: 2`.
 The `end` offset of the node is extended to include the modifier tokens.
 
 - **Tests:** `Parser.test.ts` → "parses bare term with fuzzy", "parses fuzzy 0", "parses fuzzy without number as 0", "tracks end offset including tilde", "parses field:value~N", "parses quoted phrase with proximity", "proximity on quoted field value", "parses bare term with boost", "parses decimal boost", "parses field:value^N", "tracks end offset including caret", "parses fuzzy + boost: abc~1^2", "parses proximity + boost"
+
+### 2.10 Field-Scoped Groups
+
+`field:(a b c)` is parsed as a `FieldGroup` node containing the field name and an inner expression. The inner expression is parsed with normal precedence rules (implicit AND, explicit OR, NOT, nested groups).
+
+- `created:(a b c)` → `FieldGroup(field="created", expr=AND(AND(a, b), c))`
+- `status:(active OR inactive)` → `FieldGroup(field="status", expr=OR(active, inactive))`
+- `status:((a OR b) AND c)` → nested Group inside FieldGroup
+
+Empty groups `field:()` produce a FieldGroup with an empty BareTerm. Unclosed groups are handled gracefully.
+
+- **Tests:** `Parser.test.ts` → "field-scoped groups" suite (8 tests)
 
 ---
 
@@ -681,7 +694,22 @@ Date ranges `[start TO end]`, `{start TO end}`, and mixed bracket variants are v
 
 - **Tests:** `Validator.test.ts` → "accepts [date TO date] range", "accepts {date TO date} exclusive range", "accepts mixed bracket range", "accepts range with rounding syntax", "flags invalid range start", "flags invalid range end"
 
-### 9.13 Non-Validated Cases
+### 9.13 Field-Scoped Group Validation
+
+When a `FieldGroup` node is encountered (e.g., `created:(a b c)`), each bare term inside the group is validated against the group's field config as if it were an individual `field:value` pair.
+
+- `created:(a b c)` → 3 errors (each value is not a valid date)
+- `created:(2024-01-01 now-7d)` → no errors
+- `status:(active OR bogus)` → 1 error on "bogus"
+- `price:(abc 100 xyz)` → 2 errors on "abc" and "xyz"
+
+Nested groups are validated recursively: `created:((a OR b) AND c)` validates all 3 terms. NOT inside a group is also handled: `created:(NOT invalid)` validates "invalid".
+
+Unknown fields in groups produce a single "Unknown field" error without descending into the inner expression.
+
+- **Tests:** `Validator.test.ts` → "Field-scoped group validation" suite (10 tests)
+
+### 9.14 Non-Validated Cases
 
 - Bare terms (freeform search words) are not validated
 - Empty values pass validation

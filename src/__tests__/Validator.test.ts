@@ -239,3 +239,63 @@ describe('Modifier validation', () => {
     expect(validate('name:john~1^2')).toHaveLength(0);
   });
 });
+
+describe('Field-scoped group validation', () => {
+  it('validates each value in field:(a b c) against the field type', () => {
+    const errors = validate('created:(a b c)');
+    expect(errors).toHaveLength(3);
+    expect(errors[0].message).toContain('not a valid date');
+    expect(errors[1].message).toContain('not a valid date');
+    expect(errors[2].message).toContain('not a valid date');
+  });
+
+  it('accepts valid values in field group', () => {
+    expect(validate('created:(2024-01-01 2024-06-15)')).toHaveLength(0);
+  });
+
+  it('accepts valid values with OR', () => {
+    expect(validate('status:(active OR inactive)')).toHaveLength(0);
+  });
+
+  it('flags invalid enum values in group', () => {
+    const errors = validate('status:(active OR bogus)');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('not a valid value');
+    expect(errors[0].message).toContain('bogus');
+  });
+
+  it('flags unknown field in group', () => {
+    const errors = validate('unknown:(a b)');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Unknown field');
+  });
+
+  it('validates nested groups recursively', () => {
+    const errors = validate('created:((a OR b) AND c)');
+    expect(errors).toHaveLength(3);
+    for (const e of errors) {
+      expect(e.message).toContain('not a valid date');
+    }
+  });
+
+  it('validates NOT inside group', () => {
+    const errors = validate('created:(NOT invalid)');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('not a valid date');
+  });
+
+  it('validates number field group', () => {
+    const errors = validate('price:(abc 100 xyz)');
+    expect(errors).toHaveLength(2);
+    expect(errors[0].message).toContain('not a valid number');
+    expect(errors[1].message).toContain('not a valid number');
+  });
+
+  it('accepts empty field group without errors', () => {
+    expect(validate('created:()')).toHaveLength(0);
+  });
+
+  it('accepts relative dates in group', () => {
+    expect(validate('created:(now now-7d now-1d/d)')).toHaveLength(0);
+  });
+});

@@ -7,6 +7,10 @@ import { Token, TokenType } from '../lexer/tokens';
  */
 export function normalizeTypographicChars(text: string): string {
   return text
+    // CRLF → LF (normalize Windows line endings)
+    .replace(/\r\n/g, '\n')
+    // Stray carriage returns → LF
+    .replace(/\r/g, '\n')
     // Smart double quotes → standard double quote
     .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036\u00AB\u00BB]/g, '"')
     // Smart single quotes / apostrophes → standard single quote
@@ -46,10 +50,33 @@ export function wrapSelection(
 
 /**
  * Get the plaintext content from a contenteditable element,
- * handling <br> and block elements as newlines.
+ * converting `<br>` elements to newline characters.
+ *
+ * When the element has no text content (only `<br>` elements), returns `''`.
+ * Browsers leave a `<br>` artifact in empty contentEditable divs; this
+ * check prevents that phantom newline from persisting through the
+ * lex → highlight → innerHTML cycle.
  */
 export function getPlainText(element: HTMLElement): string {
-  return element.textContent || '';
+  // Browsers leave a <br> in empty contentEditable divs as an artifact.
+  // textContent ignores <br> and returns '' when there's no real text.
+  if (!element.textContent) {
+    return '';
+  }
+  const parts: string[] = [];
+  function walk(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      parts.push(node.textContent || '');
+    } else if (node.nodeName === 'BR') {
+      parts.push('\n');
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        walk(node.childNodes[i]);
+      }
+    }
+  }
+  walk(element);
+  return parts.join('');
 }
 
 /**

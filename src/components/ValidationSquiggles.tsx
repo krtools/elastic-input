@@ -35,6 +35,17 @@ function findPositionAtOffset(
       currentOffset += len;
       return null;
     }
+    if (node.nodeName === 'BR') {
+      if (currentOffset + 1 >= targetOffset) {
+        const parentNode = node.parentNode;
+        if (parentNode) {
+          const idx = Array.from(parentNode.childNodes).indexOf(node as ChildNode);
+          return { node: parentNode, offset: idx + 1 };
+        }
+      }
+      currentOffset += 1;
+      return null;
+    }
     for (let i = 0; i < node.childNodes.length; i++) {
       const result = walk(node.childNodes[i]);
       if (result) return result;
@@ -45,29 +56,39 @@ function findPositionAtOffset(
   return walk(parent);
 }
 
-function getOffsetPositions(
+function getOffsetRects(
   editor: HTMLElement,
   start: number,
   end: number
-): { left: number; top: number; width: number; height: number } | null {
+): { left: number; top: number; width: number; height: number }[] {
   const startPos = findPositionAtOffset(editor, start);
   const endPos = findPositionAtOffset(editor, end);
 
-  if (!startPos || !endPos) return null;
+  if (!startPos || !endPos) return [];
 
   const range = document.createRange();
   range.setStart(startPos.node, startPos.offset);
   range.setEnd(endPos.node, endPos.offset);
 
-  const rangeRect = range.getBoundingClientRect();
   const editorRect = editor.getBoundingClientRect();
 
-  return {
-    left: rangeRect.left - editorRect.left,
-    top: rangeRect.top - editorRect.top,
-    width: Math.max(rangeRect.width, 6),
-    height: rangeRect.height,
-  };
+  // getClientRects() returns one rect per line for multi-line ranges
+  const clientRects = range.getClientRects();
+  if (clientRects.length === 0) return [];
+
+  const results: { left: number; top: number; width: number; height: number }[] = [];
+  for (let i = 0; i < clientRects.length; i++) {
+    const r = clientRects[i];
+    if (r.width < 1) continue; // skip zero-width rects
+    results.push({
+      left: r.left - editorRect.left,
+      top: r.top - editorRect.top,
+      width: Math.max(r.width, 6),
+      height: r.height,
+    });
+  }
+
+  return results;
 }
 
 function getSquigglyRects(
@@ -85,13 +106,13 @@ function getSquigglyRects(
       continue;
     }
 
-    const positions = getOffsetPositions(editorRef, error.start, error.end);
-    if (positions) {
+    const lineRects = getOffsetRects(editorRef, error.start, error.end);
+    for (const pos of lineRects) {
       rects.push({
-        left: positions.left,
-        top: positions.top,
-        width: positions.width,
-        height: positions.height,
+        left: pos.left,
+        top: pos.top,
+        width: pos.width,
+        height: pos.height,
         error,
       });
     }

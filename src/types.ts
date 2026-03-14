@@ -241,4 +241,6 @@ export interface ElasticInputProps {
   showHistoryHint?: boolean;
   /** Callback that receives the imperative API handle for programmatic control. */
   inputRef?: (api: ElasticInputAPI) => void;
+  /** Enable multiline input with Shift+Enter for line breaks. @default true */
+  multiline?: boolean;
 }

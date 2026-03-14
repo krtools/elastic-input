@@ -1,13 +1,53 @@
+/**
+ * Count character offset from the start of root to a specific DOM position,
+ * treating <br> elements as single newline characters.
+ */
+function countOffsetTo(root: Node, targetNode: Node, targetOffset: number): number {
+  let count = 0;
+  let found = false;
+
+  function walk(node: Node): boolean {
+    if (found) return true;
+
+    if (node === targetNode) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        count += targetOffset;
+      } else {
+        // Element node — walk children up to targetOffset
+        for (let i = 0; i < targetOffset && i < node.childNodes.length; i++) {
+          if (walk(node.childNodes[i])) return true;
+        }
+      }
+      found = true;
+      return true;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      count += (node.textContent || '').length;
+      return false;
+    }
+
+    if (node.nodeName === 'BR') {
+      count += 1;
+      return false;
+    }
+
+    for (let i = 0; i < node.childNodes.length; i++) {
+      if (walk(node.childNodes[i])) return true;
+    }
+    return false;
+  }
+
+  walk(root);
+  return count;
+}
+
 export function getCaretCharOffset(element: HTMLElement): number {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return 0;
 
   const range = sel.getRangeAt(0);
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(element);
-  preRange.setEnd(range.startContainer, range.startOffset);
-
-  return preRange.toString().length;
+  return countOffsetTo(element, range.startContainer, range.startOffset);
 }
 
 export function getSelectionCharRange(element: HTMLElement): { start: number; end: number } {
@@ -15,16 +55,8 @@ export function getSelectionCharRange(element: HTMLElement): { start: number; en
   if (!sel || sel.rangeCount === 0) return { start: 0, end: 0 };
 
   const range = sel.getRangeAt(0);
-
-  const preRangeStart = range.cloneRange();
-  preRangeStart.selectNodeContents(element);
-  preRangeStart.setEnd(range.startContainer, range.startOffset);
-  const start = preRangeStart.toString().length;
-
-  const preRangeEnd = range.cloneRange();
-  preRangeEnd.selectNodeContents(element);
-  preRangeEnd.setEnd(range.endContainer, range.endOffset);
-  const end = preRangeEnd.toString().length;
+  const start = countOffsetTo(element, range.startContainer, range.startOffset);
+  const end = countOffsetTo(element, range.endContainer, range.endOffset);
 
   return { start, end };
 }
@@ -43,7 +75,11 @@ export function setCaretCharOffset(element: HTMLElement, offset: number): void {
   sel.addRange(range);
 }
 
-function findNodeAtOffset(
+/**
+ * Find the DOM node and offset corresponding to a character offset,
+ * treating <br> elements as single newline characters.
+ */
+export function findNodeAtOffset(
   parent: Node,
   targetOffset: number
 ): { node: Node; offset: number } | null {
@@ -56,6 +92,19 @@ function findNodeAtOffset(
         return { node, offset: targetOffset - currentOffset };
       }
       currentOffset += len;
+      return null;
+    }
+
+    if (node.nodeName === 'BR') {
+      if (currentOffset + 1 >= targetOffset) {
+        // Position after the <br> — place cursor at start of next sibling
+        const parentNode = node.parentNode;
+        if (parentNode) {
+          const idx = Array.from(parentNode.childNodes).indexOf(node as ChildNode);
+          return { node: parentNode, offset: idx + 1 };
+        }
+      }
+      currentOffset += 1;
       return null;
     }
 

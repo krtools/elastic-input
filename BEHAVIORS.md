@@ -66,7 +66,12 @@ A `-` or `+` immediately before a term (field name, quoted string, paren, `#`, `
 
 Whitespace is preserved as `WHITESPACE` tokens for lossless offset mapping. Leading and trailing whitespace is preserved.
 
-- **Tests:** `Lexer.test.ts` → "preserves whitespace tokens", "handles leading whitespace", "handles trailing whitespace"
+Newlines (`\n`, `\r\n`) are treated as whitespace, allowing multi-line queries. A newline in the input is lexed as a `WHITESPACE` token and rendered as `<br>` in the highlighted output.
+
+- `status:active\nAND name:John` → same tokens as the single-line version
+- Multiple consecutive newlines are collapsed into a single whitespace token
+
+- **Tests:** `Lexer.test.ts` → "preserves whitespace tokens", "handles leading whitespace", "handles trailing whitespace", "treats newlines as whitespace between terms", "handles multiple consecutive newlines", "handles \\r\\n (Windows line endings)", "preserves newlines in whitespace token values"
 
 ### 1.9 Boolean Operator Aliases (`&&`, `||`)
 
@@ -653,12 +658,26 @@ Pasted and typed text is automatically normalized to replace typographic/smart c
 | `\u2026` | `...` | Horizontal ellipsis |
 | `\u00A0` `\u202F` `\u2007` | ` ` | Non-breaking / figure spaces |
 | `\uFF01`–`\uFF5E` | ASCII equivalent | Fullwidth ASCII (CJK input) |
+| `\r\n` | `\n` | Windows CRLF line endings |
+| `\r` | `\n` | Stray carriage returns |
 
 Normalization runs on both paste and regular input events. The original text is never stored — only the normalized version enters the lexer.
 
-- **Tests:** `normalizeTypographic.test.ts` → 26 tests covering all character categories and mixed input
+- **Tests:** `normalizeTypographic.test.ts` → 31 tests covering all character categories, line endings, and mixed input
 
-### 7.8 Arrow Keys — Navigate / Move Cursor
+### 7.8 Shift+Enter — Insert Newline (Multiline Mode)
+
+When the `multiline` prop is enabled (default: `true`), Shift+Enter inserts a line break into the query instead of submitting. This allows users to write multi-line queries for readability.
+
+- Shift+Enter inserts a `<br>` via `document.execCommand('insertLineBreak')`
+- The newline is treated as whitespace by the lexer — it does not change query semantics
+- Ctrl+Enter always submits regardless of multiline mode
+- Plain Enter still submits (or accepts a suggestion if the dropdown is open)
+- When `multiline` is `false`, Shift+Enter has no special behavior (falls through to default Enter handling)
+
+- **Tests:** `multiline.test.ts` → "parses multiline queries correctly", "validates multiline queries same as single-line"
+
+### 7.9 Arrow Keys — Navigate / Move Cursor
 
 - **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
 - **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position
@@ -737,7 +756,7 @@ Validation runs on the AST and produces errors with character offsets for squigg
 
 Validation errors are rendered as red wavy underlines beneath the invalid text. The wave pattern uses an SVG-based `background-image` with a smooth sinusoidal curve (8px wavelength) for a clear, readable underline.
 
-The squigglies are absolutely positioned relative to the input container, with positions computed from DOM `Range.getBoundingClientRect()` measurements.
+The squigglies are absolutely positioned relative to the input container, with positions computed from DOM `Range.getClientRects()` measurements. For errors spanning multiple lines, each line gets its own squiggly underline (one rect per line), preventing the single-bounding-box problem where a multi-line range would produce a squiggly covering the entire width of the input.
 
 ### 9.2 Hover Tooltips
 
@@ -972,6 +991,7 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 | `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
 | `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
+| `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
 
 ### 10.2 Style Configuration
 

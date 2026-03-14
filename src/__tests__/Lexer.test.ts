@@ -527,4 +527,38 @@ describe('Lexer', () => {
       expect(values).toEqual(['[now-7d TO now]']);
     });
   });
+
+  describe('multiline / newlines', () => {
+    it('treats newlines as whitespace between terms', () => {
+      const tokens = lex('status:active\nAND name:John');
+      const types = tokens.filter(t => t.type !== TokenType.WHITESPACE).map(t => t.type);
+      expect(types).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+        TokenType.AND,
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+    });
+
+    it('handles multiple consecutive newlines', () => {
+      const tokens = lex('foo\n\nbar');
+      const nonWs = tokens.filter(t => t.type !== TokenType.WHITESPACE);
+      expect(nonWs.map(t => t.value)).toEqual(['foo', 'bar']);
+    });
+
+    it('handles \\r\\n (Windows line endings)', () => {
+      const tokens = lex('a:1\r\nb:2');
+      const nonWs = tokens.filter(t => t.type !== TokenType.WHITESPACE);
+      expect(nonWs.map(t => t.type)).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+    });
+
+    it('preserves newlines in whitespace token values', () => {
+      const tokens = lex('a\nb');
+      const ws = tokens.filter(t => t.type === TokenType.WHITESPACE);
+      expect(ws.length).toBe(1);
+      expect(ws[0].value).toBe('\n');
+    });
+  });
 });

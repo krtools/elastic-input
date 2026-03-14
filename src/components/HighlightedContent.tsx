@@ -47,7 +47,8 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
     const escapedValue = escapeHTML(token.value);
 
     if (token.type === TokenType.WHITESPACE) {
-      return escapedValue;
+      // Convert newlines to <br> for contentEditable rendering
+      return escapedValue.replace(/\n/g, '<br>');
     }
 
     // Regex tokens get sub-highlighted

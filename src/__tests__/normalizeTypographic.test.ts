@@ -124,4 +124,26 @@ describe('normalizeTypographicChars', () => {
       expect(normalizeTypographicChars('')).toBe('');
     });
   });
+
+  describe('line ending normalization', () => {
+    it('converts CRLF to LF', () => {
+      expect(normalizeTypographicChars('a\r\nb')).toBe('a\nb');
+    });
+
+    it('converts multiple CRLFs to LFs', () => {
+      expect(normalizeTypographicChars('a\r\nb\r\nc')).toBe('a\nb\nc');
+    });
+
+    it('converts stray CR to LF', () => {
+      expect(normalizeTypographicChars('a\rb')).toBe('a\nb');
+    });
+
+    it('leaves LF unchanged', () => {
+      expect(normalizeTypographicChars('a\nb')).toBe('a\nb');
+    });
+
+    it('handles mixed line endings', () => {
+      expect(normalizeTypographicChars('a\r\nb\rc\nd')).toBe('a\nb\nc\nd');
+    });
+  });
 });

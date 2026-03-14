@@ -98,8 +98,11 @@ export function ElasticInput(props: ElasticInputProps) {
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
+    multiline: multilineProp,
     inputRef,
   } = props;
+
+  const multiline = multilineProp !== false; // default true
 
   // --- Refs ---
   // Track editor element in both a ref (for sync access in handlers) and state
@@ -708,6 +711,13 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Shift+Enter inserts a newline when multiline is enabled
+    if (e.key === 'Enter' && e.shiftKey && multiline) {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      return;
+    }
+
     if (s.showDropdown && s.suggestions.length > 0) {
       switch (e.key) {
         case 'ArrowDown':
@@ -741,7 +751,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, restoreUndoEntry]);
+  }, [onSearch, closeDropdown, acceptSuggestion, restoreUndoEntry, multiline]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

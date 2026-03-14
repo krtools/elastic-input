@@ -463,14 +463,15 @@ The dropdown content follows strict rules to prevent stale results from flashing
 
 | Phase | Dropdown Shows | Notes |
 |-------|---------------|-------|
-| First keystroke in async field | Sync suggestions (if any) | Initial entry; async cycle starts |
+| First entry into async field | "Searching..." spinner | Immediate loading indicator, no sync hint flash |
 | Subsequent keystrokes (debounce pending) | Previous results preserved | No flash to empty/sync |
 | Debounce fires, fetch starts | Previous results preserved | Last-good results stay visible |
-| 500ms elapses without response | "Searching..." spinner | Replaces stale results with loading indicator |
 | Fetch resolves (current) | New results | Fresh data shown |
 | Fetch resolves (stale) | Ignored | Monotonic fetch ID prevents old results from overwriting newer ones |
 | Fetch errors | Dropdown closes | No stale results left behind |
 | Context changes (cursor moves away, different field) | Cleared | In-flight fetch cancelled, async state reset |
+
+**Non-async fields** (no `fetchSuggestions` or field has static suggestions only) still show the sync hint (e.g. "Enter a number", "Search companies...") as before.
 
 #### 4.8.2 Staleness Guard
 
@@ -478,9 +479,10 @@ Each async fetch is tagged with a monotonic request ID. When results arrive, the
 
 #### 4.8.3 Loading Spinner
 
-If the async fetch takes longer than **500ms**, a non-selectable "Searching..." loading item appears in the dropdown with an animated CSS spinner. The loading indicator:
+The "Searching..." loading item is a non-selectable dropdown entry with an animated CSS spinner. The loading indicator:
 
-- Only appears after the 500ms threshold (not immediately)
+- Appears immediately on first entry into an async field value
+- On subsequent keystrokes, previous results are preserved (no loading flash)
 - Only appears if the request is still the latest (checked via fetch ID)
 - Is cleared when the fetch completes, errors, or the dropdown closes
 - Uses the `placeholder` color for the spinner border

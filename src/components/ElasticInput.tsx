@@ -232,10 +232,15 @@ export function ElasticInput(props: ElasticInputProps) {
     const contextType = result.context.type;
 
     // Determine if this context will trigger an async fetch
+    // Only fields with asyncSearch: true get the immediate "Searching..." treatment
+    const resolvedField = result.context.fieldName
+      ? engineRef.current.resolveField(result.context.fieldName)
+      : undefined;
     const willFetchAsync = !!(
       fetchSuggestionsProp &&
       result.context.type === 'FIELD_VALUE' &&
-      result.context.fieldName
+      result.context.fieldName &&
+      resolvedField?.asyncSearch
     );
 
     if (result.showDatePicker) {

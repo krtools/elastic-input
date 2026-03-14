@@ -457,9 +457,11 @@ Within the same priority, items retain their relevance-based ordering.
 
 When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
 
+**Only fields with `asyncSearch: true`** in their `FieldConfig` trigger async fetching. Fields without this flag always show their sync hint (e.g. "Enter a number", "Type to search...") and never call `fetchSuggestions`. This prevents fields that have no async data source from flashing "Searching..." before falling back to a static hint.
+
 #### 4.8.1 Async Lifecycle & Dropdown Content
 
-The dropdown content follows strict rules to prevent stale results from flashing:
+The dropdown content follows strict rules to prevent stale results from flashing. These rules only apply to fields with `asyncSearch: true`:
 
 | Phase | Dropdown Shows | Notes |
 |-------|---------------|-------|
@@ -470,8 +472,6 @@ The dropdown content follows strict rules to prevent stale results from flashing
 | Fetch resolves (stale) | Ignored | Monotonic fetch ID prevents old results from overwriting newer ones |
 | Fetch errors | Dropdown closes | No stale results left behind |
 | Context changes (cursor moves away, different field) | Cleared | In-flight fetch cancelled, async state reset |
-
-**Non-async fields** (no `fetchSuggestions` or field has static suggestions only) still show the sync hint (e.g. "Enter a number", "Search companies...") as before.
 
 #### 4.8.2 Staleness Guard
 
@@ -1018,6 +1018,15 @@ Each `FieldConfig` can declare `aliases: string[]`. An alias is treated identica
 - Alias names are matchable in field autocomplete (typing `contact_` matches a field with alias `contact_name`)
 
 - **Tests:** `Validator.test.ts` → "field aliases" suite; `AutocompleteEngine.test.ts` → "field aliases" suite
+
+#### `asyncSearch` Flag
+
+Each `FieldConfig` can set `asyncSearch: true` to indicate that the field's values are provided by the `fetchSuggestions` callback. This controls the initial dropdown behavior when entering a value for that field:
+
+- **`asyncSearch: true`**: Shows "Searching..." spinner immediately on first entry. The `fetchSuggestions` callback is invoked. Subsequent keystrokes preserve previous results until new ones arrive.
+- **`asyncSearch: false` (default)**: Shows the sync hint (e.g. "Enter a number", "Type to search..."). The `fetchSuggestions` callback is **not** invoked for this field.
+
+This prevents fields without an async data source (e.g. `email`, `price`) from flashing "Searching..." before falling back to a static hint.
 
 ### 10.2 Style Configuration
 

@@ -8,7 +8,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'status', label: 'Status', type: 'enum',
     suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
     description: 'Contact status', placeholder: 'Search statuses...' },
-  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...' },
+  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true },
   { name: 'deal_value', label: 'Deal Value', type: 'number', description: 'Deal value in dollars' },
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
   { name: 'last_contact', label: 'Last Contact', type: 'date', description: 'Last interaction date' },
@@ -40,7 +40,7 @@ export const ECOMMERCE_FIELDS: FieldConfig[] = [
     suggestions: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
     description: 'Product category' },
   { name: 'price', label: 'Price', type: 'number', description: 'Product price' },
-  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...' },
+  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...', asyncSearch: true },
   { name: 'in_stock', label: 'In Stock', type: 'boolean', description: 'Availability' },
   { name: 'rating', label: 'Rating', type: 'number', description: 'Customer rating (1-5)',
     validate: (v) => {

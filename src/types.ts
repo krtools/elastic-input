@@ -25,6 +25,8 @@ export interface FieldConfig {
   description?: string;
   /** Custom placeholder hint shown in the dropdown while typing a value for this field (e.g. "Search by company name..."). Overrides the default type-based hint. Set to `false` to suppress the hint entirely. */
   placeholder?: string | false;
+  /** When `true`, the dropdown shows a "Searching..." spinner immediately when entering this field's value (instead of the sync hint). Use for fields whose values are provided by `fetchSuggestions`. @default false */
+  asyncSearch?: boolean;
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */

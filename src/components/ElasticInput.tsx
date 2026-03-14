@@ -572,6 +572,10 @@ export function ElasticInput(props: ElasticInputProps) {
     const currentTokens = stateRef.current.tokens;
     if (currentTokens.length === 0) return;
 
+    // Skip re-render when text is selected — innerHTML replacement would
+    // collapse the selection. Paren matching is irrelevant while selecting.
+    if (isFocused && selectionEnd !== cursorOffset) return;
+
     // When blurred, clear paren highlighting
     const effectiveCursor = isFocused ? cursorOffset : -1;
 
@@ -585,7 +589,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, savedOffset);
-  }, [cursorOffset, isFocused, colors]);
+  }, [cursorOffset, selectionEnd, isFocused, colors]);
 
   // --- Event handlers ---
 

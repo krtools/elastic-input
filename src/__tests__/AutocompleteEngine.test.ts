@@ -555,6 +555,62 @@ describe('AutocompleteEngine', () => {
     });
   });
 
+  describe('asyncSearch flag', () => {
+    const mixedFields: FieldConfig[] = [
+      { name: 'status', type: 'enum', suggestions: ['active', 'inactive', 'pending'] },
+      { name: 'company', type: 'string', asyncSearch: true, placeholder: 'Search companies...' },
+      { name: 'email', type: 'string' },
+      { name: 'brand', type: 'string', asyncSearch: true },
+    ];
+
+    function getAsyncSuggs(input: string, cursorOffset?: number) {
+      const tokens = new Lexer(input).tokenize();
+      const engine = new AutocompleteEngine(mixedFields);
+      return engine.getSuggestions(tokens, cursorOffset ?? input.length);
+    }
+
+    it('enum field without asyncSearch shows static suggestions', () => {
+      const result = getAsyncSuggs('status:');
+      const values = result.suggestions.filter(s => s.type !== 'hint');
+      expect(values.map(s => s.text)).toEqual(expect.arrayContaining(['active', 'inactive', 'pending']));
+    });
+
+    it('enum field without asyncSearch shows filtered suggestions', () => {
+      const result = getAsyncSuggs('status:act');
+      const values = result.suggestions.filter(s => s.type !== 'hint');
+      expect(values.some(s => s.text === 'active')).toBe(true);
+      expect(values.some(s => s.text === 'pending')).toBe(false);
+    });
+
+    it('asyncSearch field does not show static suggestions', () => {
+      const result = getAsyncSuggs('company:');
+      // Should only have the hint, no static value suggestions
+      const values = result.suggestions.filter(s => s.type !== 'hint');
+      expect(values).toHaveLength(0);
+    });
+
+    it('non-async string field shows freeform hint', () => {
+      const result = getAsyncSuggs('email:');
+      const hints = result.suggestions.filter(s => s.type === 'hint');
+      expect(hints.length).toBeGreaterThan(0);
+      expect(hints[0].label).toBe('Type to search...');
+    });
+
+    it('asyncSearch string field shows placeholder hint', () => {
+      const result = getAsyncSuggs('company:');
+      const hints = result.suggestions.filter(s => s.type === 'hint');
+      expect(hints.length).toBeGreaterThan(0);
+      expect(hints[0].label).toBe('Search companies...');
+    });
+
+    it('asyncSearch field without placeholder shows default hint', () => {
+      const result = getAsyncSuggs('brand:');
+      const hints = result.suggestions.filter(s => s.type === 'hint');
+      expect(hints.length).toBeGreaterThan(0);
+      expect(hints[0].label).toBe('Type to search...');
+    });
+  });
+
   describe('field aliases', () => {
     const aliasedFields: FieldConfig[] = [
       { name: 'name', type: 'string', label: 'Contact Name', aliases: ['contact_name', 'full_name'] },

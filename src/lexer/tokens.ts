@@ -14,6 +14,7 @@ export enum TokenType {
   PREFIX_OP = 'PREFIX_OP',
   WILDCARD = 'WILDCARD',
   REGEX = 'REGEX',
+  RANGE = 'RANGE',
   TILDE = 'TILDE',
   BOOST = 'BOOST',
   WHITESPACE = 'WHITESPACE',

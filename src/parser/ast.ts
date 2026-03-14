@@ -8,6 +8,7 @@ export type ASTNode =
   | HistoryRefNode
   | BareTermNode
   | RegexNode
+  | RangeNode
   | ErrorNode;
 
 export interface FieldValueNode {
@@ -84,6 +85,19 @@ export interface BareTermNode {
 export interface RegexNode {
   type: 'Regex';
   pattern: string;
+  start: number;
+  end: number;
+}
+
+export interface RangeNode {
+  type: 'Range';
+  field?: string;
+  lower: string;
+  upper: string;
+  lowerInclusive: boolean;
+  upperInclusive: boolean;
+  lowerQuoted: boolean;
+  upperQuoted: boolean;
   start: number;
   end: number;
 }

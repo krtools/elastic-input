@@ -100,14 +100,25 @@ After a value or quoted string, `^` followed by optional digits (including decim
 - Combined: `abc~1^2` → `VALUE`, `TILDE("~1")`, `BOOST("^2")`
 - **Tests:** `Lexer.test.ts` → "tokenizes term^N as VALUE + BOOST", "tokenizes field:value^N", "tokenizes ^ with decimal", "tokenizes ^ without number", "combined ~N^N produces VALUE + TILDE + BOOST"
 
-### 1.12 Range Values (`[`, `{`)
+### 1.12 Range Expressions (`[`, `{`)
 
-After a colon, `[` or `{` starts a range value that consumes everything until the matching `]` or `}` as a single token. This supports Lucene-style range syntax.
+`[` or `{` starts a range expression, emitted as a `RANGE` token. The lexer captures the full bracketed expression as one opaque token; internal parsing (bounds, `TO` keyword) happens in the Parser.
 
-- `created:[now-7d TO now]` → `FIELD_NAME`, `COLON`, `VALUE("[now-7d TO now]")`
-- `created:{now-30d TO now}` → `FIELD_NAME`, `COLON`, `VALUE("{now-30d TO now}")`
+Elasticsearch `query_string` range syntax is supported:
+- `[min TO max]` — inclusive both ends
+- `{min TO max}` — exclusive both ends
+- `[min TO max}` / `{min TO max]` — mixed inclusivity
+- `*` for unbounded: `[* TO 100]`, `[100 TO *]`
+- Bounds can be bare words or double-quoted strings
+- `TO` is matched case-insensitively
+
+The `-`/`+` prefix operators recognize `[` and `{` as valid following characters, so `-[abc TO def]` tokenizes as `PREFIX_OP` + `RANGE`.
+
+- `created:[now-7d TO now]` → `FIELD_NAME`, `COLON`, `RANGE("[now-7d TO now]")`
+- `created:{now-30d TO now}` → `FIELD_NAME`, `COLON`, `RANGE("{now-30d TO now}")`
+- `name:(-[abc TO "abd"])` → `FIELD_NAME`, `COLON`, `LPAREN`, `PREFIX_OP`, `RANGE`, `RPAREN`
 - Mixed brackets and unclosed ranges are handled gracefully
-- **Tests:** `Lexer.test.ts` → "tokenizes [date TO date] as single value", "tokenizes {date TO date} as single value", "tokenizes range with absolute dates", "preserves offsets for range value", "range in compound query", "handles unclosed range bracket"
+- **Tests:** `Lexer.test.ts` → "tokenizes [value TO value] as RANGE token", "tokenizes {value TO value} as RANGE token", "tokenizes mixed brackets", "tokenizes -[range] as PREFIX_OP + RANGE", "tokenizes name:(-[abc TO \"abd\"]) correctly", "tokenizes [* TO 100] as RANGE"
 
 ### 1.13 Single-Character Wildcard (`?`)
 
@@ -157,6 +168,7 @@ The parser builds an AST from tokens using recursive descent with precedence: **
 | `SavedSearch` | `#my-search` |
 | `HistoryRef` | `!recent` |
 | `Regex` | `/pattern/` |
+| `Range` | `[abc TO def]`, `{10 TO 100}` |
 | `Error` | unexpected tokens |
 
 ### 2.2 Implicit AND
@@ -245,7 +257,21 @@ Empty groups `field:()` produce a FieldGroup with an empty BareTerm. Unclosed gr
 - `field:/joh?n/` → `Regex(pattern="joh?n", start=0)`
 - **Tests:** `Parser.test.ts` → "regex literals" suite (3 tests)
 
-### 2.12 Group Boost (`(...)^N`)
+### 2.12 Range Nodes
+
+`RANGE` tokens are parsed into `RangeNode` AST nodes. The parser splits the token's raw value on `TO` (case-insensitive) to extract lower/upper bounds, bracket types determine inclusivity, and bounds can be bare words, quoted strings, or `*` (unbounded).
+
+- `[abc TO def]` → `Range(lower="abc", upper="def", lowerInclusive=true, upperInclusive=true)`
+- `{abc TO def}` → both exclusive
+- `[abc TO def}` → mixed inclusivity
+- `name:[abc TO def]` → `Range(field="name", ...)`
+- `name:(-[abc TO "abd"])` → `FieldGroup > Not > Range` (the key fix for the original bug)
+- `[* TO 100]` → lower=`*`, upper=`100`
+- Missing `TO` keyword → error pushed, best-effort RangeNode returned
+- Unclosed bracket → error pushed
+- **Tests:** `Parser.test.ts` → "range expressions" suite (10 tests)
+
+### 2.13 Group Boost (`(...)^N`)
 
 Groups and field groups can have a boost modifier after the closing parenthesis. The boost value is attached to the `Group` or `FieldGroup` node, and the node's `end` offset extends to include the boost.
 
@@ -254,7 +280,7 @@ Groups and field groups can have a boost modifier after the closing parenthesis.
 - `(a)^1.5` → `Group(boost=1.5)`
 - **Tests:** `Parser.test.ts` → "group boost" suite (4 tests)
 
-### 2.13 Syntax Error Detection
+### 2.14 Syntax Error Detection
 
 The parser detects common structural/syntax mistakes and reports them via `parser.getErrors()`. These errors are accumulated separately from the AST so the parser can still return a valid tree. ElasticInput merges these with validator errors to show red squiggly underlines.
 
@@ -868,11 +894,23 @@ Fuzzy, proximity, and boost modifiers are validated for valid ranges:
 
 - **Tests:** `Validator.test.ts` → "accepts valid fuzzy value (0-2)", "flags fuzzy value > 2", "accepts valid boost value", "flags boost value <= 0", "flags fuzzy > 2 on bare term", "accepts valid proximity on bare quoted phrase", "accepts combined fuzzy + boost"
 
-### 9.12 Date Range Validation
+### 9.12 Range Validation
 
-Date ranges `[start TO end]`, `{start TO end}`, and mixed bracket variants are validated by checking each bound independently. Rounding syntax (`now/d`, `now-1d/d`) is accepted.
+Range expressions (`RangeNode`) are validated by checking each bound against the field's type. Wildcard bounds (`*`) are skipped.
 
-- **Tests:** `Validator.test.ts` → "accepts [date TO date] range", "accepts {date TO date} exclusive range", "accepts mixed bracket range", "accepts range with rounding syntax", "flags invalid range start", "flags invalid range end"
+| Field Type | Validation | Example |
+|------------|-----------|---------|
+| `number` | Both bounds must be numeric | `price:[10 TO 100]` ✓, `price:[abc TO def]` ✗ |
+| `date` | Both bounds must be valid dates | `created:[now-7d TO now]` ✓, `created:[invalid TO now]` ✗ |
+| `boolean` | Ranges not supported | `is_vip:[true TO false]` ✗ |
+| `string`, `ip` | No validation (lexicographic OK) | `name:[abc TO def]` ✓ |
+| `enum` | No range-specific validation | |
+
+Rounding syntax (`now/d`, `now-1d/d`) is accepted for date ranges. Unknown fields produce an "Unknown field" error.
+
+Ranges inside `FieldGroup` nodes are validated against the group's field config.
+
+- **Tests:** `Validator.test.ts` → "Range validation" suite (accepts date ranges, flags invalid bounds, accepts number ranges, flags non-numeric bounds, accepts string field ranges, flags unknown field, flags boolean field range)
 
 ### 9.13 Field-Scoped Group Validation
 
@@ -957,7 +995,22 @@ The sub-tokenizer handles nested structures (escapes inside character classes, n
 
 - **Tests:** `regexHighlight.test.ts` → 20 tests covering all element types, nesting, and edge cases
 
-### 9.5.2 Matching Parenthesis Highlighting
+### 9.5.2 Range Syntax Highlighting
+
+RANGE tokens are sub-highlighted with distinct colors for each part:
+
+| Element | Example | Color Key |
+|---------|---------|-----------|
+| Brackets | `[`, `]`, `{`, `}` | `operator` |
+| `TO` keyword | `TO` | `booleanOp` |
+| Bare bounds | `abc`, `100` | `fieldValue` |
+| Quoted bounds | `"abd"` | `quoted` |
+| Wildcard bound | `*` | `wildcard` |
+| Whitespace | spaces | (no color) |
+
+No new `ColorConfig` properties are needed — existing color keys are reused.
+
+### 9.5.3 Matching Parenthesis Highlighting
 
 When the cursor is adjacent to a parenthesis, both the paren and its matching counterpart are highlighted with a background color (`matchedParenBg`) and bold weight. This follows standard IDE bracket matching rules:
 

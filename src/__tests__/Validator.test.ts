@@ -194,7 +194,7 @@ describe('Group boost validation', () => {
   });
 });
 
-describe('Date range validation', () => {
+describe('Range validation', () => {
   it('accepts [date TO date] range', () => {
     expect(validate('created:[now-7d TO now]')).toHaveLength(0);
   });
@@ -233,6 +233,38 @@ describe('Date range validation', () => {
     const errors = validate('created:[now TO invalid]');
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toContain('Range end');
+  });
+
+  it('accepts number range with valid bounds', () => {
+    expect(validate('price:[10 TO 100]')).toHaveLength(0);
+  });
+
+  it('flags non-numeric bounds on number field', () => {
+    const errors = validate('price:[abc TO def]');
+    expect(errors).toHaveLength(2);
+    expect(errors[0].message).toContain('Range start');
+    expect(errors[1].message).toContain('Range end');
+  });
+
+  it('accepts string field range (lexicographic)', () => {
+    expect(validate('name:[abc TO def]')).toHaveLength(0);
+  });
+
+  it('flags unknown field in range', () => {
+    const errors = validate('unknown:[1 TO 10]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Unknown field');
+  });
+
+  it('accepts wildcard bounds', () => {
+    expect(validate('price:[* TO 100]')).toHaveLength(0);
+    expect(validate('price:[100 TO *]')).toHaveLength(0);
+  });
+
+  it('flags boolean field range', () => {
+    const errors = validate('is_vip:[true TO false]');
+    expect(errors).toHaveLength(2);
+    expect(errors[0].message).toContain('not supported for boolean');
   });
 });
 

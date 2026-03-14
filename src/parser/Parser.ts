@@ -1,5 +1,5 @@
 import { Token, TokenType } from '../lexer/tokens';
-import { ASTNode, ErrorNode, GroupNode, FieldGroupNode } from './ast';
+import { ASTNode, ErrorNode, GroupNode, FieldGroupNode, RangeNode } from './ast';
 
 export type CursorContextType =
   | 'FIELD_NAME'
@@ -257,6 +257,83 @@ export class Parser {
     return node;
   }
 
+  private parseRangeBound(text: string): { value: string; quoted: boolean } {
+    const trimmed = text.trim();
+    if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
+      return { value: trimmed.slice(1, -1), quoted: true };
+    }
+    if (trimmed.startsWith('"')) {
+      // Unclosed quote
+      return { value: trimmed.slice(1), quoted: true };
+    }
+    return { value: trimmed, quoted: false };
+  }
+
+  private parseRange(token: Token): RangeNode {
+    const raw = token.value;
+    const openBracket = raw[0];
+    const lowerInclusive = openBracket === '[';
+
+    // Check for closing bracket
+    const lastChar = raw[raw.length - 1];
+    const hasClosed = lastChar === ']' || lastChar === '}';
+    const upperInclusive = lastChar === ']';
+
+    if (!hasClosed) {
+      this.errors.push({
+        type: 'Error',
+        value: openBracket,
+        message: 'Unclosed range expression',
+        start: token.start,
+        end: token.start + 1,
+      });
+    }
+
+    // Extract inner content (between brackets)
+    const inner = hasClosed ? raw.slice(1, -1) : raw.slice(1);
+
+    // Split on TO (case-insensitive, whitespace-bounded)
+    const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
+
+    if (!toMatch) {
+      this.errors.push({
+        type: 'Error',
+        value: raw,
+        message: 'Range expression missing TO keyword',
+        start: token.start,
+        end: token.end,
+      });
+      // Best-effort: treat entire inner content as lower bound
+      const bound = this.parseRangeBound(inner);
+      return {
+        type: 'Range',
+        lower: bound.value,
+        upper: '',
+        lowerInclusive,
+        upperInclusive: hasClosed ? upperInclusive : true,
+        lowerQuoted: bound.quoted,
+        upperQuoted: false,
+        start: token.start,
+        end: token.end,
+      };
+    }
+
+    const lowerBound = this.parseRangeBound(toMatch[1]);
+    const upperBound = this.parseRangeBound(toMatch[2]);
+
+    return {
+      type: 'Range',
+      lower: lowerBound.value,
+      upper: upperBound.value,
+      lowerInclusive,
+      upperInclusive: hasClosed ? upperInclusive : true,
+      lowerQuoted: lowerBound.quoted,
+      upperQuoted: upperBound.quoted,
+      start: token.start,
+      end: token.end,
+    };
+  }
+
   private parsePrimary(): ASTNode {
     const token = this.peek();
 
@@ -418,6 +495,15 @@ export class Parser {
           return this.applyGroupBoost(fieldGroupNode);
         }
 
+        // Range value for field
+        if (this.peek()?.type === TokenType.RANGE) {
+          const rangeToken = this.advance();
+          const node = this.parseRange(rangeToken);
+          node.field = field.value;
+          node.start = field.start;
+          return node;
+        }
+
         // Regex value for field
         if (this.peek()?.type === TokenType.REGEX) {
           const val = this.advance();
@@ -516,6 +602,12 @@ export class Parser {
         start: t.start,
         end: t.end,
       });
+    }
+
+    // Range expression as standalone
+    if (token.type === TokenType.RANGE) {
+      const t = this.advance();
+      return this.parseRange(t);
     }
 
     // Regex literal as bare term
@@ -723,6 +815,7 @@ export class Parser {
       prevNonWsToken.type === TokenType.VALUE ||
       prevNonWsToken.type === TokenType.QUOTED_VALUE ||
       prevNonWsToken.type === TokenType.RPAREN ||
+      prevNonWsToken.type === TokenType.RANGE ||
       prevNonWsToken.type === TokenType.TILDE ||
       prevNonWsToken.type === TokenType.BOOST
     )) {

@@ -2,6 +2,7 @@ import { Token, TokenType } from '../lexer/tokens';
 import { ColorConfig } from '../types';
 import { mergeColors } from '../styles/inlineStyles';
 import { buildRegexHTML } from '../highlighting/regexHighlight';
+import { buildRangeHTML } from '../highlighting/rangeHighlight';
 import { findMatchingParen, ParenMatch } from '../highlighting/parenMatch';
 
 const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
@@ -20,6 +21,7 @@ const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
   [TokenType.PREFIX_OP]: 'operator',
   [TokenType.WILDCARD]: 'wildcard',
   [TokenType.REGEX]: 'quoted',
+  [TokenType.RANGE]: 'fieldValue',
   [TokenType.TILDE]: 'operator',
   [TokenType.BOOST]: 'operator',
   [TokenType.WHITESPACE]: 'text',
@@ -54,6 +56,11 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
     // Regex tokens get sub-highlighted
     if (token.type === TokenType.REGEX) {
       return buildRegexHTML(token, colors);
+    }
+
+    // Range tokens get sub-highlighted
+    if (token.type === TokenType.RANGE) {
+      return buildRangeHTML(token, colors);
     }
 
     let fontWeight = 'normal';

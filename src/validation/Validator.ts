@@ -1,4 +1,4 @@
-import { ASTNode } from '../parser/ast';
+import { ASTNode, RangeNode } from '../parser/ast';
 import { FieldConfig } from '../types';
 import { validateNumber } from './numberValidator';
 import { validateDate } from './dateValidator';
@@ -69,6 +69,23 @@ export class Validator {
 
       case 'Regex':
         break;
+
+      case 'Range': {
+        if (node.field && node.field !== '*') {
+          const rangeField = this.fields.get(node.field);
+          if (!rangeField) {
+            errors.push({
+              message: `Unknown field: "${node.field}"`,
+              start: node.start,
+              end: node.start + node.field.length,
+              field: node.field,
+            });
+          } else {
+            this.validateRangeBounds(rangeField, node, errors);
+          }
+        }
+        break;
+      }
 
       case 'FieldValue': {
         // * as field name means all fields — skip field-specific validation
@@ -224,6 +241,10 @@ export class Validator {
         this.walkNode(node, errors);
         break;
       }
+      case 'Range': {
+        this.validateRangeBounds(field, node, errors);
+        break;
+      }
       case 'BooleanExpr':
         this.walkFieldGroup(node.left, field, errors);
         this.walkFieldGroup(node.right, field, errors);
@@ -285,6 +306,39 @@ export class Validator {
         end,
         field: field.name,
       });
+    }
+  }
+
+  /** Validate range bounds against a field config. */
+  private validateRangeBounds(field: FieldConfig, node: RangeNode, errors: ValidationError[]): void {
+    const bounds: Array<{ value: string; label: string }> = [];
+    if (node.lower !== '*') bounds.push({ value: node.lower, label: 'Range start' });
+    if (node.upper !== '*') bounds.push({ value: node.upper, label: 'Range end' });
+
+    for (const bound of bounds) {
+      let error: string | null = null;
+      switch (field.type) {
+        case 'number':
+          error = validateNumber(bound.value);
+          if (error) error = `${bound.label}: ${error}`;
+          break;
+        case 'date':
+          error = validateDate(bound.value);
+          if (error) error = `${bound.label}: ${error}`;
+          break;
+        case 'boolean':
+          error = `Range queries are not supported for boolean fields`;
+          break;
+      }
+
+      if (error) {
+        errors.push({
+          message: error,
+          start: node.start,
+          end: node.end,
+          field: field.name,
+        });
+      }
     }
   }
 

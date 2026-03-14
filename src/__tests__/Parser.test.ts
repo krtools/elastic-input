@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { ASTNode, ErrorNode } from '../parser/ast';
+import { ASTNode, ErrorNode, RangeNode } from '../parser/ast';
 
 function parse(input: string): ASTNode | null {
   const tokens = new Lexer(input).tokenize();
@@ -751,6 +751,127 @@ describe('Parser', () => {
       expect(errors).toHaveLength(1);
       expect(errors[0]).toMatchObject({
         message: 'Missing closing quote',
+      });
+    });
+  });
+
+  describe('range expressions', () => {
+    it('parses [abc TO def] as RangeNode', () => {
+      const ast = parse('[abc TO def]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: 'abc',
+        upper: 'def',
+        lowerInclusive: true,
+        upperInclusive: true,
+        lowerQuoted: false,
+        upperQuoted: false,
+      });
+    });
+
+    it('parses {abc TO def} with both exclusive', () => {
+      const ast = parse('{abc TO def}')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: 'abc',
+        upper: 'def',
+        lowerInclusive: false,
+        upperInclusive: false,
+      });
+    });
+
+    it('parses [abc TO def} with mixed inclusivity', () => {
+      const ast = parse('[abc TO def}')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lowerInclusive: true,
+        upperInclusive: false,
+      });
+    });
+
+    it('parses name:[abc TO def] with field', () => {
+      const ast = parse('name:[abc TO def]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        field: 'name',
+        lower: 'abc',
+        upper: 'def',
+        lowerInclusive: true,
+        upperInclusive: true,
+      });
+    });
+
+    it('parses name:(-[abc TO "abd"]) as FieldGroup > Not > Range', () => {
+      const ast = parse('name:(-[abc TO "abd"])')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'name',
+        expression: {
+          type: 'Not',
+          expression: {
+            type: 'Range',
+            lower: 'abc',
+            upper: 'abd',
+            lowerInclusive: true,
+            upperInclusive: true,
+            lowerQuoted: false,
+            upperQuoted: true,
+          },
+        },
+      });
+    });
+
+    it('parses [* TO 100] with unbounded lower', () => {
+      const ast = parse('[* TO 100]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: '*',
+        upper: '100',
+      });
+    });
+
+    it('parses [100 TO *] with unbounded upper', () => {
+      const ast = parse('[100 TO *]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: '100',
+        upper: '*',
+      });
+    });
+
+    it('reports error for range missing TO', () => {
+      const { ast, errors } = parseWithErrors('[abc def]');
+      expect(ast).toMatchObject({ type: 'Range' });
+      expect(errors.length).toBeGreaterThanOrEqual(1);
+      expect(errors.some(e => e.message.includes('TO'))).toBe(true);
+    });
+
+    it('parses range inside field group with other terms', () => {
+      const ast = parse('name:(foo OR [1 TO 10])')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'name',
+        expression: {
+          type: 'BooleanExpr',
+          operator: 'OR',
+          left: { type: 'BareTerm', value: 'foo' },
+          right: { type: 'Range', lower: '1', upper: '10' },
+        },
+      });
+    });
+
+    it('tracks offsets for field:range', () => {
+      const ast = parse('name:[abc TO def]')!;
+      expect(ast.start).toBe(0);
+      expect(ast.end).toBe(17);
+    });
+
+    it('parses case-insensitive TO', () => {
+      const ast = parse('[abc to def]')!;
+      expect(ast).toMatchObject({
+        type: 'Range',
+        lower: 'abc',
+        upper: 'def',
       });
     });
   });

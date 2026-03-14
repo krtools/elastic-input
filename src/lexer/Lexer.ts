@@ -148,7 +148,7 @@ export class Lexer {
     // Unary prefix operators: - or + before a term
     if ((ch === '-' || ch === '+') && this.pos + 1 < this.input.length) {
       const next = this.peekAt(1);
-      if (next && (this.isAlpha(next) || next === '"' || next === '(' || next === '#' || next === '!')) {
+      if (next && (this.isAlpha(next) || next === '"' || next === '(' || next === '#' || next === '!' || next === '[' || next === '{')) {
         this.tokens.push({
           type: TokenType.PREFIX_OP,
           value: ch,
@@ -340,7 +340,7 @@ export class Lexer {
     }
 
     this.tokens.push({
-      type: TokenType.VALUE,
+      type: TokenType.RANGE,
       value: this.input.slice(start, this.pos),
       start,
       end: this.pos,

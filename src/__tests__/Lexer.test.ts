@@ -455,27 +455,25 @@ describe('Lexer', () => {
   });
 
   describe('range values', () => {
-    it('tokenizes [date TO date] as single value', () => {
+    it('tokenizes [value TO value] as RANGE token', () => {
       const types = lexTypes('created:[now-7d TO now]');
-      expect(types).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE]);
+      expect(types).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.RANGE]);
       const values = lexValues('created:[now-7d TO now]');
       expect(values).toEqual(['created', ':', '[now-7d TO now]']);
     });
 
-    it('tokenizes {date TO date} as single value', () => {
+    it('tokenizes {value TO value} as RANGE token', () => {
+      const types = lexTypes('created:{now-30d TO now}');
+      expect(types).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.RANGE]);
       const values = lexValues('created:{now-30d TO now}');
       expect(values).toEqual(['created', ':', '{now-30d TO now}']);
     });
 
-    it('tokenizes mixed brackets [date TO date}', () => {
-      // Lexer reads until matching close bracket for the open bracket
-      const values = lexValues('created:[now-7d TO now}');
-      // [ looks for ], but } is encountered instead — read until end
-      // Actually, ] is the expected close for [, so } won't close it
-      // Let's verify the behavior
+    it('tokenizes mixed brackets [value TO value}', () => {
       const tokens = lex('created:[now-7d TO now}');
-      const valueToken = tokens.find(t => t.type === TokenType.VALUE);
-      expect(valueToken).toBeDefined();
+      const rangeToken = tokens.find(t => t.type === TokenType.RANGE);
+      expect(rangeToken).toBeDefined();
+      expect(rangeToken!.value).toBe('[now-7d TO now}');
     });
 
     it('tokenizes range with absolute dates', () => {
@@ -485,9 +483,9 @@ describe('Lexer', () => {
 
     it('preserves offsets for range value', () => {
       const tokens = lex('created:[now-7d TO now]');
-      const valueToken = tokens.find(t => t.type === TokenType.VALUE)!;
-      expect(valueToken.start).toBe(8); // after "created:"
-      expect(valueToken.end).toBe(23);  // end of "]"
+      const rangeToken = tokens.find(t => t.type === TokenType.RANGE)!;
+      expect(rangeToken.start).toBe(8);
+      expect(rangeToken.end).toBe(23);
     });
 
     it('range in compound query', () => {
@@ -495,36 +493,56 @@ describe('Lexer', () => {
       expect(types).toEqual([
         TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
         TokenType.AND,
-        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.RANGE,
       ]);
     });
 
     it('handles unclosed range bracket', () => {
-      // Should consume to end of input
       const values = lexValues('created:[now-7d TO now');
       expect(values).toEqual(['created', ':', '[now-7d TO now']);
     });
 
-    it('tokenizes range value inside field group', () => {
+    it('tokenizes range inside field group', () => {
       const types = lexTypes('created:([now-1d TO now])');
       expect(types).toEqual([
         TokenType.FIELD_NAME, TokenType.COLON,
-        TokenType.LPAREN, TokenType.VALUE, TokenType.RPAREN,
+        TokenType.LPAREN, TokenType.RANGE, TokenType.RPAREN,
       ]);
       const values = lexValues('created:([now-1d TO now])');
       expect(values).toEqual(['created', ':', '(', '[now-1d TO now]', ')']);
     });
 
     it('tokenizes {range} inside field group', () => {
+      const types = lexTypes('price:({10 TO 100})');
+      expect(types).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON,
+        TokenType.LPAREN, TokenType.RANGE, TokenType.RPAREN,
+      ]);
       const values = lexValues('price:({10 TO 100})');
       expect(values).toEqual(['price', ':', '(', '{10 TO 100}', ')']);
     });
 
-    it('tokenizes standalone range value in EXPECT_TERM', () => {
+    it('tokenizes standalone range in EXPECT_TERM', () => {
       const types = lexTypes('[now-7d TO now]');
-      expect(types).toEqual([TokenType.VALUE]);
+      expect(types).toEqual([TokenType.RANGE]);
       const values = lexValues('[now-7d TO now]');
       expect(values).toEqual(['[now-7d TO now]']);
+    });
+
+    it('tokenizes -[range] as PREFIX_OP + RANGE', () => {
+      expect(lexTypes('-[abc TO def]')).toEqual([TokenType.PREFIX_OP, TokenType.RANGE]);
+    });
+
+    it('tokenizes name:(-[abc TO "abd"]) correctly', () => {
+      expect(lexTypes('name:(-[abc TO "abd"])')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON,
+        TokenType.LPAREN, TokenType.PREFIX_OP, TokenType.RANGE, TokenType.RPAREN,
+      ]);
+    });
+
+    it('tokenizes [* TO 100] as RANGE', () => {
+      expect(lexTypes('[* TO 100]')).toEqual([TokenType.RANGE]);
+      expect(lexValues('[* TO 100]')).toEqual(['[* TO 100]']);
     });
   });
 

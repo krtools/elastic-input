@@ -20,6 +20,8 @@ export interface FieldConfig {
   validate?: (value: string) => string | null;
   /** Description shown alongside the field in autocomplete suggestions. */
   description?: string;
+  /** Custom placeholder hint shown in the dropdown while typing a value for this field (e.g. "Search by company name..."). Overrides the default type-based hint. Set to `false` to suppress the hint entirely. */
+  placeholder?: string | false;
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */

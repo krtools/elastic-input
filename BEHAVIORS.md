@@ -383,11 +383,20 @@ Shown in `FIELD_VALUE` context. Behavior depends on field type:
 | `enum` | Shows `field.suggestions` filtered by partial (startsWith > includes) |
 | `boolean` | Shows `true`, `false` filtered by partial |
 | `date` | Opens a date picker (no text suggestions) |
-| `number` | Shows hint: "Enter a number" |
-| `string` | Shows hint: "Type to search..." |
-| `ip` | Shows hint: "Enter an IP address" |
+| `number` | Shows hint: "Enter a number" (persists while typing) |
+| `string` | Shows hint: "Type to search..." (persists while typing) |
+| `ip` | Shows hint: "Enter an IP address" (persists while typing) |
 
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows hint for string field with no suggestions", "shows hint for IP field"
+For fields without static suggestions (string, number, ip), the hint **stays visible while the user types** rather than disappearing after the first keystroke. This provides persistent context about what the field expects.
+
+The hint text is configurable per field via `FieldConfig.placeholder`:
+- Custom string: `placeholder: "Search companies..."` — shown instead of the default
+- `false`: `placeholder: false` — suppresses the hint entirely
+- Omitted: uses the default type-based hint
+
+When async results arrive (via `fetchSuggestions`), they replace the hint. When async results are empty, the hint is restored as a fallback.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows hint for string field with no suggestions", "shows hint for IP field", "keeps hint visible while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
 ### 4.3 Operator Suggestions
 

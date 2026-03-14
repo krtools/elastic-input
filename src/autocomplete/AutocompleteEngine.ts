@@ -187,18 +187,19 @@ export class AutocompleteEngine {
       }));
     }
 
-    // Freeform hint
-    if (partial.length === 0) {
-      const hints: Record<string, string> = {
+    // Freeform hint — shown while typing for fields without static suggestions.
+    // Suppressed if field.placeholder is explicitly false.
+    if (field.placeholder !== false) {
+      const defaultHints: Record<string, string> = {
         number: 'Enter a number',
         string: 'Type to search...',
         ip: 'Enter an IP address',
       };
-      const hint = hints[field.type];
-      if (hint) {
+      const hintText = field.placeholder || defaultHints[field.type];
+      if (hintText) {
         return [{
           text: '',
-          label: hint,
+          label: hintText,
           type: 'hint',
           replaceStart: start,
           replaceEnd: end,

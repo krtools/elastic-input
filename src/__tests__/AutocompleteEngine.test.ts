@@ -189,6 +189,52 @@ describe('AutocompleteEngine', () => {
       const result = getSuggestions('ip:');
       expect(result.suggestions[0].label).toBe('Enter an IP address');
     });
+
+    it('keeps hint visible while typing in string field', () => {
+      const result = getSuggestions('name:john');
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].type).toBe('hint');
+      expect(result.suggestions[0].label).toBe('Type to search...');
+    });
+
+    it('keeps hint visible while typing in number field', () => {
+      const result = getSuggestions('price:1');
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].type).toBe('hint');
+      expect(result.suggestions[0].label).toBe('Enter a number');
+    });
+
+    it('uses custom placeholder from field config', () => {
+      const fields: FieldConfig[] = [
+        { name: 'company', type: 'string', placeholder: 'Search companies...' },
+      ];
+      const engine = new AutocompleteEngine(fields, [], [], 10);
+      const tokens = new Lexer('company:').tokenize();
+      const result = engine.getSuggestions(tokens, 8);
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].label).toBe('Search companies...');
+    });
+
+    it('custom placeholder stays visible while typing', () => {
+      const fields: FieldConfig[] = [
+        { name: 'company', type: 'string', placeholder: 'Search companies...' },
+      ];
+      const engine = new AutocompleteEngine(fields, [], [], 10);
+      const tokens = new Lexer('company:ac').tokenize();
+      const result = engine.getSuggestions(tokens, 10);
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].label).toBe('Search companies...');
+    });
+
+    it('suppresses hint when placeholder is false', () => {
+      const fields: FieldConfig[] = [
+        { name: 'code', type: 'string', placeholder: false },
+      ];
+      const engine = new AutocompleteEngine(fields, [], [], 10);
+      const tokens = new Lexer('code:').tokenize();
+      const result = engine.getSuggestions(tokens, 5);
+      expect(result.suggestions).toHaveLength(0);
+    });
   });
 
   describe('date field handling', () => {

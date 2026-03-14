@@ -334,8 +334,21 @@ export function ElasticInput(props: ElasticInputProps) {
               setDropdownPosition(rect ? getDropdownPosition(rect, mapped.length * 32, 300) : null);
             });
           } else {
-            setShowDropdown(false);
-            setSuggestions([]);
+            // No async results — fall back to the sync hint (e.g. "Search companies...")
+            const syncResult = engineRef.current.getSuggestions(stateRef.current.tokens, stateRef.current.cursorOffset);
+            const hintSuggestions = syncResult.suggestions.filter(s => s.type === 'hint');
+            if (hintSuggestions.length > 0) {
+              setSuggestions(hintSuggestions);
+              setSelectedSuggestionIndex(0);
+              requestAnimationFrame(() => {
+                const rect = getCaretRect();
+                setShowDropdown(true);
+                setDropdownPosition(rect ? getDropdownPosition(rect, hintSuggestions.length * 32, 300) : null);
+              });
+            } else {
+              setShowDropdown(false);
+              setSuggestions([]);
+            }
           }
         } catch (e) {
           if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);

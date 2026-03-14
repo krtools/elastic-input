@@ -56,14 +56,14 @@ describe('multiline queries', () => {
     it('validates multiline queries same as single-line', () => {
       const { ast, errors: parseErrors } = parse('status:active\nAND name:John');
       const validator = new Validator(FIELDS);
-      const errors = validator.validate(ast, parseErrors);
+      const errors = validator.validate(ast);
       expect(errors).toHaveLength(0);
     });
 
     it('reports errors on correct line positions', () => {
       const { ast, errors: parseErrors } = parse('status:active\nunknown:value');
       const validator = new Validator(FIELDS);
-      const errors = validator.validate(ast, parseErrors);
+      const errors = validator.validate(ast);
       expect(errors.length).toBeGreaterThan(0);
       // The unknown field starts at offset 14 (after "status:active\n")
       expect(errors[0].start).toBe(14);

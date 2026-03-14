@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig } from '../types';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';

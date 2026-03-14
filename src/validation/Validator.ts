@@ -8,6 +8,7 @@ export interface ValidationError {
   start: number;
   end: number;
   field?: string;
+  severity?: 'error' | 'warning';
 }
 
 export class Validator {
@@ -21,6 +22,7 @@ export class Validator {
     if (!ast) return [];
     const errors: ValidationError[] = [];
     this.walkNode(ast, errors);
+    this.checkAmbiguousPrecedence(ast, errors);
     return errors;
   }
 
@@ -271,5 +273,58 @@ export class Validator {
         field: field.name,
       });
     }
+  }
+
+  /** Post-validation pass: detect mixed AND/OR without parentheses. */
+  private checkAmbiguousPrecedence(node: ASTNode, errors: ValidationError[]): void {
+    const flagged = new Set<ASTNode>();
+    this.findAndFlagAmbiguity(node, errors, flagged);
+  }
+
+  private findAndFlagAmbiguity(node: ASTNode, errors: ValidationError[], flagged: Set<ASTNode>): void {
+    if (node.type === 'BooleanExpr' && !flagged.has(node)) {
+      // Collect all chained operators at this level (stopping at Group boundaries)
+      const ops = new Set<string>();
+      const allNodes: ASTNode[] = [];
+      this.collectBoolOps(node, ops, allNodes);
+
+      if (ops.size > 1) {
+        errors.push({
+          message: 'Ambiguous precedence: mix of AND and OR without parentheses. Add parentheses to clarify.',
+          start: node.start,
+          end: node.end,
+          severity: 'warning',
+        });
+        // Mark all collected nodes to prevent duplicate warnings
+        allNodes.forEach(n => flagged.add(n));
+      }
+
+      // Recurse into leaf nodes (non-BooleanExpr children) for nested ambiguity
+      this.collectLeaves(node).forEach(leaf => this.findAndFlagAmbiguity(leaf, errors, flagged));
+    } else if (node.type === 'Group' || node.type === 'FieldGroup') {
+      this.findAndFlagAmbiguity(node.expression, errors, flagged);
+    } else if (node.type === 'Not') {
+      this.findAndFlagAmbiguity(node.expression, errors, flagged);
+    } else if (node.type === 'BooleanExpr') {
+      // Already flagged — still recurse leaves
+      this.collectLeaves(node).forEach(leaf => this.findAndFlagAmbiguity(leaf, errors, flagged));
+    }
+  }
+
+  /** Collect all BooleanExpr operators at the same group level (stop at Group boundaries). */
+  private collectBoolOps(node: ASTNode, ops: Set<string>, allNodes: ASTNode[]): void {
+    if (node.type === 'BooleanExpr') {
+      ops.add(node.operator);
+      allNodes.push(node);
+      this.collectBoolOps(node.left, ops, allNodes);
+      this.collectBoolOps(node.right, ops, allNodes);
+    }
+    // Stop at Group, FieldGroup, Not, etc. — they establish explicit scope
+  }
+
+  /** Collect non-BooleanExpr children from a BooleanExpr chain. */
+  private collectLeaves(node: ASTNode): ASTNode[] {
+    if (node.type !== 'BooleanExpr') return [node];
+    return [...this.collectLeaves(node.left), ...this.collectLeaves(node.right)];
   }
 }

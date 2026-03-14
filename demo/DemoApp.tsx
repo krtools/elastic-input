@@ -7,6 +7,7 @@ import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
   SAMPLE_SAVED_SEARCHES, SAMPLE_HISTORY,
+  mockFetchSuggestions,
 } from './DemoConfig';
 import { lightTheme, darkTheme, getAppStyles, ThemeColors } from './styles';
 
@@ -125,6 +126,7 @@ export class DemoApp extends React.Component<{}, DemoAppState> {
                 onValidationChange: this.handleValidationChange,
                 savedSearches: SAMPLE_SAVED_SEARCHES,
                 searchHistory: SAMPLE_HISTORY,
+                fetchSuggestions: mockFetchSuggestions,
                 maxSuggestions: 8,
               }),
             ),
@@ -191,6 +193,7 @@ export class DemoApp extends React.Component<{}, DemoAppState> {
             React.createElement('div', null, 'Type "xyz:hello" to see red squiggly on unknown field "xyz"'),
             React.createElement('div', null, 'Type "status:bad" then press Home or click before it to see validation squiggly'),
             React.createElement('div', null, 'Type "#" for saved searches, "!" for history'),
+            React.createElement('div', null, 'Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay'),
             React.createElement('div', null, 'Use AND, OR, NOT, and parentheses for complex queries'),
           ),
         ),

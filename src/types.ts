@@ -61,6 +61,8 @@ export interface ColorConfig {
   regexText?: string;
   // Matched paren highlighting
   matchedParenBg?: string;
+  // Warning squiggly color
+  warning?: string;
 }
 
 export interface StyleConfig {

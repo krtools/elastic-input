@@ -105,6 +105,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const undoStackRef = React.useRef(new UndoStack());
   const typingGroupTimerRef = React.useRef<any>(null);
   const isUndoRedoRef = React.useRef(false);
+  const loadingTimerRef = React.useRef<any>(null);
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -220,12 +221,33 @@ export function ElasticInput(props: ElasticInputProps) {
       const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
 
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
       debounceTimerRef.current = setTimeout(async () => {
+        const token = result.context.token;
+        const start = token ? token.start : offset;
+        const end = token ? token.end : offset;
+
+        // Show loading indicator if fetch takes > 500ms
+        loadingTimerRef.current = setTimeout(() => {
+          const loadingSuggestion: Suggestion = {
+            text: '',
+            label: 'Searching...',
+            type: 'loading',
+            replaceStart: start,
+            replaceEnd: end,
+          };
+          setSuggestions([loadingSuggestion]);
+          setSelectedSuggestionIndex(0);
+          requestAnimationFrame(() => {
+            const rect = getCaretRect();
+            setShowDropdown(true);
+            setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
+          });
+        }, 500);
+
         try {
           const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);
-          const token = result.context.token;
-          const start = token ? token.start : offset;
-          const end = token ? token.end : offset;
+          if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
           const mapped: Suggestion[] = fetchedSuggestions.map(s => ({
             text: s.text,
             label: s.label || s.text,
@@ -243,8 +265,11 @@ export function ElasticInput(props: ElasticInputProps) {
               setShowDropdown(true);
               setDropdownPosition(rect ? getDropdownPosition(rect, mapped.length * 32, 300) : null);
             });
+          } else {
+            setShowDropdown(false);
           }
         } catch (e) {
+          if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
           // Silently ignore fetch errors
         }
       }, debounceMs);
@@ -256,6 +281,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDatePicker(false);
     setSuggestions([]);
     setSelectedSuggestionIndex(0);
+    if (loadingTimerRef.current) { clearTimeout(loadingTimerRef.current); loadingTimerRef.current = null; }
   }, []);
 
   const applyNewValue = React.useCallback((
@@ -338,8 +364,17 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const ctx = s.autocompleteContext;
     const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
-    const trailingSpace = (isCompleteTerm && after.length === 0) ? ' ' : '';
-    const newValue = before + suggestion.text + trailingSpace + after;
+    let trailingSpace = '';
+    let finalAfter = after;
+    if (isCompleteTerm) {
+      if (after.length === 0) {
+        trailingSpace = ' ';
+      } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
+        trailingSpace = ' ';
+        finalAfter = '';
+      }
+    }
+    const newValue = before + suggestion.text + trailingSpace + finalAfter;
     const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
 
     const shouldSubmit = key === 'Enter' && isFieldValue;
@@ -430,6 +465,7 @@ export function ElasticInput(props: ElasticInputProps) {
   React.useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
     };
   }, []);
 
@@ -659,8 +695,21 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const before = currentValueRef.current.slice(0, start);
     const after = currentValueRef.current.slice(end);
-    const newValue = before + dateStr + after;
-    const newCursorPos = before.length + dateStr.length;
+
+    // Add trailing space when cursor would end up at or near the end of input
+    let trailingSpace = '';
+    let finalAfter = after;
+    if (after.length === 0) {
+      // Nothing after — add space
+      trailingSpace = ' ';
+    } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
+      // Only unescaped whitespace after — trim and add single space
+      trailingSpace = ' ';
+      finalAfter = '';
+    }
+
+    const newValue = before + dateStr + trailingSpace + finalAfter;
+    const newCursorPos = before.length + dateStr.length + trailingSpace.length;
 
     applyNewValue(newValue, newCursorPos, (newTokens) => {
       if (editorRef.current) editorRef.current.focus();

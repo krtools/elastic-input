@@ -1,4 +1,4 @@
-import { FieldConfig, SavedSearch, HistoryEntry } from '../src/types';
+import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem } from '../src/types';
 
 export const CRM_FIELDS: FieldConfig[] = [
   { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
@@ -50,6 +50,36 @@ export const ECOMMERCE_FIELDS: FieldConfig[] = [
   { name: 'added_date', label: 'Added Date', type: 'date', description: 'When product was added' },
   { name: 'sku', label: 'SKU', type: 'string', description: 'Stock keeping unit' },
 ];
+
+const MOCK_COMPANIES = [
+  'Acme Corp', 'Globex Inc', 'Initech', 'Hooli', 'Piedmont Partners',
+  'Soylent Corp', 'Wonka Industries', 'Stark Industries', 'Wayne Enterprises',
+  'Umbrella Corp', 'Cyberdyne Systems', 'Oscorp', 'LexCorp', 'Massive Dynamic',
+  'Weyland-Yutani', 'Tyrell Corp', 'Aperture Science', 'Black Mesa',
+];
+
+const MOCK_BRANDS = [
+  'Apple', 'Samsung', 'Sony', 'Nike', 'Adidas', 'Patagonia',
+  'Bose', 'LG', 'Dell', 'HP', 'Lenovo', 'Canon', 'Dyson',
+];
+
+export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
+  const data: Record<string, string[]> = {
+    company: MOCK_COMPANIES,
+    brand: MOCK_BRANDS,
+  };
+
+  const items = data[fieldName];
+  if (!items) return Promise.resolve([]);
+
+  const filtered = items
+    .filter(item => item.toLowerCase().includes(partial.toLowerCase()))
+    .slice(0, 8)
+    .map(item => ({ text: item, description: `${fieldName} match` }));
+
+  // 800ms delay to visually demonstrate async loading
+  return new Promise(resolve => setTimeout(() => resolve(filtered), 800));
+}
 
 export const SAMPLE_SAVED_SEARCHES: SavedSearch[] = [
   { id: '1', name: 'vip-active', query: 'status:active AND is_vip:true', description: 'All active VIP contacts' },

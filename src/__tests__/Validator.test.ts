@@ -353,3 +353,56 @@ describe('Field-scoped group validation', () => {
     expect(validate('created:([now-7d TO now] OR [now-30d TO now-7d])')).toHaveLength(0);
   });
 });
+
+describe('Ambiguous precedence warnings', () => {
+  it('warns on mixed AND/OR without parens', () => {
+    const errors = validate('a AND b OR c');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].message).toContain('Ambiguous precedence');
+  });
+
+  it('does not warn on same operator (AND only)', () => {
+    const errors = validate('a AND b AND c');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('does not warn on same operator (OR only)', () => {
+    const errors = validate('a OR b OR c');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('does not warn when parens clarify precedence', () => {
+    const errors = validate('(a AND b) OR c');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('warns on longer mixed chain', () => {
+    const errors = validate('a AND b OR c AND d');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+  });
+
+  it('ambiguity warning coexists with field errors', () => {
+    const errors = validate('unknown:x AND b OR c');
+    const fieldErrors = errors.filter(e => !e.severity || e.severity === 'error');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(fieldErrors.length).toBeGreaterThanOrEqual(1);
+    expect(warnings).toHaveLength(1);
+  });
+
+  it('does not warn for single boolean op', () => {
+    const errors = validate('a AND b');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(0);
+  });
+
+  it('warns on nested ambiguity inside group', () => {
+    const errors = validate('(a AND b OR c)');
+    const warnings = errors.filter(e => e.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+  });
+});

@@ -124,6 +124,19 @@ export function AutocompleteDropdown({
           );
         }
 
+        // Loading indicator
+        if (suggestion.type === 'loading') {
+          return (
+            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: 0.6, justifyContent: 'center' }}>
+              <span style={{ ...getDropdownItemLabelStyle(false), fontStyle: 'italic' }}>
+                {suggestion.label || 'Searching...'}
+              </span>
+              <span style={{ marginLeft: '6px', display: 'inline-block', animation: 'elastic-input-spin 1s linear infinite', width: '14px', height: '14px', border: '2px solid', borderColor: `${mergedColors.placeholder} transparent ${mergedColors.placeholder} transparent`, borderRadius: '50%' }} />
+              <style>{`@keyframes elastic-input-spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          );
+        }
+
         // Non-interactive hints (freeform type hints like "Enter a number")
         if (suggestion.type === 'hint') {
           return (

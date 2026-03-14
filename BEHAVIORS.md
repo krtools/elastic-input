@@ -434,7 +434,24 @@ Within the same priority, items retain their relevance-based ordering.
 
 - **Tests:** `AutocompleteEngine.test.ts` → "hints appear before fields on empty input", "in operator context: operators first, then hints, then fields", "suggestions have correct priority values"
 
-### 4.8 Bare Quoted Phrases — No Suggestions
+### 4.8 Async Suggestions (`fetchSuggestions`)
+
+When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
+
+#### 4.8.1 Loading Spinner
+
+If the async fetch takes longer than **500ms**, a non-selectable "Searching..." loading item appears in the dropdown with an animated CSS spinner. The loading indicator:
+
+- Only appears after the 500ms threshold (not immediately)
+- Is cleared when the fetch completes, errors, or the dropdown closes
+- Does not block other suggestions from appearing
+- Uses the `placeholder` color for the spinner border
+
+#### 4.8.2 Debouncing
+
+Async fetches are debounced by `suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
+
+### 4.9 Bare Quoted Phrases — No Suggestions
 
 When typing a bare quoted phrase (not after a colon), **no suggestions appear**. The quote character doesn't match any field name.
 
@@ -641,6 +658,10 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly"
 
+#### 8.3.5 Trailing Space After Date Selection
+
+When a date value is selected from the date picker and the cursor is at the end of the input (or only whitespace follows), a trailing space is appended after the inserted value. This enables seamless continuation of the query without manually pressing space.
+
 ---
 
 ## 9. Validation
@@ -798,7 +819,26 @@ Boost on groups and field groups is validated the same as on terms: must be posi
 - `field:(a)^0` → "Boost value must be positive"
 - **Tests:** `Validator.test.ts` → "Group boost validation" suite (4 tests)
 
-### 9.16 Non-Validated Cases
+### 9.16 Ambiguous Precedence Warnings
+
+Mixing AND and OR at the same expression level without parentheses produces a **warning** (not an error). The warning message is: "Ambiguous precedence: mix of AND and OR without parentheses. Add parentheses to clarify."
+
+The detection works by traversing `BooleanExpr` chains at the same level (stopping at `Group` boundaries). If both AND and OR operators are found, a warning is emitted with `severity: 'warning'`.
+
+| Input | Warning? | Reason |
+|-------|----------|--------|
+| `a AND b OR c` | Yes | Mixed AND/OR |
+| `a AND b AND c` | No | Same operator |
+| `a OR b OR c` | No | Same operator |
+| `(a AND b) OR c` | No | Parens clarify |
+| `a AND b OR c AND d` | Yes | Mixed chain |
+| `(a AND b OR c)` | Yes | Inside group, still mixed |
+
+Warning squiggles are rendered with an amber/yellow color (`warning` color key) instead of red, matching the severity level. Tooltips also use the warning color.
+
+- **Tests:** `Validator.test.ts` → "Ambiguous precedence warnings" suite (8 tests)
+
+### 9.17 Non-Validated Cases
 
 - Bare terms (freeform search words) are not validated
 - Empty values pass validation

@@ -170,12 +170,25 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
   });
 
-  const svgBg = getSquigglyStyle(0, 0).backgroundImage;
+  function squigglyBgForColor(hexColor: string) {
+    const encoded = hexColor.replace('#', '%23');
+    return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q2 0 4 2 Q6 4 8 2' stroke='${encoded}' fill='none' stroke-width='0.8'/%3E%3C/svg%3E")`;
+  }
 
   return React.createElement(React.Fragment, null,
     ...rects.map((r, i) => {
+      const isWarning = r.error.severity === 'warning';
+      const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
+      const svgBg = squigglyBgForColor(squigglyColor);
       // Position the wave just under the text
       const waveTop = r.top + r.height - 2;
+
+      const tooltipStyle: React.CSSProperties = {
+        ...makeTooltipStyle(r),
+        color: squigglyColor,
+        borderColor: squigglyColor,
+      };
+
       return [
         // Wave underline — pointerEvents none so it never blocks the editor
         React.createElement('div', {
@@ -197,7 +210,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
           // Tooltip anchored to the wave position, shown when hovered
           hoveredIndex === i
             ? React.createElement('div', {
-                style: makeTooltipStyle(r),
+                style: tooltipStyle,
               }, r.error.message)
             : null,
         ),

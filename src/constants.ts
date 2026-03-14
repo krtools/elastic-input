@@ -26,6 +26,7 @@ export const DEFAULT_COLORS: Required<ColorConfig> = {
   regexAlternation: '#8250df',
   regexText: '#0a3069',
   matchedParenBg: '#fff3cd',
+  warning: '#d4a72c',
 };
 
 export const DARK_COLORS: Required<ColorConfig> = {
@@ -54,6 +55,7 @@ export const DARK_COLORS: Required<ColorConfig> = {
   regexAlternation: '#d2a8ff',
   regexText: '#a5d6ff',
   matchedParenBg: '#3d3222',
+  warning: '#e3b341',
 };
 
 export const DEFAULT_STYLES: Required<StyleConfig> = {

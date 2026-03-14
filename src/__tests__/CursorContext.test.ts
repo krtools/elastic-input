@@ -248,4 +248,33 @@ describe('getCursorContext', () => {
       expect(ctx.type).toBe('FIELD_NAME');
     });
   });
+
+  describe('range expressions', () => {
+    it('returns OPERATOR (no suggestions) when cursor is inside a range', () => {
+      // Cursor inside [ab|c TO def]
+      const ctx = getContext('field:[abc TO def]', 10);
+      expect(ctx.type).toBe('OPERATOR');
+    });
+
+    it('returns OPERATOR when cursor is at start of range content', () => {
+      const ctx = getContext('[abc TO def]', 1);
+      expect(ctx.type).toBe('OPERATOR');
+    });
+
+    it('returns OPERATOR when cursor is in upper bound of range', () => {
+      const ctx = getContext('price:[10 TO 100]', 15);
+      expect(ctx.type).toBe('OPERATOR');
+    });
+
+    it('returns OPERATOR for standalone range with cursor inside', () => {
+      const ctx = getContext('[* TO now]', 5);
+      expect(ctx.type).toBe('OPERATOR');
+    });
+
+    it('returns OPERATOR after range token (cursor right at end)', () => {
+      // prevNonWsToken is RANGE, so should be OPERATOR
+      const ctx = getContext('field:[abc TO def] ', 19);
+      expect(ctx.type).toBe('OPERATOR');
+    });
+  });
 });

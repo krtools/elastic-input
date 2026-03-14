@@ -386,6 +386,15 @@ After a prefix operator (`-` or `+`), context is `FIELD_NAME`.
 - `-status:|` → `FIELD_VALUE`, fieldName=`"status"`
 - **Tests:** `CursorContext.test.ts` → "returns FIELD_NAME after - prefix", "returns FIELD_NAME while typing after - prefix", "returns FIELD_VALUE for -field:", "returns FIELD_VALUE for -field:partial"
 
+### 3.10 Range Expression Context
+
+When the cursor is inside a RANGE token (`[... TO ...]`), context is `OPERATOR` with empty partial. This suppresses autocomplete suggestions — range bounds are manually entered.
+
+- `field:[ab|c TO def]` → `OPERATOR`, partial=`""`
+- `[* TO |now]` → `OPERATOR`, partial=`""`
+- `field:[abc TO def] |` → `OPERATOR` (after complete range)
+- **Tests:** `CursorContext.test.ts` → "range expressions" suite (5 tests)
+
 ---
 
 ## 4. Autocomplete Suggestions

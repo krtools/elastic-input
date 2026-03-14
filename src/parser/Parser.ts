@@ -709,6 +709,11 @@ export class Parser {
       };
     }
 
+    // Cursor is inside a range expression — no autocomplete
+    if (currentToken?.type === TokenType.RANGE) {
+      return { type: 'OPERATOR', partial: '' };
+    }
+
     // Right after a colon or comparison op — suggest field values
     if (prevNonWsToken?.type === TokenType.COLON || prevNonWsToken?.type === TokenType.COMPARISON_OP) {
       // Find the field name before the colon/comparison op

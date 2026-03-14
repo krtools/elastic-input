@@ -98,7 +98,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `fields` | `FieldConfig[]` | Field definitions for autocomplete and validation |
+| `fields` | `FieldConfig[] \| () => Promise<FieldConfig[]>` | Field definitions for autocomplete and validation |
 
 ### Optional
 
@@ -409,10 +409,28 @@ const errors = validator.validate(ast);
 
 ## Requirements
 
-- React >= 16.8.0
-- ReactDOM >= 16.8.0
+### Runtime (Browser)
 
-No other dependencies.
+| Browser | Minimum Version |
+|---------|----------------|
+| Chrome  | 61+            |
+| Firefox | 36+            |
+| Safari  | 15.4+          |
+| Edge    | 79+ (Chromium) |
+
+The compiled output targets **ES2018**. The most restrictive browser API is `scrollIntoView({ block: 'nearest' })` (Safari 15.4+).
+
+### Build / Development
+
+| Dependency | Minimum Version |
+|------------|----------------|
+| Node.js    | 18.0.0+        |
+| React      | 16.8.0+ (hooks) |
+| React DOM  | 16.8.0+        |
+
+These constraints are also declared in `package.json` via `engines` and `browserslist`.
+
+No runtime dependencies beyond React/ReactDOM.
 
 ## Development
 

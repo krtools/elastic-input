@@ -388,12 +388,13 @@ After a prefix operator (`-` or `+`), context is `FIELD_NAME`.
 
 ### 3.10 Range Expression Context
 
-When the cursor is inside a RANGE token (`[... TO ...]`), context is `OPERATOR` with empty partial. This suppresses autocomplete suggestions — range bounds are manually entered.
+When the cursor is inside a RANGE token (`[... TO ...]`), context is `RANGE` with empty partial. This produces no autocomplete suggestions — range bounds are manually entered.
 
-- `field:[ab|c TO def]` → `OPERATOR`, partial=`""`
-- `[* TO |now]` → `OPERATOR`, partial=`""`
-- `field:[abc TO def] |` → `OPERATOR` (after complete range)
-- **Tests:** `CursorContext.test.ts` → "range expressions" suite (5 tests)
+- `field:[ab|c TO def]` → `RANGE`, partial=`""`
+- `[* TO |now]` → `RANGE`, partial=`""`
+- `company:[a TO b]` with cursor on `b` → `RANGE`, no suggestions
+- `field:[abc TO def] |` → `OPERATOR` (after complete range, outside the token)
+- **Tests:** `CursorContext.test.ts` → "range expressions" suite (6 tests); `AutocompleteEngine.test.ts` → "range expression context" suite (3 tests)
 
 ---
 

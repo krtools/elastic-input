@@ -5,6 +5,7 @@ export type CursorContextType =
   | 'FIELD_NAME'
   | 'FIELD_VALUE'
   | 'OPERATOR'
+  | 'RANGE'
   | 'SAVED_SEARCH'
   | 'HISTORY_REF'
   | 'EMPTY';
@@ -711,7 +712,7 @@ export class Parser {
 
     // Cursor is inside a range expression — no autocomplete
     if (currentToken?.type === TokenType.RANGE) {
-      return { type: 'OPERATOR', partial: '' };
+      return { type: 'RANGE', partial: '' };
     }
 
     // Right after a colon or comparison op — suggest field values

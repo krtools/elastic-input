@@ -250,31 +250,59 @@ describe('getCursorContext', () => {
   });
 
   describe('range expressions', () => {
-    it('returns OPERATOR (no suggestions) when cursor is inside a range', () => {
+    it('suppresses suggestions when cursor is inside a range', () => {
       // Cursor inside [ab|c TO def]
       const ctx = getContext('field:[abc TO def]', 10);
-      expect(ctx.type).toBe('OPERATOR');
+      expect(ctx.type).toBe('RANGE');
     });
 
-    it('returns OPERATOR when cursor is at start of range content', () => {
+    it('suppresses suggestions at start of range content', () => {
       const ctx = getContext('[abc TO def]', 1);
-      expect(ctx.type).toBe('OPERATOR');
+      expect(ctx.type).toBe('RANGE');
     });
 
-    it('returns OPERATOR when cursor is in upper bound of range', () => {
+    it('suppresses suggestions in upper bound of range', () => {
       const ctx = getContext('price:[10 TO 100]', 15);
-      expect(ctx.type).toBe('OPERATOR');
+      expect(ctx.type).toBe('RANGE');
     });
 
-    it('returns OPERATOR for standalone range with cursor inside', () => {
+    it('suppresses suggestions for standalone range with cursor inside', () => {
       const ctx = getContext('[* TO now]', 5);
-      expect(ctx.type).toBe('OPERATOR');
+      expect(ctx.type).toBe('RANGE');
     });
 
-    it('returns OPERATOR after range token (cursor right at end)', () => {
-      // prevNonWsToken is RANGE, so should be OPERATOR
+    it('returns OPERATOR after range token with trailing space', () => {
+      // prevNonWsToken is RANGE, cursor in whitespace after
       const ctx = getContext('field:[abc TO def] ', 19);
       expect(ctx.type).toBe('OPERATOR');
+    });
+
+    it('suppresses suggestions when clicking on "b" in company:[a TO b]', () => {
+      // "company:[a TO b]"
+      //  0123456789...
+      // company = 0-6, : = 7, [a TO b] = 8-16
+      // 'b' character is at index 14, cursor there = offset 14
+      const input = 'company:[a TO b]';
+      const tokens = new Lexer(input).tokenize();
+      const rangeToken = tokens.find(t => t.type === 'RANGE' as any);
+
+      // Verify the range token spans correctly
+      expect(rangeToken).toBeDefined();
+      expect(rangeToken!.value).toBe('[a TO b]');
+      expect(rangeToken!.start).toBe(8);
+      expect(rangeToken!.end).toBe(16);
+
+      // Cursor on 'b' (offset 14) — inside the RANGE token
+      const ctx14 = getContext(input, 14);
+      expect(ctx14.type).toBe('RANGE');
+
+      // Cursor right after 'b' (offset 15) — still inside range (before ']')
+      const ctx15 = getContext(input, 15);
+      expect(ctx15.type).toBe('RANGE');
+
+      // Cursor at end of range token (offset 16) — at the boundary
+      const ctx16 = getContext(input, 16);
+      expect(ctx16.type).toBe('RANGE');
     });
   });
 });

@@ -655,4 +655,24 @@ describe('AutocompleteEngine', () => {
       expect(engine.resolveField('unknown')).toBeUndefined();
     });
   });
+
+  describe('range expression context', () => {
+    it('returns no suggestions when cursor is inside a range', () => {
+      // company:[a TO b] with cursor on 'b' (offset 14)
+      const result = getSuggestions('company:[a TO b]', 14);
+      expect(result.suggestions).toHaveLength(0);
+      expect(result.context.type).toBe('RANGE');
+    });
+
+    it('returns no suggestions at start of range content', () => {
+      const result = getSuggestions('price:[10 TO 100]', 7);
+      expect(result.suggestions).toHaveLength(0);
+      expect(result.context.type).toBe('RANGE');
+    });
+
+    it('returns no suggestions for standalone range', () => {
+      const result = getSuggestions('[abc TO def]', 5);
+      expect(result.suggestions).toHaveLength(0);
+    });
+  });
 });

@@ -48,7 +48,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **selected index** | Which dropdown item is highlighted for keyboard accept (Enter/Tab). `-1` means nothing selected. |
 | **date picker** | The calendar popup for date-type fields |
 | **squiggly** | The wavy underline indicating a validation error or warning |
-| **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
+| **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `RANGE`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
 | **caret** / **cursor** | The text insertion point in the input |
 
 ## Pipeline Stages

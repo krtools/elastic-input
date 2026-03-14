@@ -759,3 +759,57 @@ Placeholder positioning is automatically derived from `inputPadding` so it align
 | `blur()` | Blurs the input |
 | `getAST()` | Returns current parsed AST |
 | `getValidationErrors()` | Returns current validation errors |
+
+---
+
+## 11. Undo / Redo
+
+The component implements a custom undo/redo stack that operates at the semantic level rather than relying on the browser's built-in `execCommand` undo.
+
+### 11.1 Typing Group Debounce
+
+Consecutive single-character edits within 300ms are grouped into one undo entry. If the user pauses for 300ms+, the next keystroke starts a new group.
+
+- **Implementation:** `handleInput` in `ElasticInput.tsx` uses `replaceCurrent()` for small changes within the timer window, `push()` when the timer has expired.
+- **Tests:** `undoStack.test.ts` → "replaceCurrent updates the current entry"
+
+### 11.2 Transactional Operations
+
+The following operations each push a distinct undo entry, breaking any current typing group:
+
+- Accepting an autocomplete suggestion
+- Selecting a date from the date picker
+- Selecting a history ref (`!`) or saved search (`#`)
+- Paste (typing group is broken before the paste text is inserted)
+
+- **Implementation:** `applyNewValue()` clears the typing group timer and pushes a new entry.
+
+### 11.3 Undo (Ctrl+Z)
+
+Pressing `Ctrl+Z` (or `Cmd+Z` on macOS) reverts to the previous undo entry, restoring both the text content and cursor position. The editor is re-lexed, re-parsed, and re-validated without recording the restoration as a new undo entry.
+
+- **Tests:** `undoStack.test.ts` → "undo returns previous entry", "undo returns null when at beginning"
+
+### 11.4 Redo (Ctrl+Y / Ctrl+Shift+Z)
+
+Pressing `Ctrl+Y` or `Ctrl+Shift+Z` moves forward in the undo stack. Works symmetrically with undo.
+
+- **Tests:** `undoStack.test.ts` → "redo returns next entry after undo", "redo returns null when at end"
+
+### 11.5 Redo Discard on New Input
+
+Typing new text after an undo discards all redo entries ahead of the current position.
+
+- **Tests:** `undoStack.test.ts` → "push after undo discards redo entries"
+
+### 11.6 Stack Size Limit
+
+The undo stack is capped at 100 entries. When exceeded, the oldest entry is trimmed.
+
+- **Tests:** `undoStack.test.ts` → "respects maxSize"
+
+### 11.7 Deduplication
+
+Pushing a value identical to the current entry only updates the cursor position — it does not create a new undo step.
+
+- **Tests:** `undoStack.test.ts` → "deduplicates identical values (updates cursor only)"

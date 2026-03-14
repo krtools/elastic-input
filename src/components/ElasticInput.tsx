@@ -25,6 +25,7 @@ import {
   getDropdownStyle,
 } from '../styles/inlineStyles';
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
+import { UndoStack } from '../utils/undoStack';
 
 // ---------------------------------------------------------------------------
 // DatePickerPortal — small portal wrapper for the date picker
@@ -100,6 +101,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const currentValueRef = React.useRef(value || defaultValue || '');
   const debounceTimerRef = React.useRef<any>(null);
   const isComposingRef = React.useRef(false);
+  const undoStackRef = React.useRef(new UndoStack());
+  const typingGroupTimerRef = React.useRef<any>(null);
+  const isUndoRedoRef = React.useRef(false);
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -259,6 +263,14 @@ export function ElasticInput(props: ElasticInputProps) {
   ) => {
     currentValueRef.current = newValue;
 
+    // Record transactional operation in undo stack
+    // Clear typing group so this is its own entry
+    if (typingGroupTimerRef.current) {
+      clearTimeout(typingGroupTimerRef.current);
+      typingGroupTimerRef.current = null;
+    }
+    undoStackRef.current.push({ value: newValue, cursorPos: newCursorPos });
+
     const lexer = new Lexer(newValue);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
@@ -396,8 +408,10 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Process initial value
   React.useEffect(() => {
-    if (currentValueRef.current) {
-      processInput(currentValueRef.current, false);
+    const initial = currentValueRef.current;
+    undoStackRef.current.push({ value: initial, cursorPos: initial.length });
+    if (initial) {
+      processInput(initial, false);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -421,9 +435,35 @@ export function ElasticInput(props: ElasticInputProps) {
   const handleInput = React.useCallback(() => {
     if (isComposingRef.current) return;
     if (!editorRef.current) return;
+    // Skip undo recording if this input was triggered by undo/redo
+    if (isUndoRedoRef.current) {
+      isUndoRedoRef.current = false;
+      return;
+    }
 
     const text = getPlainText(editorRef.current);
+    const cursorPos = getCaretCharOffset(editorRef.current);
     currentValueRef.current = text;
+
+    // Group consecutive typing: replace current entry, then after a pause push a new one
+    const undo = undoStackRef.current;
+    const prev = undo.current();
+    const isSmallChange = prev && Math.abs(text.length - prev.value.length) <= 2;
+
+    if (isSmallChange && typingGroupTimerRef.current) {
+      // Still in a typing group — replace the current entry
+      undo.replaceCurrent({ value: text, cursorPos });
+    } else {
+      // Start of a new typing group
+      undo.push({ value: text, cursorPos });
+    }
+
+    // Reset the grouping timer — if user pauses for 300ms, next keystroke starts a new group
+    if (typingGroupTimerRef.current) clearTimeout(typingGroupTimerRef.current);
+    typingGroupTimerRef.current = setTimeout(() => {
+      typingGroupTimerRef.current = null;
+    }, 300);
+
     processInput(text, true);
   }, [processInput]);
 
@@ -436,8 +476,54 @@ export function ElasticInput(props: ElasticInputProps) {
     handleInput();
   }, [handleInput]);
 
+  const restoreUndoEntry = React.useCallback((entry: { value: string; cursorPos: number } | null) => {
+    if (!entry) return;
+    isUndoRedoRef.current = true;
+    currentValueRef.current = entry.value;
+
+    const lexer = new Lexer(entry.value);
+    const newTokens = lexer.tokenize();
+    const parser = new Parser(newTokens);
+    const newAst = parser.parse();
+    const newErrors = validatorRef.current.validate(newAst);
+
+    if (editorRef.current) {
+      const html = buildHighlightedHTML(newTokens, colors);
+      editorRef.current.innerHTML = html;
+      setCaretCharOffset(editorRef.current, entry.cursorPos);
+    }
+
+    setTokens(newTokens);
+    setAst(newAst);
+    setValidationErrors(newErrors);
+    setIsEmpty(entry.value.length === 0);
+    setCursorOffset(entry.cursorPos);
+    setSelectionEnd(entry.cursorPos);
+    closeDropdown();
+
+    if (onChange) onChange(entry.value, newAst);
+    if (onValidationChange) onValidationChange(newErrors);
+  }, [colors, onChange, onValidationChange, closeDropdown]);
+
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
     const s = stateRef.current;
+
+    // Undo: Ctrl+Z
+    if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
+      e.preventDefault();
+      restoreUndoEntry(undoStackRef.current.undo());
+      return;
+    }
+
+    // Redo: Ctrl+Y or Ctrl+Shift+Z
+    if (
+      (e.key === 'y' && (e.ctrlKey || e.metaKey)) ||
+      (e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey)
+    ) {
+      e.preventDefault();
+      restoreUndoEntry(undoStackRef.current.redo());
+      return;
+    }
 
     // Ctrl+Enter always submits
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -480,7 +566,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion]);
+  }, [onSearch, closeDropdown, acceptSuggestion, restoreUndoEntry]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
@@ -527,8 +613,18 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+    const pastedText = e.clipboardData.getData('text/plain');
+
+    // Break typing group so paste is its own undo entry
+    if (typingGroupTimerRef.current) {
+      clearTimeout(typingGroupTimerRef.current);
+      typingGroupTimerRef.current = null;
+    }
+
+    // Insert text via execCommand so it respects cursor/selection
+    document.execCommand('insertText', false, pastedText);
+
+    // handleInput will fire and record this as a new undo group
   }, []);
 
   const handleDateSelect = React.useCallback((dateStr: string) => {

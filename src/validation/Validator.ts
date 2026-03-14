@@ -52,7 +52,13 @@ export class Validator {
         break;
       }
 
+      case 'Regex':
+        break;
+
       case 'FieldValue': {
+        // * as field name means all fields — skip field-specific validation
+        if (node.field === '*') return;
+
         const field = this.fields.get(node.field);
         if (!field) {
           errors.push({
@@ -134,16 +140,28 @@ export class Validator {
       }
 
       case 'FieldGroup': {
-        const groupField = this.fields.get(node.field);
-        if (!groupField) {
-          errors.push({
-            message: `Unknown field: "${node.field}"`,
-            start: node.start,
-            end: node.start + node.field.length,
-            field: node.field,
-          });
+        // * as field name means all fields — skip field-specific validation
+        if (node.field === '*') {
+          this.walkNode(node.expression, errors);
         } else {
-          this.walkFieldGroup(node.expression, groupField, errors);
+          const groupField = this.fields.get(node.field);
+          if (!groupField) {
+            errors.push({
+              message: `Unknown field: "${node.field}"`,
+              start: node.start,
+              end: node.start + node.field.length,
+              field: node.field,
+            });
+          } else {
+            this.walkFieldGroup(node.expression, groupField, errors);
+          }
+        }
+        if (node.boost !== undefined && node.boost <= 0) {
+          errors.push({
+            message: `Boost value must be positive (got ${node.boost})`,
+            start: node.start,
+            end: node.end,
+          });
         }
         break;
       }
@@ -155,6 +173,13 @@ export class Validator {
 
       case 'Group':
         this.walkNode(node.expression, errors);
+        if (node.boost !== undefined && node.boost <= 0) {
+          errors.push({
+            message: `Boost value must be positive (got ${node.boost})`,
+            start: node.start,
+            end: node.end,
+          });
+        }
         break;
 
       case 'Not':

@@ -117,6 +117,18 @@ export class Lexer {
       return;
     }
 
+    // Standalone tilde/caret at start of term (e.g. after RPAREN)
+    if (ch === '~' || ch === '^') {
+      const start = this.pos;
+      const type = ch === '~' ? TokenType.TILDE : TokenType.BOOST;
+      this.advance();
+      while (this.pos < this.input.length && /[0-9.]/.test(this.peek())) {
+        this.advance();
+      }
+      this.tokens.push({ type, value: this.input.slice(start, this.pos), start, end: this.pos });
+      return;
+    }
+
     // Range syntax: [start TO end] or {start TO end}
     if (ch === '[' || ch === '{') {
       this.readRangeValue();
@@ -180,6 +192,12 @@ export class Lexer {
       return;
     }
 
+    // Regex literal: /pattern/
+    if (ch === '/') {
+      this.readRegex();
+      return;
+    }
+
     // Read a word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
@@ -187,6 +205,12 @@ export class Lexer {
            this.peek() !== '~' && this.peek() !== '^' &&
            !(this.peek() === '&' && this.peekAt(1) === '&') &&
            !(this.peek() === '|' && this.peekAt(1) === '|')) {
+      // Backslash escaping: consume escaped pair as literal
+      if (this.peek() === '\\' && this.pos + 1 < this.input.length) {
+        this.advance(); // consume backslash
+        this.advance(); // consume escaped char
+        continue;
+      }
       if (this.peek() === ':') {
         // Everything before colon is field name
         if (this.pos > start) {
@@ -215,7 +239,7 @@ export class Lexer {
         this.tokens.push({ type: TokenType.OR, value: word, start, end: this.pos });
       } else if (upper === 'NOT') {
         this.tokens.push({ type: TokenType.NOT, value: word, start, end: this.pos });
-      } else if (word.includes('*')) {
+      } else if (word.includes('*') || word.includes('?')) {
         this.tokens.push({ type: TokenType.WILDCARD, value: word, start, end: this.pos });
       } else {
         this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
@@ -267,17 +291,30 @@ export class Lexer {
       return;
     }
 
+    // Regex literal: /pattern/
+    if (ch === '/') {
+      this.readRegex();
+      this.state = LexerState.EXPECT_TERM;
+      return;
+    }
+
     // Read value word
     const start = this.pos;
     while (this.pos < this.input.length && !this.isWhitespace(this.peek()) &&
            this.peek() !== ')' && this.peek() !== '(' && this.peek() !== '"' && this.peek() !== "'" &&
            this.peek() !== '~' && this.peek() !== '^') {
+      // Backslash escaping: consume escaped pair as literal
+      if (this.peek() === '\\' && this.pos + 1 < this.input.length) {
+        this.advance(); // consume backslash
+        this.advance(); // consume escaped char
+        continue;
+      }
       this.advance();
     }
 
     if (this.pos > start) {
       const word = this.input.slice(start, this.pos);
-      if (word.includes('*')) {
+      if (word.includes('*') || word.includes('?')) {
         this.tokens.push({ type: TokenType.WILDCARD, value: word, start, end: this.pos });
       } else {
         this.tokens.push({ type: TokenType.VALUE, value: word, start, end: this.pos });
@@ -329,6 +366,40 @@ export class Lexer {
         end: this.pos,
       });
     }
+  }
+
+  private readRegex(): void {
+    const start = this.pos;
+    this.advance(); // consume opening /
+    while (this.pos < this.input.length) {
+      const ch = this.peek();
+      if (ch === '\\' && this.pos + 1 < this.input.length) {
+        this.advance(); // consume backslash
+        this.advance(); // consume escaped char
+        continue;
+      }
+      if (ch === '/') {
+        this.advance(); // consume closing /
+        this.tokens.push({
+          type: TokenType.REGEX,
+          value: this.input.slice(start, this.pos),
+          start,
+          end: this.pos,
+        });
+        this.tryReadModifier();
+        this.state = LexerState.EXPECT_TERM;
+        return;
+      }
+      this.advance();
+    }
+    // Unclosed regex — emit as VALUE fallback
+    this.tokens.push({
+      type: TokenType.VALUE,
+      value: this.input.slice(start, this.pos),
+      start,
+      end: this.pos,
+    });
+    this.state = LexerState.EXPECT_TERM;
   }
 
   private readSavedSearch(): void {

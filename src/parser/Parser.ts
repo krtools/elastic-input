@@ -1,5 +1,5 @@
 import { Token, TokenType } from '../lexer/tokens';
-import { ASTNode } from './ast';
+import { ASTNode, ErrorNode, GroupNode, FieldGroupNode } from './ast';
 
 export type CursorContextType =
   | 'FIELD_NAME'
@@ -20,6 +20,7 @@ export class Parser {
   private tokens: Token[];
   private pos: number;
   private nonWsTokens: Token[];
+  private errors: ErrorNode[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -27,9 +28,40 @@ export class Parser {
     this.pos = 0;
   }
 
+  getErrors(): ErrorNode[] {
+    return this.errors;
+  }
+
   parse(): ASTNode | null {
     if (this.nonWsTokens.length === 0) return null;
-    const result = this.parseOr();
+    let result = this.parseOr();
+
+    // Handle unconsumed tokens (e.g. stray closing parens)
+    while (this.peek()) {
+      const token = this.peek()!;
+      if (token.type === TokenType.RPAREN) {
+        this.advance();
+        this.errors.push({
+          type: 'Error',
+          value: token.value,
+          message: 'Unexpected closing parenthesis',
+          start: token.start,
+          end: token.end,
+        });
+      } else {
+        // Re-parse remaining tokens via implicit AND
+        const right = this.parseOr();
+        result = {
+          type: 'BooleanExpr',
+          operator: 'AND',
+          left: result,
+          right,
+          start: result.start,
+          end: right.end,
+        };
+      }
+    }
+
     return result;
   }
 
@@ -52,8 +84,20 @@ export class Parser {
     let left = this.parseAnd();
 
     while (this.peek()?.type === TokenType.OR) {
-      this.advance();
+      const orToken = this.advance();
       const right = this.parseAnd();
+      if (right.type === 'Error' && right.value === '') {
+        // Trailing OR with no right operand
+        this.errors.push({
+          type: 'Error',
+          value: orToken.value,
+          message: 'Missing search term after OR',
+          start: orToken.start,
+          end: orToken.end,
+        });
+        // Don't create BooleanExpr — just return left
+        break;
+      }
       left = {
         type: 'BooleanExpr',
         operator: 'OR',
@@ -75,8 +119,19 @@ export class Parser {
       if (!next) break;
 
       if (next.type === TokenType.AND) {
-        this.advance();
+        const andToken = this.advance();
         const right = this.parseNot();
+        if (right.type === 'Error' && right.value === '') {
+          // Trailing AND with no right operand
+          this.errors.push({
+            type: 'Error',
+            value: andToken.value,
+            message: 'Missing search term after AND',
+            start: andToken.start,
+            end: andToken.end,
+          });
+          break;
+        }
         left = {
           type: 'BooleanExpr',
           operator: 'AND',
@@ -111,6 +166,17 @@ export class Parser {
     if (this.peek()?.type === TokenType.NOT) {
       const notToken = this.advance();
       const expr = this.parsePrimary();
+      if (expr.type === 'Error' && expr.value === '') {
+        // NOT with no operand
+        this.errors.push({
+          type: 'Error',
+          value: notToken.value,
+          message: 'Missing search term after NOT',
+          start: notToken.start,
+          end: notToken.end,
+        });
+        return expr;
+      }
       return {
         type: 'Not',
         expression: expr,
@@ -119,6 +185,17 @@ export class Parser {
       };
     }
     return this.parsePrimary();
+  }
+
+  private applyGroupBoost(node: GroupNode | FieldGroupNode): GroupNode | FieldGroupNode {
+    if (this.peek()?.type === TokenType.BOOST) {
+      const caret = this.advance();
+      const numStr = caret.value.slice(1);
+      const n = parseFloat(numStr);
+      node.boost = isNaN(n) ? 1 : n;
+      node.end = caret.end;
+    }
+    return node;
   }
 
   private applyModifiers(node: ASTNode): ASTNode {
@@ -166,6 +243,32 @@ export class Parser {
       };
     }
 
+    // Unexpected AND/OR at start of expression
+    if (token.type === TokenType.AND) {
+      const t = this.advance();
+      this.errors.push({
+        type: 'Error',
+        value: t.value,
+        message: 'Unexpected AND',
+        start: t.start,
+        end: t.end,
+      });
+      // Continue parsing — treat next token as the primary
+      return this.parsePrimary();
+    }
+
+    if (token.type === TokenType.OR) {
+      const t = this.advance();
+      this.errors.push({
+        type: 'Error',
+        value: t.value,
+        message: 'Unexpected OR',
+        start: t.start,
+        end: t.end,
+      });
+      return this.parsePrimary();
+    }
+
     // Prefix operator: -term (exclude) or +term (require)
     if (token.type === TokenType.PREFIX_OP) {
       const prefixToken = this.advance();
@@ -187,21 +290,32 @@ export class Parser {
       const lparen = this.advance();
       if (!this.peek() || this.peek()!.type === TokenType.RPAREN) {
         const rp = this.match(TokenType.RPAREN);
-        return {
+        const emptyGroup: GroupNode = {
           type: 'Group',
           expression: { type: 'BareTerm', value: '', quoted: false, start: lparen.end, end: lparen.end },
           start: lparen.start,
           end: rp ? rp.end : lparen.end,
         };
+        return this.applyGroupBoost(emptyGroup);
       }
       const expr = this.parseOr();
       const rparen = this.match(TokenType.RPAREN);
-      return {
+      if (!rparen) {
+        this.errors.push({
+          type: 'Error',
+          value: lparen.value,
+          message: 'Missing closing parenthesis',
+          start: lparen.start,
+          end: lparen.end,
+        });
+      }
+      const groupNode: GroupNode = {
         type: 'Group',
         expression: expr,
         start: lparen.start,
         end: rparen ? rparen.end : expr.end,
       };
+      return this.applyGroupBoost(groupNode);
     }
 
     // Saved search
@@ -243,22 +357,44 @@ export class Parser {
           const lparen = this.advance();
           if (!this.peek() || this.peek()!.type === TokenType.RPAREN) {
             const rp = this.match(TokenType.RPAREN);
-            return {
+            const emptyFieldGroup: FieldGroupNode = {
               type: 'FieldGroup',
               field: field.value,
               expression: { type: 'BareTerm', value: '', quoted: false, start: lparen.end, end: lparen.end },
               start: field.start,
               end: rp ? rp.end : lparen.end,
             };
+            return this.applyGroupBoost(emptyFieldGroup);
           }
           const expr = this.parseOr();
           const rparen = this.match(TokenType.RPAREN);
-          return {
+          if (!rparen) {
+            this.errors.push({
+              type: 'Error',
+              value: lparen.value,
+              message: 'Missing closing parenthesis',
+              start: lparen.start,
+              end: lparen.end,
+            });
+          }
+          const fieldGroupNode: FieldGroupNode = {
             type: 'FieldGroup',
             field: field.value,
             expression: expr,
             start: field.start,
             end: rparen ? rparen.end : expr.end,
+          };
+          return this.applyGroupBoost(fieldGroupNode);
+        }
+
+        // Regex value for field
+        if (this.peek()?.type === TokenType.REGEX) {
+          const val = this.advance();
+          return {
+            type: 'Regex',
+            pattern: val.value.slice(1, -1),
+            start: field.start,
+            end: val.end,
           };
         }
 
@@ -347,6 +483,17 @@ export class Parser {
         start: t.start,
         end: t.end,
       });
+    }
+
+    // Regex literal as bare term
+    if (token.type === TokenType.REGEX) {
+      const t = this.advance();
+      return {
+        type: 'Regex',
+        pattern: t.value.slice(1, -1), // remove surrounding /
+        start: t.start,
+        end: t.end,
+      };
     }
 
     // Plain value

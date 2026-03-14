@@ -252,6 +252,89 @@ describe('Lexer', () => {
     });
   });
 
+  describe('single-char wildcard (?)', () => {
+    it('tokenizes qu?ck as WILDCARD', () => {
+      expect(lexTypes('qu?ck')).toEqual([TokenType.WILDCARD]);
+      expect(lexValues('qu?ck')).toEqual(['qu?ck']);
+    });
+
+    it('tokenizes field:qu?ck as FIELD_NAME + COLON + WILDCARD', () => {
+      expect(lexTypes('field:qu?ck')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.WILDCARD,
+      ]);
+    });
+
+    it('tokenizes ?ello as WILDCARD', () => {
+      expect(lexTypes('?ello')).toEqual([TokenType.WILDCARD]);
+    });
+
+    it('tokenizes combined * and ? as WILDCARD', () => {
+      expect(lexTypes('te?t*')).toEqual([TokenType.WILDCARD]);
+    });
+  });
+
+  describe('regex literals (/pattern/)', () => {
+    it('tokenizes /pattern/ as REGEX', () => {
+      expect(lexTypes('/pattern/')).toEqual([TokenType.REGEX]);
+      expect(lexValues('/pattern/')).toEqual(['/pattern/']);
+    });
+
+    it('tokenizes field:/joh?n/ as FIELD_NAME + COLON + REGEX', () => {
+      expect(lexTypes('field:/joh?n/')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.REGEX,
+      ]);
+      expect(lexValues('field:/joh?n/')).toEqual(['field', ':', '/joh?n/']);
+    });
+
+    it('tokenizes unclosed /pattern as VALUE fallback', () => {
+      expect(lexTypes('/pattern')).toEqual([TokenType.VALUE]);
+      expect(lexValues('/pattern')).toEqual(['/pattern']);
+    });
+
+    it('handles escaped slash inside regex', () => {
+      expect(lexTypes('/foo\\/bar/')).toEqual([TokenType.REGEX]);
+      expect(lexValues('/foo\\/bar/')).toEqual(['/foo\\/bar/']);
+    });
+
+    it('preserves offsets for regex', () => {
+      const tokens = lex('/abc/');
+      const regex = tokens.find(t => t.type === TokenType.REGEX)!;
+      expect(regex.start).toBe(0);
+      expect(regex.end).toBe(5);
+    });
+  });
+
+  describe('backslash escaping', () => {
+    it('tokenizes hello\\!world as single VALUE', () => {
+      expect(lexTypes('hello\\!world')).toEqual([TokenType.VALUE]);
+      expect(lexValues('hello\\!world')).toEqual(['hello\\!world']);
+    });
+
+    it('tokenizes first\\ name:value as FIELD_NAME + COLON + VALUE', () => {
+      expect(lexTypes('first\\ name:value')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+      expect(lexValues('first\\ name:value')).toEqual(['first\\ name', ':', 'value']);
+    });
+
+    it('tokenizes a\\(b as single VALUE', () => {
+      expect(lexTypes('a\\(b')).toEqual([TokenType.VALUE]);
+      expect(lexValues('a\\(b')).toEqual(['a\\(b']);
+    });
+
+    it('tokenizes escaped colon as part of value', () => {
+      expect(lexTypes('not\\:afield')).toEqual([TokenType.VALUE]);
+      expect(lexValues('not\\:afield')).toEqual(['not\\:afield']);
+    });
+
+    it('handles backslash escape in field value position', () => {
+      expect(lexTypes('field:hello\\!world')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+      expect(lexValues('field:hello\\!world')).toEqual(['field', ':', 'hello\\!world']);
+    });
+  });
+
   describe('complex expressions', () => {
     it('tokenizes a complex query', () => {
       expect(lexTypes('status:active AND (level:ERROR OR level:WARN) NOT service:auth')).toEqual([

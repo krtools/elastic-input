@@ -158,6 +158,42 @@ describe('Validator', () => {
   });
 });
 
+describe('Star (*) as field name', () => {
+  it('produces no errors for *:value', () => {
+    expect(validate('*:value')).toHaveLength(0);
+  });
+
+  it('produces no errors for *:*', () => {
+    expect(validate('*:*')).toHaveLength(0);
+  });
+
+  it('produces no errors for *:(a OR b)', () => {
+    expect(validate('*:(a OR b)')).toHaveLength(0);
+  });
+});
+
+describe('Group boost validation', () => {
+  it('accepts positive boost on group', () => {
+    expect(validate('(status:active OR status:inactive)^2')).toHaveLength(0);
+  });
+
+  it('flags boost <= 0 on group', () => {
+    const errors = validate('(status:active)^0');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Boost value must be positive');
+  });
+
+  it('accepts positive boost on field group', () => {
+    expect(validate('status:(active OR inactive)^3')).toHaveLength(0);
+  });
+
+  it('flags boost <= 0 on field group', () => {
+    const errors = validate('status:(active)^0');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Boost value must be positive');
+  });
+});
+
 describe('Date range validation', () => {
   it('accepts [date TO date] range', () => {
     expect(validate('created:[now-7d TO now]')).toHaveLength(0);

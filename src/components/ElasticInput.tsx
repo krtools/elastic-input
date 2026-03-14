@@ -3,12 +3,13 @@ import * as ReactDOM from 'react-dom';
 import { Lexer } from '../lexer/Lexer';
 import { Token } from '../lexer/tokens';
 import { Parser } from '../parser/Parser';
-import { ASTNode } from '../parser/ast';
+import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig } from '../types';
 import { buildHighlightedHTML } from './HighlightedContent';
+import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
@@ -147,11 +148,12 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const newErrors = validatorRef.current.validate(newAst);
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
-      const html = buildHighlightedHTML(newTokens, colors);
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: offset });
       editorRef.current.innerHTML = html;
       setCaretCharOffset(editorRef.current, offset);
 
@@ -275,10 +277,11 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const newErrors = validatorRef.current.validate(newAst);
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
 
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors);
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos });
       editorRef.current.innerHTML = html;
       setCaretCharOffset(editorRef.current, newCursorPos);
     }
@@ -335,7 +338,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const ctx = s.autocompleteContext;
     const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
-    const trailingSpace = (key === 'Tab' && isCompleteTerm && after.length === 0) ? ' ' : '';
+    const trailingSpace = (isCompleteTerm && after.length === 0) ? ' ' : '';
     const newValue = before + suggestion.text + trailingSpace + after;
     const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
 
@@ -430,6 +433,25 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, []);
 
+  // Re-render highlighted HTML when cursor moves (for paren matching)
+  const prevParenMatchRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!editorRef.current || !isFocused) return;
+    const currentTokens = stateRef.current.tokens;
+    if (currentTokens.length === 0) return;
+
+    // Compute new match and compare to previous to avoid unnecessary DOM updates
+    const match = findMatchingParen(currentTokens, cursorOffset);
+    const matchKey = match ? `${match.openStart},${match.closeStart}` : null;
+    if (matchKey === prevParenMatchRef.current) return;
+    prevParenMatchRef.current = matchKey;
+
+    const savedOffset = getCaretCharOffset(editorRef.current);
+    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset });
+    editorRef.current.innerHTML = html;
+    setCaretCharOffset(editorRef.current, savedOffset);
+  }, [cursorOffset, isFocused, colors]);
+
   // --- Event handlers ---
 
   const handleInput = React.useCallback(() => {
@@ -485,10 +507,11 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const newErrors = validatorRef.current.validate(newAst);
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
 
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors);
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos });
       editorRef.current.innerHTML = html;
       setCaretCharOffset(editorRef.current, entry.cursorPos);
     }

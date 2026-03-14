@@ -103,6 +103,35 @@ After a colon, `[` or `{` starts a range value that consumes everything until th
 - Mixed brackets and unclosed ranges are handled gracefully
 - **Tests:** `Lexer.test.ts` → "tokenizes [date TO date] as single value", "tokenizes {date TO date} as single value", "tokenizes range with absolute dates", "preserves offsets for range value", "range in compound query", "handles unclosed range bracket"
 
+### 1.13 Single-Character Wildcard (`?`)
+
+Words containing `?` are tokenized as `WILDCARD`, just like `*`. This supports Elasticsearch's single-character wildcard syntax.
+
+- `qu?ck` → `WILDCARD("qu?ck")`
+- `field:qu?ck` → `FIELD_NAME`, `COLON`, `WILDCARD`
+- `?ello` → `WILDCARD("?ello")`
+- Combined `te?t*` → `WILDCARD`
+- **Tests:** `Lexer.test.ts` → "single-char wildcard (?)" suite (4 tests)
+
+### 1.14 Regex Literals (`/pattern/`)
+
+`/…/` produces a `REGEX` token. The lexer reads from the opening `/` to the closing `/`, handling `\/` escapes inside the pattern. If unclosed (no closing `/`), the text is emitted as a `VALUE` fallback.
+
+- `/pattern/` → `REGEX("/pattern/")`
+- `field:/joh?n/` → `FIELD_NAME`, `COLON`, `REGEX`
+- `/pattern` (unclosed) → `VALUE("/pattern")`
+- **Tests:** `Lexer.test.ts` → "regex literals (/pattern/)" suite (5 tests)
+
+### 1.15 Backslash Escaping
+
+Outside of quoted strings, `\` before any character causes both the backslash and the following character to be consumed as literal text. This prevents the escaped character from being treated as a special character (space, `:`, `(`, `)`, `!`, etc.).
+
+- `hello\!world` → single `VALUE("hello\!world")`
+- `first\ name:value` → `FIELD_NAME("first\ name")`, `COLON`, `VALUE("value")`
+- `a\(b` → single `VALUE("a\(b")`
+- `not\:afield` → single `VALUE("not\:afield")` (escaped colon is not a field separator)
+- **Tests:** `Lexer.test.ts` → "backslash escaping" suite (5 tests)
+
 ---
 
 ## 2. Parser (AST)
@@ -121,6 +150,7 @@ The parser builds an AST from tokens using recursive descent with precedence: **
 | `BareTerm` | `hello`, `"phrase"` |
 | `SavedSearch` | `#my-search` |
 | `HistoryRef` | `!recent` |
+| `Regex` | `/pattern/` |
 | `Error` | unexpected tokens |
 
 ### 2.2 Implicit AND
@@ -200,6 +230,44 @@ The `end` offset of the node is extended to include the modifier tokens.
 Empty groups `field:()` produce a FieldGroup with an empty BareTerm. Unclosed groups are handled gracefully.
 
 - **Tests:** `Parser.test.ts` → "field-scoped groups" suite (8 tests)
+
+### 2.11 Regex Nodes
+
+`/pattern/` produces a `Regex` AST node with the pattern (without delimiters). When used as a field value (`field:/pattern/`), the node's `start` extends to the field name.
+
+- `/pattern/` → `Regex(pattern="pattern")`
+- `field:/joh?n/` → `Regex(pattern="joh?n", start=0)`
+- **Tests:** `Parser.test.ts` → "regex literals" suite (3 tests)
+
+### 2.12 Group Boost (`(...)^N`)
+
+Groups and field groups can have a boost modifier after the closing parenthesis. The boost value is attached to the `Group` or `FieldGroup` node, and the node's `end` offset extends to include the boost.
+
+- `(a OR b)^2` → `Group(boost=2, end=10)`
+- `field:(a b)^3` → `FieldGroup(field="field", boost=3, end=13)`
+- `(a)^1.5` → `Group(boost=1.5)`
+- **Tests:** `Parser.test.ts` → "group boost" suite (4 tests)
+
+### 2.13 Syntax Error Detection
+
+The parser detects common structural/syntax mistakes and reports them via `parser.getErrors()`. These errors are accumulated separately from the AST so the parser can still return a valid tree. ElasticInput merges these with validator errors to show red squiggly underlines.
+
+| Input | Squiggly On | Message |
+|-------|-------------|---------|
+| `(a b c` | `(` | "Missing closing parenthesis" |
+| `field:(a b` | `(` | "Missing closing parenthesis" |
+| `a ) b` | `)` | "Unexpected closing parenthesis" |
+| `a AND` | `AND` | "Missing search term after AND" |
+| `a OR` | `OR` | "Missing search term after OR" |
+| `NOT` (alone) | `NOT` | "Missing search term after NOT" |
+| `AND a` | `AND` | "Unexpected AND" |
+| `a OR AND b` | `AND` | "Unexpected AND" |
+
+Empty groups `()` are **not** flagged — the user is likely mid-typing.
+
+Each error detection consumes the problematic token and produces exactly one error. The parser continues from the next token. Existing deferred display hides errors at the cursor position, preventing flash during typing.
+
+- **Tests:** `Parser.test.ts` → "syntax errors" suite (10 tests)
 
 ---
 
@@ -465,24 +533,26 @@ Moving the cursor (via arrow keys, mouse click, Home/End) recalculates the conte
 
 ## 7. Keyboard Behavior
 
-### 7.1 Tab — Accept Suggestion
+### 7.1 Trailing Space on Accept
+
+When accepting a **complete term** (field value, saved search, or history ref) at the end of input, a trailing space is always appended regardless of whether Tab or Enter was used:
+
+- `status:` → accept "active" → `status:active ` (with space)
+- `#vip` → accept "#vip-active" → `#vip-active ` (with space)
+- `!Err` → accept "level:ERROR" → `level:ERROR ` (with space)
+
+A trailing space is **not** appended for:
+- Field names: `sta` → accept "status:" → `status:` (no space; value entry follows)
+- Operators: `status:active ` → accept "AND " → `status:active AND ` (operator already has space)
+- Values not at end of input: no extra space inserted
+
+- **Tests:** `SuggestionChaining.test.ts` → "Tab on field value at end of input appends trailing space", "Tab on field value NOT at end of input does NOT append space", "Tab on field name does NOT append space", "Tab on operator does NOT append space", "Tab on boolean value at end appends space", "Tab on saved search at end appends space", "Tab on history ref at end appends space", "Enter on field value at end appends trailing space", "full flow: Tab-accept values appends spaces for easy chaining"
+
+### 7.2 Tab — Accept Suggestion
 
 Tab accepts the currently highlighted suggestion. **Tab never submits the search.**
 
-When accepting a **complete term** (field value, saved search, or history ref) at the end of input, Tab appends a trailing space for easy chaining:
-
-- `status:` → Tab on "active" → `status:active ` (with space)
-- `#vip` → Tab on "#vip-active" → `#vip-active ` (with space)
-- `!Err` → Tab on "level:ERROR" → `level:ERROR ` (with space)
-
-Tab does **not** append a space for:
-- Field names: `sta` → Tab on "status:" → `status:` (no space; value entry follows)
-- Operators: `status:active ` → Tab on "AND " → `status:active AND ` (operator already has space)
-- Values not at end of input: no extra space inserted
-
-- **Tests:** `SuggestionChaining.test.ts` → "Tab on field value at end of input appends trailing space", "Tab on field value NOT at end of input does NOT append space", "Tab on field name does NOT append space", "Tab on operator does NOT append space", "Tab on boolean value at end appends space", "Tab on saved search at end appends space", "Tab on history ref at end appends space", "full flow: Tab-accept values appends spaces for easy chaining"
-
-### 7.2 Enter — Accept & Possibly Submit
+### 7.3 Enter — Accept & Possibly Submit
 
 Enter's behavior depends on what is being selected:
 
@@ -496,17 +566,17 @@ Enter's behavior depends on what is being selected:
 
 When no dropdown is open, Enter submits the search.
 
-- **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value does NOT append trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"
+- **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value at end appends trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"
 
-### 7.3 Ctrl+Enter — Always Submit
+### 7.4 Ctrl+Enter — Always Submit
 
 Ctrl+Enter (or Cmd+Enter on Mac) always submits the search, bypassing any autocomplete selection. The dropdown is closed first.
 
-### 7.4 Escape — Close Dropdown
+### 7.5 Escape — Close Dropdown
 
 Escape closes the autocomplete dropdown or date picker without accepting anything.
 
-### 7.5 Arrow Keys — Navigate / Move Cursor
+### 7.6 Arrow Keys — Navigate / Move Cursor
 
 - **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
 - **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position
@@ -709,12 +779,66 @@ Unknown fields in groups produce a single "Unknown field" error without descendi
 
 - **Tests:** `Validator.test.ts` → "Field-scoped group validation" suite (10 tests)
 
-### 9.14 Non-Validated Cases
+### 9.14 Star Field (`*`) Bypass
+
+`*` as a field name means "all fields" and bypasses all field-specific validation. No unknown-field error is produced, and no type validation is applied.
+
+- `*:value` → no errors
+- `*:*` → no errors
+- `*:(a OR b)` → no errors
+- **Tests:** `Validator.test.ts` → "Star (*) as field name" suite (3 tests)
+
+### 9.15 Group Boost Validation
+
+Boost on groups and field groups is validated the same as on terms: must be positive (> 0).
+
+- `(a OR b)^2` → no errors
+- `(a)^0` → "Boost value must be positive"
+- `field:(a b)^3` → no errors
+- `field:(a)^0` → "Boost value must be positive"
+- **Tests:** `Validator.test.ts` → "Group boost validation" suite (4 tests)
+
+### 9.16 Non-Validated Cases
 
 - Bare terms (freeform search words) are not validated
 - Empty values pass validation
 - Null AST (empty input) passes validation
 - **Tests:** `Validator.test.ts` → "does not validate bare terms", "returns no errors for empty value", "returns no errors for null AST"
+
+---
+
+## 9.5. Syntax Highlighting
+
+### 9.5.1 Regex Syntax Highlighting
+
+REGEX tokens (`/pattern/`) are sub-highlighted with distinct colors for internal regex syntax elements:
+
+| Element | Example | Color Key |
+|---------|---------|-----------|
+| Delimiters | `/` | `regexDelimiter` |
+| Character classes | `[abc]`, `[^0-9]` | `regexCharClass` |
+| Group parens | `(`, `)`, `(?:`, `(?=` | `regexGroup` |
+| Escape sequences | `\d`, `\w`, `\.` | `regexEscape` |
+| Quantifiers | `+`, `*`, `?`, `+?`, `{1,3}` | `regexQuantifier` |
+| Anchors | `^`, `$` | `regexAnchor` |
+| Alternation | `\|` | `regexAlternation` |
+| Literal text | `abc` | `regexText` |
+
+The sub-tokenizer handles nested structures (escapes inside character classes, non-capturing groups `(?:...)`, lookaheads `(?=...)`, `(?!...)`, lookbehinds `(?<=...)`, `(?<!...)`, and lazy quantifiers `+?`, `*?`).
+
+- **Tests:** `regexHighlight.test.ts` → 20 tests covering all element types, nesting, and edge cases
+
+### 9.5.2 Matching Parenthesis Highlighting
+
+When the cursor is adjacent to a parenthesis, both the paren and its matching counterpart are highlighted with a background color (`matchedParenBg`) and bold weight. This follows standard IDE bracket matching rules:
+
+1. **Check "after" first (left of caret):** If the character immediately before the cursor is a paren, that pair is highlighted.
+2. **Then check "before" (right of caret):** If no paren was found at step 1, check the character at the cursor position.
+3. **"After" takes precedence** — if cursor is between `)(`, the `)` on the left is matched.
+
+Matching respects nesting: `((a))` with cursor after inner `(` matches the inner `)`, not the outer one. Unmatched parens (e.g. `(a b` with no closing paren) produce no highlight. Parens inside quoted strings or regex are ignored (they are not `LPAREN`/`RPAREN` tokens). When the input is blurred (cursor offset -1), no matching is performed.
+
+- **Tests:** `parenMatch.test.ts` → 12 tests covering basic matching, nesting, priority, unmatched, and edge cases
 
 ---
 

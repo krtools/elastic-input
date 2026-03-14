@@ -56,7 +56,7 @@ function acceptAndGetNext(
 /**
  * Simulate accepting a suggestion with a specific key (Tab or Enter),
  * mirroring ElasticInput.acceptSuggestion behavior:
- * - Tab + complete term (field value, saved search, history) at end → append trailing space
+ * - Complete term (field value, saved search, history) at end → append trailing space
  * - Enter + field value → would trigger submit (returns shouldSubmit flag)
  */
 function acceptWithKey(
@@ -69,7 +69,7 @@ function acceptWithKey(
   const before = currentInput.slice(0, suggestion.replaceStart);
   const after = currentInput.slice(suggestion.replaceEnd);
   const isCompleteTerm = contextType === 'FIELD_VALUE' || contextType === 'SAVED_SEARCH' || contextType === 'HISTORY_REF';
-  const trailingSpace = (key === 'Tab' && isCompleteTerm && after.length === 0) ? ' ' : '';
+  const trailingSpace = (isCompleteTerm && after.length === 0) ? ' ' : '';
   const newValue = before + suggestion.text + trailingSpace + after;
   const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
   const shouldSubmit = key === 'Enter' && contextType === 'FIELD_VALUE';
@@ -335,11 +335,11 @@ describe('Tab vs Enter behavior for field value selection', () => {
     const { newValue, shouldSubmit } = acceptWithKey(
       engine, 'status:', activeSugg, 'FIELD_VALUE', 'Enter'
     );
-    expect(newValue).toBe('status:active');
+    expect(newValue).toBe('status:active ');
     expect(shouldSubmit).toBe(true);
   });
 
-  it('Enter on field value does NOT append trailing space', () => {
+  it('Enter on field value at end appends trailing space', () => {
     const engine = getEngine();
     const step1 = getSuggestions(engine, 'status:');
     const activeSugg = step1.suggestions.find(s => s.text === 'active')!;
@@ -347,7 +347,7 @@ describe('Tab vs Enter behavior for field value selection', () => {
     const { newValue } = acceptWithKey(
       engine, 'status:', activeSugg, 'FIELD_VALUE', 'Enter'
     );
-    expect(newValue).toBe('status:active'); // no space
+    expect(newValue).toBe('status:active ');
   });
 
   it('Tab on field name does NOT append space', () => {

@@ -50,6 +50,17 @@ export interface ColorConfig {
   cursor?: string;
   dropdownSelected?: string;
   dropdownHover?: string;
+  // Regex sub-highlighting
+  regexDelimiter?: string;
+  regexCharClass?: string;
+  regexGroup?: string;
+  regexEscape?: string;
+  regexQuantifier?: string;
+  regexAnchor?: string;
+  regexAlternation?: string;
+  regexText?: string;
+  // Matched paren highlighting
+  matchedParenBg?: string;
 }
 
 export interface StyleConfig {

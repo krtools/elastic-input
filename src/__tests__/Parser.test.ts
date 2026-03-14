@@ -1,11 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { ASTNode } from '../parser/ast';
+import { ASTNode, ErrorNode } from '../parser/ast';
 
 function parse(input: string): ASTNode | null {
   const tokens = new Lexer(input).tokenize();
   return new Parser(tokens).parse();
+}
+
+function parseWithErrors(input: string): { ast: ASTNode | null; errors: ErrorNode[] } {
+  const tokens = new Lexer(input).tokenize();
+  const parser = new Parser(tokens);
+  const ast = parser.parse();
+  return { ast, errors: parser.getErrors() };
 }
 
 describe('Parser', () => {
@@ -530,6 +537,168 @@ describe('Parser', () => {
         proximity: 5,
         boost: 2,
       });
+    });
+  });
+
+  describe('regex literals', () => {
+    it('parses /pattern/ as RegexNode', () => {
+      const ast = parse('/pattern/')!;
+      expect(ast).toMatchObject({
+        type: 'Regex',
+        pattern: 'pattern',
+      });
+    });
+
+    it('parses field:/joh?n/ as RegexNode with field start', () => {
+      const ast = parse('field:/joh?n/')!;
+      expect(ast).toMatchObject({
+        type: 'Regex',
+        pattern: 'joh?n',
+        start: 0,
+      });
+    });
+
+    it('tracks offsets for regex node', () => {
+      const ast = parse('/abc/')!;
+      expect(ast.start).toBe(0);
+      expect(ast.end).toBe(5);
+    });
+  });
+
+  describe('group boost', () => {
+    it('parses (a OR b)^2 as Group with boost', () => {
+      const ast = parse('(a OR b)^2')!;
+      expect(ast).toMatchObject({
+        type: 'Group',
+        boost: 2,
+        expression: {
+          type: 'BooleanExpr',
+          operator: 'OR',
+        },
+      });
+    });
+
+    it('tracks end offset including boost on group', () => {
+      const ast = parse('(a OR b)^2')!;
+      expect(ast.end).toBe(10);
+    });
+
+    it('parses field:(a b)^3 as FieldGroup with boost', () => {
+      const ast = parse('field:(a b)^3')!;
+      expect(ast).toMatchObject({
+        type: 'FieldGroup',
+        field: 'field',
+        boost: 3,
+      });
+      expect(ast.end).toBe(13);
+    });
+
+    it('parses decimal boost on group', () => {
+      const ast = parse('(a)^1.5')!;
+      expect(ast).toMatchObject({
+        type: 'Group',
+        boost: 1.5,
+      });
+    });
+  });
+
+  describe('syntax errors', () => {
+    it('reports missing closing parenthesis for groups', () => {
+      const { ast, errors } = parseWithErrors('(a b c');
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('Group');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing parenthesis',
+        start: 0,
+        end: 1,
+      });
+    });
+
+    it('reports missing closing parenthesis for field groups', () => {
+      const { ast, errors } = parseWithErrors('field:(a b');
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('FieldGroup');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing parenthesis',
+      });
+    });
+
+    it('reports unexpected closing parenthesis', () => {
+      const { ast, errors } = parseWithErrors('a ) b');
+      expect(ast).not.toBeNull();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unexpected closing parenthesis',
+      });
+    });
+
+    it('reports missing search term after AND', () => {
+      const { ast, errors } = parseWithErrors('a AND');
+      expect(ast).not.toBeNull();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing search term after AND',
+      });
+    });
+
+    it('reports missing search term after OR', () => {
+      const { ast, errors } = parseWithErrors('a OR');
+      expect(ast).not.toBeNull();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing search term after OR',
+      });
+    });
+
+    it('reports missing search term after NOT (alone)', () => {
+      const { errors } = parseWithErrors('NOT');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing search term after NOT',
+      });
+    });
+
+    it('reports unexpected AND at start', () => {
+      const { ast, errors } = parseWithErrors('AND a');
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('BareTerm');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unexpected AND',
+      });
+    });
+
+    it('reports unexpected AND after OR', () => {
+      const { ast, errors } = parseWithErrors('a OR AND b');
+      expect(ast).not.toBeNull();
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unexpected AND',
+      });
+    });
+
+    it('produces no errors for valid queries', () => {
+      const validQueries = [
+        'a AND b',
+        'a OR b',
+        'NOT a',
+        '(a OR b)',
+        'field:(a b)',
+        'status:active AND level:ERROR',
+        'a b c',
+        '"hello world"',
+      ];
+      for (const q of validQueries) {
+        const { errors } = parseWithErrors(q);
+        expect(errors).toHaveLength(0);
+      }
+    });
+
+    it('does not flag empty groups', () => {
+      const { errors } = parseWithErrors('()');
+      expect(errors).toHaveLength(0);
     });
   });
 

@@ -17,6 +17,15 @@ export const DEFAULT_COLORS: Required<ColorConfig> = {
   cursor: '#1f2328',
   dropdownSelected: '#0969da',
   dropdownHover: '#f6f8fa',
+  regexDelimiter: '#cf222e',
+  regexCharClass: '#0550ae',
+  regexGroup: '#656d76',
+  regexEscape: '#953800',
+  regexQuantifier: '#8250df',
+  regexAnchor: '#cf222e',
+  regexAlternation: '#8250df',
+  regexText: '#0a3069',
+  matchedParenBg: '#fff3cd',
 };
 
 export const DARK_COLORS: Required<ColorConfig> = {
@@ -36,6 +45,15 @@ export const DARK_COLORS: Required<ColorConfig> = {
   cursor: '#c9d1d9',
   dropdownSelected: '#1f6feb',
   dropdownHover: '#161b22',
+  regexDelimiter: '#ff7b72',
+  regexCharClass: '#79c0ff',
+  regexGroup: '#8b949e',
+  regexEscape: '#ffa657',
+  regexQuantifier: '#d2a8ff',
+  regexAnchor: '#ff7b72',
+  regexAlternation: '#d2a8ff',
+  regexText: '#a5d6ff',
+  matchedParenBg: '#3d3222',
 };
 
 export const DEFAULT_STYLES: Required<StyleConfig> = {

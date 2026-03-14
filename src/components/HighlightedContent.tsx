@@ -1,6 +1,8 @@
 import { Token, TokenType } from '../lexer/tokens';
 import { ColorConfig } from '../types';
 import { mergeColors } from '../styles/inlineStyles';
+import { buildRegexHTML } from '../highlighting/regexHighlight';
+import { findMatchingParen, ParenMatch } from '../highlighting/parenMatch';
 
 const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
   [TokenType.FIELD_NAME]: 'fieldName',
@@ -17,16 +19,27 @@ const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
   [TokenType.HISTORY_REF]: 'historyRef',
   [TokenType.PREFIX_OP]: 'operator',
   [TokenType.WILDCARD]: 'wildcard',
+  [TokenType.REGEX]: 'quoted',
   [TokenType.TILDE]: 'operator',
   [TokenType.BOOST]: 'operator',
   [TokenType.WHITESPACE]: 'text',
   [TokenType.UNKNOWN]: 'error',
 };
 
-export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig): string {
+export interface HighlightOptions {
+  cursorOffset?: number;
+}
+
+export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig, options?: HighlightOptions): string {
   const colors = mergeColors(colorConfig);
 
   if (tokens.length === 0) return '';
+
+  // Compute paren match if cursor position is provided
+  const parenMatch: ParenMatch | null =
+    options?.cursorOffset !== undefined
+      ? findMatchingParen(tokens, options.cursorOffset)
+      : null;
 
   return tokens.map(token => {
     const colorKey = TOKEN_COLOR_MAP[token.type] || 'text';
@@ -35,6 +48,11 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig)
 
     if (token.type === TokenType.WHITESPACE) {
       return escapedValue;
+    }
+
+    // Regex tokens get sub-highlighted
+    if (token.type === TokenType.REGEX) {
+      return buildRegexHTML(token, colors);
     }
 
     let fontWeight = 'normal';
@@ -49,7 +67,16 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig)
       fontWeight = '500';
     }
 
-    return `<span style="color:${color};font-weight:${fontWeight}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
+    // Matched paren highlighting
+    let extraStyle = '';
+    if (parenMatch && (token.type === TokenType.LPAREN || token.type === TokenType.RPAREN)) {
+      if (token.start === parenMatch.openStart || token.start === parenMatch.closeStart) {
+        fontWeight = '700';
+        extraStyle = `background-color:${colors.matchedParenBg};border-radius:2px;`;
+      }
+    }
+
+    return `<span style="color:${color};font-weight:${fontWeight};${extraStyle}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
   }).join('');
 }
 

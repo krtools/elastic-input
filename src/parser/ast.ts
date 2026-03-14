@@ -7,6 +7,7 @@ export type ASTNode =
   | SavedSearchNode
   | HistoryRefNode
   | BareTermNode
+  | RegexNode
   | ErrorNode;
 
 export interface FieldValueNode {
@@ -26,6 +27,7 @@ export interface FieldGroupNode {
   type: 'FieldGroup';
   field: string;
   expression: ASTNode;
+  boost?: number;
   start: number;
   end: number;
 }
@@ -42,6 +44,7 @@ export interface BooleanExprNode {
 export interface GroupNode {
   type: 'Group';
   expression: ASTNode;
+  boost?: number;
   start: number;
   end: number;
 }
@@ -74,6 +77,13 @@ export interface BareTermNode {
   boost?: number;
   fuzzy?: number;
   proximity?: number;
+  start: number;
+  end: number;
+}
+
+export interface RegexNode {
+  type: 'Regex';
+  pattern: string;
   start: number;
   end: number;
 }

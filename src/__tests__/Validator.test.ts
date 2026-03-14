@@ -405,4 +405,46 @@ describe('Ambiguous precedence warnings', () => {
     const warnings = errors.filter(e => e.severity === 'warning');
     expect(warnings).toHaveLength(1);
   });
+
+  describe('field aliases', () => {
+    const ALIASED_FIELDS: FieldConfig[] = [
+      { name: 'name', type: 'string', aliases: ['contact_name', 'full_name'] },
+      { name: 'price', type: 'number', aliases: ['cost'] },
+      { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
+    ];
+
+    function validateAliased(input: string) {
+      const tokens = new Lexer(input).tokenize();
+      const ast = new Parser(tokens).parse();
+      return new Validator(ALIASED_FIELDS).validate(ast);
+    }
+
+    it('allows field alias without unknown field error', () => {
+      expect(validateAliased('contact_name:John')).toHaveLength(0);
+    });
+
+    it('allows multiple aliases for the same field', () => {
+      expect(validateAliased('full_name:Jane')).toHaveLength(0);
+    });
+
+    it('validates alias values using canonical field type', () => {
+      expect(validateAliased('cost:abc')).toHaveLength(1);
+      expect(validateAliased('cost:abc')[0].message).toContain('not a valid number');
+    });
+
+    it('still reports unknown for fields with no alias match', () => {
+      const errors = validateAliased('unknown:value');
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].message).toContain('Unknown field');
+    });
+
+    it('validates alias in field group', () => {
+      expect(validateAliased('contact_name:(a b)')).toHaveLength(0);
+    });
+
+    it('reports unknown field group for non-aliased name', () => {
+      const errors = validateAliased('unknown:(a b)');
+      expect(errors.length).toBeGreaterThan(0);
+    });
+  });
 });

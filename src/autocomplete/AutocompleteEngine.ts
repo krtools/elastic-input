@@ -19,6 +19,7 @@ export interface AutocompleteOptions {
 
 export class AutocompleteEngine {
   private fields: FieldConfig[];
+  private fieldMap: Map<string, FieldConfig>;
   private savedSearches: SavedSearch[];
   private searchHistory: HistoryEntry[];
   private maxSuggestions: number;
@@ -34,6 +35,14 @@ export class AutocompleteEngine {
     hasAsyncFetch: boolean = false,
   ) {
     this.fields = fields;
+    this.fieldMap = new Map(fields.map(f => [f.name, f]));
+    for (const f of fields) {
+      if (f.aliases) {
+        for (const alias of f.aliases) {
+          this.fieldMap.set(alias, f);
+        }
+      }
+    }
     this.savedSearches = savedSearches;
     this.searchHistory = searchHistory;
     this.maxSuggestions = maxSuggestions;
@@ -42,6 +51,11 @@ export class AutocompleteEngine {
       showSavedSearchHint: options.showSavedSearchHint ?? true,
       showHistoryHint: options.showHistoryHint ?? true,
     };
+  }
+
+  /** Resolve a field name (or alias) to its FieldConfig. */
+  resolveField(fieldName: string): FieldConfig | undefined {
+    return this.fieldMap.get(fieldName);
   }
 
   updateSavedSearches(searches: SavedSearch[]): void {
@@ -69,7 +83,7 @@ export class AutocompleteEngine {
       }
 
       case 'FIELD_VALUE': {
-        const field = this.fields.find(f => f.name === context.fieldName);
+        const field = context.fieldName ? this.resolveField(context.fieldName) : undefined;
         if (field?.type === 'date') {
           return {
             suggestions: [],
@@ -121,12 +135,15 @@ export class AutocompleteEngine {
       .map(f => {
         const name = f.name.toLowerCase();
         const label = (f.label || '').toLowerCase();
-        // Prioritize: startsWith name > startsWith label > includes name > includes label
+        const aliasNames = (f.aliases || []).map(a => a.toLowerCase());
+        // Prioritize: startsWith name > startsWith label/alias > includes name > includes label/alias
         let score = 0;
         if (name.startsWith(lower)) score = 4;
         else if (label.startsWith(lower)) score = 3;
+        else if (aliasNames.some(a => a.startsWith(lower))) score = 3;
         else if (name.includes(lower)) score = 2;
         else if (label.includes(lower)) score = 1;
+        else if (aliasNames.some(a => a.includes(lower))) score = 1;
         return { field: f, score };
       })
       .filter(s => s.score > 0)

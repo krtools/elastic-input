@@ -815,7 +815,8 @@ Errors are placed precisely on the relevant part of the input:
 ### 9.6 Field Validation
 
 - Unknown field names are flagged
-- **Tests:** `Validator.test.ts` → "flags unknown fields"
+- Field aliases: if a `FieldConfig` has `aliases: ['contact_name']`, then `contact_name:value` is treated identically to `name:value` — no "Unknown field" error, and the canonical field's type/validation rules apply.
+- **Tests:** `Validator.test.ts` → "flags unknown fields"; "field aliases" suite (6 tests covering alias resolution, type validation through aliases, and field groups)
 
 ### 9.7 Type Validation
 
@@ -972,7 +973,7 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `fields` | `FieldConfig[]` | required | Field definitions |
+| `fields` | `FieldConfig[] \| () => Promise<FieldConfig[]>` | required | Field definitions (static or async loader) |
 | `onSearch` | `(query, ast) => void` | — | Called on submit (Enter on value, Ctrl+Enter) |
 | `onChange` | `(query, ast) => void` | — | Called on every input change |
 | `onValidationChange` | `(errors) => void` | — | Called when validation errors change |
@@ -992,6 +993,26 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 | `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
+
+#### Async Field Loading
+
+When `fields` is an async function (`() => Promise<FieldConfig[]>`), the component starts with an empty field list while loading. During this time:
+- No "Unknown field" errors are raised (there are no known fields to compare against)
+- No field autocomplete suggestions appear
+- The input is fully functional — users can type freely
+
+Once the promise resolves, the engine and validator are rebuilt and the current input is re-validated with the loaded fields. The async function should be memoized (e.g. with `useCallback`) to avoid re-fetching on every render.
+
+#### Field Aliases
+
+Each `FieldConfig` can declare `aliases: string[]`. An alias is treated identically to the canonical field name for all purposes:
+- No "Unknown field" validation error
+- Type validation uses the canonical field's rules (e.g. `cost:abc` validates as number if `cost` is an alias of a `number` field)
+- Value autocomplete resolves to the canonical field's suggestions
+- `fetchSuggestions` receives the canonical field name, not the alias
+- Alias names are matchable in field autocomplete (typing `contact_` matches a field with alias `contact_name`)
+
+- **Tests:** `Validator.test.ts` → "field aliases" suite; `AutocompleteEngine.test.ts` → "field aliases" suite
 
 ### 10.2 Style Configuration
 

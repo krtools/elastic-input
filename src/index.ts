@@ -20,6 +20,7 @@ export type {
   ElasticInputProps,
   ElasticInputAPI,
   FieldConfig,
+  FieldsSource,
   FieldType,
   SavedSearch,
   HistoryEntry,

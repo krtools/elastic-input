@@ -8,6 +8,8 @@ export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'ip'
 export interface FieldConfig {
   /** Field name used in queries (e.g. `status` in `status:active`). */
   name: string;
+  /** Alternative names that resolve to this field. Typing an alias (e.g. `contact_name:value`) behaves identically to using `name`. */
+  aliases?: string[];
   /** Human-readable label shown in autocomplete suggestions. Falls back to `name` if omitted. */
   label?: string;
   /** Data type that determines validation and autocomplete behavior. */
@@ -202,9 +204,12 @@ export interface ElasticInputAPI {
  * />
  * ```
  */
+/** Field definitions — either a static array or an async loader function. */
+export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
+
 export interface ElasticInputProps {
-  /** Field definitions that determine autocomplete, validation, and syntax highlighting. */
-  fields: FieldConfig[];
+  /** Field definitions that determine autocomplete, validation, and syntax highlighting. Accepts a static array or an async loader function. */
+  fields: FieldsSource;
   /** Called when the user submits a search (Enter on a value, or Ctrl+Enter). */
   onSearch?: (query: string, ast: ASTNode | null) => void;
   /** Called on every input change with the current query and AST. */

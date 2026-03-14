@@ -554,4 +554,49 @@ describe('AutocompleteEngine', () => {
       expect(fieldSugg!.priority).toBe(10);
     });
   });
+
+  describe('field aliases', () => {
+    const aliasedFields: FieldConfig[] = [
+      { name: 'name', type: 'string', label: 'Contact Name', aliases: ['contact_name', 'full_name'] },
+      { name: 'status', type: 'enum', suggestions: ['active', 'inactive'], aliases: ['state'] },
+      { name: 'price', type: 'number' },
+    ];
+
+    function getSuggs(input: string, cursorOffset?: number) {
+      const tokens = new Lexer(input).tokenize();
+      const engine = new AutocompleteEngine(aliasedFields);
+      return engine.getSuggestions(tokens, cursorOffset ?? input.length);
+    }
+
+    it('matches field by alias in autocomplete', () => {
+      const result = getSuggs('contact_');
+      const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));
+      expect(fieldSuggs.some(s => s.text === 'name:')).toBe(true);
+    });
+
+    it('matches partial alias with startsWith scoring', () => {
+      const result = getSuggs('full_');
+      const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));
+      expect(fieldSuggs.some(s => s.text === 'name:')).toBe(true);
+    });
+
+    it('resolves alias for value suggestions', () => {
+      const result = getSuggs('state:');
+      // Should resolve to status field and show enum values
+      expect(result.suggestions.some(s => s.text === 'active')).toBe(true);
+      expect(result.suggestions.some(s => s.text === 'inactive')).toBe(true);
+    });
+
+    it('resolveField returns canonical config for alias', () => {
+      const engine = new AutocompleteEngine(aliasedFields);
+      const resolved = engine.resolveField('contact_name');
+      expect(resolved).toBeDefined();
+      expect(resolved!.name).toBe('name');
+    });
+
+    it('resolveField returns undefined for unknown name', () => {
+      const engine = new AutocompleteEngine(aliasedFields);
+      expect(engine.resolveField('unknown')).toBeUndefined();
+    });
+  });
 });

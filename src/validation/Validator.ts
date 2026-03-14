@@ -22,6 +22,13 @@ export class Validator {
 
   constructor(fields: FieldConfig[]) {
     this.fields = new Map(fields.map(f => [f.name, f]));
+    for (const f of fields) {
+      if (f.aliases) {
+        for (const alias of f.aliases) {
+          this.fields.set(alias, f);
+        }
+      }
+    }
   }
 
   validate(ast: ASTNode | null): ValidationError[] {

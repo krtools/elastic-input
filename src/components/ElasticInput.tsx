@@ -94,7 +94,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
  */
 export function ElasticInput(props: ElasticInputProps) {
   const {
-    fields, onSearch, onChange, onValidationChange, value, defaultValue,
+    fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
@@ -103,6 +103,24 @@ export function ElasticInput(props: ElasticInputProps) {
   } = props;
 
   const multiline = multilineProp !== false; // default true
+
+  // Resolve async fields into state — start with [] while loading
+  const initialFields = Array.isArray(fieldsProp) ? fieldsProp : [];
+  const [resolvedFields, setResolvedFields] = React.useState<FieldConfig[]>(initialFields);
+
+  React.useEffect(() => {
+    if (Array.isArray(fieldsProp)) {
+      setResolvedFields(fieldsProp);
+      return;
+    }
+    let cancelled = false;
+    fieldsProp().then(result => {
+      if (!cancelled) {
+        setResolvedFields(result);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [fieldsProp]);
 
   // --- Refs ---
   // Track editor element in both a ref (for sync access in handlers) and state
@@ -127,13 +145,13 @@ export function ElasticInput(props: ElasticInputProps) {
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
     new AutocompleteEngine(
-      fields, [], [],
+      initialFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint },
       !!fetchSuggestionsProp,
     )
   );
-  const validatorRef = React.useRef(new Validator(fields));
+  const validatorRef = React.useRef(new Validator(initialFields));
 
   // --- State ---
   const [tokens, setTokens] = React.useState<Token[]>([]);
@@ -277,7 +295,10 @@ export function ElasticInput(props: ElasticInputProps) {
 
     // Handle async fetchSuggestions
     if (willFetchAsync) {
-      const fieldName = result.context.fieldName!;
+      // Resolve alias to canonical field name for the fetch callback
+      const rawFieldName = result.context.fieldName!;
+      const resolved = engineRef.current.resolveField(rawFieldName);
+      const fieldName = resolved ? resolved.name : rawFieldName;
       const partial = result.context.partial;
       const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
 
@@ -500,15 +521,15 @@ export function ElasticInput(props: ElasticInputProps) {
     loadAsync();
   }, [savedSearches, searchHistory]);
 
-  // Rebuild engine/validator when fields change
+  // Rebuild engine/validator when resolved fields change
   React.useEffect(() => {
     engineRef.current = new AutocompleteEngine(
-      fields, [], [],
+      resolvedFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint },
       !!fetchSuggestionsProp,
     );
-    validatorRef.current = new Validator(fields);
+    validatorRef.current = new Validator(resolvedFields);
     // Re-load async data for new engine
     const loadAsync = async () => {
       if (savedSearches) {
@@ -521,7 +542,11 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     };
     loadAsync();
-  }, [fields, maxSuggestions, showSavedSearchHint, showHistoryHint]);
+    // Re-validate current input with new fields (e.g. after async fields load)
+    if (currentValueRef.current) {
+      processInput(currentValueRef.current, false);
+    }
+  }, [resolvedFields, maxSuggestions, showSavedSearchHint, showHistoryHint]);
 
   // Expose imperative API
   React.useEffect(() => {

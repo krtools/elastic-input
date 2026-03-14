@@ -709,8 +709,17 @@ When the `multiline` prop is enabled (default: `true`), Shift+Enter inserts a li
 
 ### 7.9 Arrow Keys — Navigate / Move Cursor
 
-- **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
+- **ArrowUp/ArrowDown** with dropdown open: navigate suggestions (ArrowUp can deselect all items by going to index -1)
 - **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position
+
+### 7.10 Dropdown Selection Behavior
+
+The dropdown's selected index determines which item is highlighted and which Enter/Tab would accept.
+
+- **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus).
+- **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
+- **ArrowUp past first item**: deselects all (returns to index -1).
+- **Loading state** ("Searching..." for async fields): no item is pre-selected.
 
 ---
 

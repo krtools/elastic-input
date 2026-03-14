@@ -156,7 +156,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [tokens, setTokens] = React.useState<Token[]>([]);
   const [ast, setAst] = React.useState<ASTNode | null>(null);
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = React.useState(0);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = React.useState(-1);
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [dropdownPosition, setDropdownPosition] = React.useState<{ top: number; left: number } | null>(null);
@@ -277,7 +277,7 @@ export function ElasticInput(props: ElasticInputProps) {
         setSuggestions(newSuggestions);
         setShowDropdown(false);
         setShowDatePicker(false);
-        setSelectedSuggestionIndex(0);
+        setSelectedSuggestionIndex(result.context.partial ? 0 : -1);
         setAutocompleteContext(contextType);
         requestAnimationFrame(() => {
           const rect = getCaretRect();
@@ -310,7 +310,7 @@ export function ElasticInput(props: ElasticInputProps) {
       setSuggestions([loadingSuggestion]);
       setShowDropdown(false);
       setShowDatePicker(false);
-      setSelectedSuggestionIndex(0);
+      setSelectedSuggestionIndex(-1);
       setAutocompleteContext(contextType);
       requestAnimationFrame(() => {
         const rect = getCaretRect();
@@ -357,7 +357,7 @@ export function ElasticInput(props: ElasticInputProps) {
           }));
           if (mapped.length > 0) {
             setSuggestions(mapped);
-            setSelectedSuggestionIndex(0);
+            setSelectedSuggestionIndex(partial ? 0 : -1);
             requestAnimationFrame(() => {
               const rect = getCaretRect();
               setShowDropdown(true);
@@ -372,7 +372,7 @@ export function ElasticInput(props: ElasticInputProps) {
             );
             if (hintSuggestions.length > 0) {
               setSuggestions(hintSuggestions);
-              setSelectedSuggestionIndex(0);
+              setSelectedSuggestionIndex(syncResult.context.partial ? 0 : -1);
               requestAnimationFrame(() => {
                 const rect = getCaretRect();
                 setShowDropdown(true);
@@ -400,7 +400,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDropdown(false);
     setShowDatePicker(false);
     setSuggestions([]);
-    setSelectedSuggestionIndex(0);
+    setSelectedSuggestionIndex(-1);
     // Cancel any in-flight async work
     asyncActiveRef.current = false;
     fetchIdRef.current++;
@@ -765,13 +765,16 @@ export function ElasticInput(props: ElasticInputProps) {
           return;
         case 'ArrowUp':
           e.preventDefault();
-          setSelectedSuggestionIndex(i => Math.max(i - 1, 0));
+          setSelectedSuggestionIndex(i => Math.max(i - 1, -1));
           return;
         case 'Enter':
         case 'Tab':
-          e.preventDefault();
-          acceptSuggestion(s.suggestions[s.selectedSuggestionIndex], e.key);
-          return;
+          if (s.selectedSuggestionIndex >= 0) {
+            e.preventDefault();
+            acceptSuggestion(s.suggestions[s.selectedSuggestionIndex], e.key);
+            return;
+          }
+          break;
         case 'Escape':
           e.preventDefault();
           closeDropdown();

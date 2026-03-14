@@ -287,23 +287,28 @@ export function ElasticInput(props: ElasticInputProps) {
         setAutocompleteContext(contextType);
       }
     } else {
-      // First entry into an async field — show sync suggestions initially, then async takes over
-      const newSuggestions = applyFieldHint(result.suggestions, result.context);
-      if (newSuggestions.length > 0) {
-        setSuggestions(newSuggestions);
-        setShowDropdown(false);
-        setShowDatePicker(false);
-        setSelectedSuggestionIndex(0);
-        setAutocompleteContext(contextType);
-        requestAnimationFrame(() => {
-          const rect = getCaretRect();
-          setShowDropdown(true);
-          setDropdownPosition(rect ? getDropdownPosition(rect, newSuggestions.length * 32, 300) : null);
-        });
-      } else {
-        setShowDatePicker(false);
-        setAutocompleteContext(contextType);
-      }
+      // First entry into an async field — show "Searching..." immediately
+      // instead of flashing the sync hint (e.g. "Search companies...").
+      const token = result.context.token;
+      const start = token ? token.start : offset;
+      const end = token ? token.end : offset;
+      const loadingSuggestion: Suggestion = {
+        text: '',
+        label: 'Searching...',
+        type: 'loading',
+        replaceStart: start,
+        replaceEnd: end,
+      };
+      setSuggestions([loadingSuggestion]);
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      setSelectedSuggestionIndex(0);
+      setAutocompleteContext(contextType);
+      requestAnimationFrame(() => {
+        const rect = getCaretRect();
+        setShowDropdown(true);
+        setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
+      });
     }
 
     // Handle async fetchSuggestions
@@ -327,29 +332,8 @@ export function ElasticInput(props: ElasticInputProps) {
         const start = token ? token.start : offset;
         const end = token ? token.end : offset;
 
-        // Show loading indicator if fetch takes > 500ms
-        loadingTimerRef.current = setTimeout(() => {
-          // Only show spinner if this is still the latest request
-          if (fetchIdRef.current !== currentFetchId) return;
-          const loadingSuggestion: Suggestion = {
-            text: '',
-            label: 'Searching...',
-            type: 'loading',
-            replaceStart: start,
-            replaceEnd: end,
-          };
-          setSuggestions([loadingSuggestion]);
-          setSelectedSuggestionIndex(0);
-          requestAnimationFrame(() => {
-            const rect = getCaretRect();
-            setShowDropdown(true);
-            setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
-          });
-        }, 500);
-
         try {
           const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);
-          if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
 
           // Discard stale results — a newer fetch has been initiated
           if (fetchIdRef.current !== currentFetchId) return;

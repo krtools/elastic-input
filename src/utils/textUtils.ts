@@ -1,5 +1,28 @@
 import { Token, TokenType } from '../lexer/tokens';
 
+/** Bracket/quote pairs for selection wrapping. */
+export const WRAP_PAIRS: Record<string, string> = { '(': ')', '[': ']', '"': '"', "'": "'" };
+
+/**
+ * Wrap a selection range with an open/close pair.
+ * Returns the new text and cursor position (placed after the closing bracket).
+ */
+export function wrapSelection(
+  text: string,
+  selStart: number,
+  selEnd: number,
+  openChar: string,
+  closeChar: string,
+): { newValue: string; newCursorPos: number } {
+  const before = text.slice(0, selStart);
+  const selected = text.slice(selStart, selEnd);
+  const after = text.slice(selEnd);
+  return {
+    newValue: before + openChar + selected + closeChar + after,
+    newCursorPos: selEnd + 2,
+  };
+}
+
 /**
  * Get the plaintext content from a contenteditable element,
  * handling <br> and block elements as newlines.

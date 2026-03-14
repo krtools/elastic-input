@@ -589,11 +589,28 @@ When no dropdown is open, Enter submits the search.
 
 Ctrl+Enter (or Cmd+Enter on Mac) always submits the search, bypassing any autocomplete selection. The dropdown is closed first.
 
-### 7.5 Escape — Close Dropdown
+### 7.5 Selection Wrapping (VS Code Style)
+
+When text is selected and the user types an opening bracket or quote character, the selected text is wrapped with the matching pair instead of being replaced. This is the same behavior as VS Code, JetBrains, and other modern editors.
+
+| Key Typed | Wrap Result | Example |
+|-----------|------------|---------|
+| `(` | `(…)` | Select `a AND b` in `a AND b OR c` → `(a AND b) OR c` |
+| `[` | `[…]` | Select `world` in `hello world` → `hello [world]` |
+| `"` | `"…"` | Select `hello world` → `"hello world"` |
+| `'` | `'…'` | Select `bar` in `foo bar` → `foo 'bar'` |
+
+The cursor is placed after the closing bracket/quote. This is particularly useful for resolving ambiguous AND/OR precedence warnings — select the subexpression that should bind tighter and press `(`.
+
+When no text is selected, the bracket/quote character is inserted normally.
+
+- **Tests:** `wrapSelection.test.ts` → 18 tests covering all pair types, positions (start/middle/end/entire), single character, and ambiguity resolution scenarios
+
+### 7.6 Escape — Close Dropdown
 
 Escape closes the autocomplete dropdown or date picker without accepting anything.
 
-### 7.6 Arrow Keys — Navigate / Move Cursor
+### 7.7 Arrow Keys — Navigate / Move Cursor
 
 - **ArrowUp/ArrowDown** with dropdown open: navigate suggestions
 - **ArrowLeft/ArrowRight/Home/End/PageUp/PageDown** (any time): move cursor and update suggestions for new position

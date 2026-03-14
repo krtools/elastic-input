@@ -15,7 +15,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition } from '../utils/domUtils';
-import { getPlainText } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection } from '../utils/textUtils';
 import {
   mergeColors,
   mergeStyles,
@@ -566,6 +566,21 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
     const s = stateRef.current;
+
+    // Bracket/quote wrapping: when text is selected and user types an opening
+    // bracket or quote, wrap the selection instead of replacing it (VS Code style)
+    if (WRAP_PAIRS[e.key] && editorRef.current) {
+      const selRange = getSelectionCharRange(editorRef.current);
+      if (selRange.start !== selRange.end) {
+        e.preventDefault();
+        const { newValue, newCursorPos } = wrapSelection(
+          currentValueRef.current, selRange.start, selRange.end,
+          e.key, WRAP_PAIRS[e.key],
+        );
+        applyNewValue(newValue, newCursorPos);
+        return;
+      }
+    }
 
     // Undo: Ctrl+Z
     if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {

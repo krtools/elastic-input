@@ -700,6 +700,61 @@ describe('Parser', () => {
       const { errors } = parseWithErrors('()');
       expect(errors).toHaveLength(0);
     });
+
+    it('reports unclosed double quote on bare term', () => {
+      const { ast, errors } = parseWithErrors('"hello world');
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('BareTerm');
+      expect((ast as any).value).toBe('hello world');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing quote',
+        start: 0,
+        end: 1,
+      });
+    });
+
+    it('reports unclosed single quote on bare term', () => {
+      const { ast, errors } = parseWithErrors("'hello world");
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('BareTerm');
+      expect((ast as any).value).toBe('hello world');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing quote',
+        start: 0,
+        end: 1,
+      });
+    });
+
+    it('reports unclosed quote on field value', () => {
+      const { ast, errors } = parseWithErrors('status:"hello world');
+      expect(ast).not.toBeNull();
+      expect(ast!.type).toBe('FieldValue');
+      expect((ast as any).value).toBe('hello world');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing quote',
+      });
+    });
+
+    it('does not report error for closed quotes', () => {
+      const { errors } = parseWithErrors('"hello world"');
+      expect(errors).toHaveLength(0);
+    });
+
+    it('does not report error for closed single quotes', () => {
+      const { errors } = parseWithErrors("'hello world'");
+      expect(errors).toHaveLength(0);
+    });
+
+    it('reports unclosed quote in compound query', () => {
+      const { errors } = parseWithErrors('a AND "hello');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Missing closing quote',
+      });
+    });
   });
 
   describe('field-scoped groups', () => {

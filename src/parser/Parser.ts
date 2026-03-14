@@ -32,6 +32,37 @@ export class Parser {
     return this.errors;
   }
 
+  /** Check if a QUOTED_VALUE token is missing its closing quote. */
+  private isUnclosedQuote(token: Token): boolean {
+    if (token.type !== TokenType.QUOTED_VALUE) return false;
+    const v = token.value;
+    if (v.length < 2) return true;
+    const open = v[0];
+    return v[v.length - 1] !== open;
+  }
+
+  /** Strip quotes from a QUOTED_VALUE token, handling unclosed quotes correctly. */
+  private stripQuotes(token: Token): string {
+    const v = token.value;
+    if (this.isUnclosedQuote(token)) {
+      return v.slice(1); // only strip the opening quote
+    }
+    return v.slice(1, -1); // strip both
+  }
+
+  /** If the token is an unclosed quote, push an error. */
+  private checkUnclosedQuote(token: Token): void {
+    if (this.isUnclosedQuote(token)) {
+      this.errors.push({
+        type: 'Error',
+        value: token.value[0],
+        message: 'Missing closing quote',
+        start: token.start,
+        end: token.start + 1,
+      });
+    }
+  }
+
   parse(): ASTNode | null {
     if (this.nonWsTokens.length === 0) return null;
     let result = this.parseOr();
@@ -406,7 +437,8 @@ export class Parser {
         )) {
           const val = this.advance();
           const isQuoted = val.type === TokenType.QUOTED_VALUE;
-          const rawValue = isQuoted ? val.value.slice(1, -1) : val.value;
+          if (isQuoted) this.checkUnclosedQuote(val);
+          const rawValue = isQuoted ? this.stripQuotes(val) : val.value;
           return this.applyModifiers({
             type: 'FieldValue',
             field: field.value,
@@ -464,9 +496,10 @@ export class Parser {
     // Quoted value as bare term
     if (token.type === TokenType.QUOTED_VALUE) {
       const t = this.advance();
+      this.checkUnclosedQuote(t);
       return this.applyModifiers({
         type: 'BareTerm',
-        value: t.value.slice(1, -1),
+        value: this.stripQuotes(t),
         quoted: true,
         start: t.start,
         end: t.end,

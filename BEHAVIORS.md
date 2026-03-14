@@ -262,12 +262,15 @@ The parser detects common structural/syntax mistakes and reports them via `parse
 | `NOT` (alone) | `NOT` | "Missing search term after NOT" |
 | `AND a` | `AND` | "Unexpected AND" |
 | `a OR AND b` | `AND` | "Unexpected AND" |
+| `"hello world` | `"` | "Missing closing quote" |
+| `status:"hello` | `"` | "Missing closing quote" |
+| `'unclosed` | `'` | "Missing closing quote" |
 
-Empty groups `()` are **not** flagged — the user is likely mid-typing.
+Empty groups `()` are **not** flagged — the user is likely mid-typing. Properly closed quotes (`"hello"`, `'world'`) produce no error.
 
 Each error detection consumes the problematic token and produces exactly one error. The parser continues from the next token. Existing deferred display hides errors at the cursor position, preventing flash during typing.
 
-- **Tests:** `Parser.test.ts` → "syntax errors" suite (10 tests)
+- **Tests:** `Parser.test.ts` → "syntax errors" suite (16 tests)
 
 ---
 

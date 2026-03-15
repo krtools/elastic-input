@@ -848,12 +848,15 @@ The squigglies are absolutely positioned relative to the input container, with p
 
 ### 9.2 Hover Tooltips
 
-Hovering over a red squiggly underline displays a styled tooltip with the error message. The tooltip:
+Hovering over a squiggly underline displays a styled tooltip with the error/warning message. The tooltip:
 
-- Appears above the squiggly underline
-- Uses the configured error color for the border and text
+- Appears just below the squiggly wave by default, or flips above the text line if below would exit the viewport
+- Never covers the text line the mouse is hovering over
+- Positioned horizontally near the mouse cursor, clamped so it doesn't overflow the right edge of the viewport
+- Uses the configured error/warning color for the border and text
 - Respects the configured font family and z-index from `StyleConfig`
 - Has a widened hover target area (16px height) for easier mouse targeting
+- Works correctly for very long squigglies spanning hundreds of clauses — the tooltip stays near the mouse rather than anchoring to the start of the underline
 
 ### 9.3 Deferred Display
 

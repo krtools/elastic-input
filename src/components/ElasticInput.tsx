@@ -14,7 +14,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
-import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange } from '../utils/cursorUtils';
+import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars } from '../utils/textUtils';
 import {
@@ -892,16 +892,46 @@ export function ElasticInput(props: ElasticInputProps) {
     const s = stateRef.current;
 
     // Bracket/quote wrapping: when text is selected and user types an opening
-    // bracket or quote, wrap the selection instead of replacing it (VS Code style)
+    // bracket or quote, wrap the selection instead of replacing it (VS Code style).
+    // Preserves the original selection around the wrapped text.
     if (WRAP_PAIRS[e.key] && editorRef.current) {
       const selRange = getSelectionCharRange(editorRef.current);
       if (selRange.start !== selRange.end) {
         e.preventDefault();
-        const { newValue, newCursorPos } = wrapSelection(
+        const { newValue, newSelStart, newSelEnd } = wrapSelection(
           currentValueRef.current, selRange.start, selRange.end,
           e.key, WRAP_PAIRS[e.key],
         );
-        applyNewValue(newValue, newCursorPos);
+        currentValueRef.current = newValue;
+
+        // Record as undo entry
+        if (typingGroupTimerRef.current) {
+          clearTimeout(typingGroupTimerRef.current);
+          typingGroupTimerRef.current = null;
+        }
+        undoStackRef.current.push({ value: newValue, cursorPos: newSelEnd });
+
+        const lexer = new Lexer(newValue);
+        const newTokens = lexer.tokenize();
+        const parser = new Parser(newTokens);
+        const newAst = parser.parse();
+        const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
+        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
+
+        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd });
+        editorRef.current.innerHTML = html;
+        setSelectionCharRange(editorRef.current, newSelStart, newSelEnd);
+
+        setTokens(newTokens);
+        setAst(newAst);
+        setValidationErrors(newErrors);
+        setIsEmpty(false);
+        setCursorOffset(newSelStart);
+        setSelectionEnd(newSelEnd);
+        closeDropdown();
+
+        if (onChange) onChange(newValue, newAst);
+        if (onValidationChange) onValidationChange(newErrors);
         return;
       }
     }

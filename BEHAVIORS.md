@@ -685,11 +685,11 @@ When text is selected and the user types an opening bracket or quote character, 
 | `"` | `"…"` | Select `hello world` → `"hello world"` |
 | `'` | `'…'` | Select `bar` in `foo bar` → `foo 'bar'` |
 
-The cursor is placed after the closing bracket/quote. This is particularly useful for resolving ambiguous AND/OR precedence warnings — select the subexpression that should bind tighter and press `(`.
+After wrapping, the original selection is preserved inside the new brackets/quotes (VS Code behavior). The selection spans from after the opening character to before the closing character, so the user can immediately see what was wrapped and continue editing.
 
 When no text is selected, the bracket/quote character is inserted normally.
 
-- **Tests:** `wrapSelection.test.ts` → 18 tests covering all pair types, positions (start/middle/end/entire), single character, and ambiguity resolution scenarios
+- **Tests:** `wrapSelection.test.ts` → 18 tests covering all pair types, positions (start/middle/end/entire), single character, selection preservation (`newSelStart`/`newSelEnd`), and ambiguity resolution scenarios
 
 ### 7.6 Escape — Close Dropdown
 

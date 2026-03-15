@@ -75,6 +75,26 @@ export function setCaretCharOffset(element: HTMLElement, offset: number): void {
   sel.addRange(range);
 }
 
+/** Set a non-collapsed selection range by character offsets within a contentEditable element. */
+export function setSelectionCharRange(element: HTMLElement, start: number, end: number): void {
+  if (start === end) {
+    setCaretCharOffset(element, start);
+    return;
+  }
+  const sel = window.getSelection();
+  if (!sel) return;
+
+  const startResult = findNodeAtOffset(element, start);
+  const endResult = findNodeAtOffset(element, end);
+  if (!startResult || !endResult) return;
+
+  const range = document.createRange();
+  range.setStart(startResult.node, startResult.offset);
+  range.setEnd(endResult.node, endResult.offset);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 /**
  * Find the DOM node and offset corresponding to a character offset,
  * treating <br> elements as single newline characters.

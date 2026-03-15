@@ -38,13 +38,15 @@ export function wrapSelection(
   selEnd: number,
   openChar: string,
   closeChar: string,
-): { newValue: string; newCursorPos: number } {
+): { newValue: string; newCursorPos: number; newSelStart: number; newSelEnd: number } {
   const before = text.slice(0, selStart);
   const selected = text.slice(selStart, selEnd);
   const after = text.slice(selEnd);
   return {
     newValue: before + openChar + selected + closeChar + after,
     newCursorPos: selEnd + 2,
+    newSelStart: selStart + 1,  // after opening char
+    newSelEnd: selEnd + 1,      // before closing char
   };
 }
 

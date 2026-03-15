@@ -6,6 +6,8 @@ describe('wrapSelection', () => {
     const result = wrapSelection('a AND b OR c', 0, 7, '(', ')');
     expect(result.newValue).toBe('(a AND b) OR c');
     expect(result.newCursorPos).toBe(9); // after ')'
+    expect(result.newSelStart).toBe(1);  // after '('
+    expect(result.newSelEnd).toBe(8);    // before ')'
   });
 
   it('wraps selected text with square brackets', () => {
@@ -18,6 +20,8 @@ describe('wrapSelection', () => {
     const result = wrapSelection('hello world', 0, 11, '"', '"');
     expect(result.newValue).toBe('"hello world"');
     expect(result.newCursorPos).toBe(13);
+    expect(result.newSelStart).toBe(1);  // after opening "
+    expect(result.newSelEnd).toBe(12);   // before closing "
   });
 
   it('wraps selected text with single quotes', () => {
@@ -54,6 +58,8 @@ describe('wrapSelection', () => {
     const result = wrapSelection('abc', 1, 2, '(', ')');
     expect(result.newValue).toBe('a(b)c');
     expect(result.newCursorPos).toBe(4);
+    expect(result.newSelStart).toBe(2); // after '('
+    expect(result.newSelEnd).toBe(3);   // before ')'
   });
 
   it('handles empty selection range (start === end) gracefully', () => {

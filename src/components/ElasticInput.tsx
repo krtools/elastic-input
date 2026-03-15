@@ -99,7 +99,7 @@ export function ElasticInput(props: ElasticInputProps) {
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp,
-    inputRef, renderFieldHint,
+    inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
   } = props;
 
   const multiline = multilineProp !== false; // default true
@@ -957,6 +957,8 @@ export function ElasticInput(props: ElasticInputProps) {
         colors={colors}
         styles={stylesProp}
         visible={showDropdown}
+        renderHistoryItem={renderHistoryItem}
+        renderSavedSearchItem={renderSavedSearchItem}
       />
 
       {showDatePicker && dropdownPosition ? (

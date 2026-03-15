@@ -291,6 +291,7 @@ export class AutocompleteEngine {
         replaceStart: start,
         replaceEnd: end,
         matchPartial: partial,
+        sourceData: s,
       }));
   }
 
@@ -318,6 +319,7 @@ export class AutocompleteEngine {
           replaceStart: start,
           replaceEnd: end,
           matchPartial: partial,
+          sourceData: h,
         };
       });
   }

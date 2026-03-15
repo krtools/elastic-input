@@ -1081,6 +1081,8 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
+| `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
+| `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
 
 #### Async Field Loading
 

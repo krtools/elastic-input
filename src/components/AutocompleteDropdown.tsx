@@ -12,7 +12,7 @@ if (typeof document !== 'undefined') {
     document.head.appendChild(style);
   }
 }
-import { ColorConfig, StyleConfig } from '../types';
+import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch } from '../types';
 import {
   mergeColors,
   mergeStyles,
@@ -31,6 +31,8 @@ interface AutocompleteDropdownProps {
   colors?: ColorConfig;
   styles?: StyleConfig;
   visible: boolean;
+  renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
+  renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
 }
 
 function highlightMatch(text: string, partial: string | undefined, isSelected: boolean): React.ReactNode {
@@ -64,6 +66,8 @@ export function AutocompleteDropdown({
   colors,
   styles,
   visible,
+  renderHistoryItem,
+  renderSavedSearchItem,
 }: AutocompleteDropdownProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -155,8 +159,12 @@ export function AutocompleteDropdown({
           );
         }
 
-        // History items — vertical layout with 2-line clamped query
+        // History items — custom renderer or default vertical 2-line layout
         if (suggestion.type === 'history') {
+          const customContent = renderHistoryItem && suggestion.sourceData
+            ? renderHistoryItem(suggestion.sourceData as HistoryEntry, isSelected)
+            : null;
+
           const rawQuery = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
             ? suggestion.text.slice(1, -1)
             : suggestion.text;
@@ -175,26 +183,52 @@ export function AutocompleteDropdown({
                 (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
               }}
             >
-              <span style={{
-                ...getDropdownItemLabelStyle(isSelected),
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                whiteSpace: 'normal',
-                wordBreak: 'break-all',
-                width: '100%',
-              }}>
-                {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
-                {suggestion.description && (
-                  <span style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
-                )}
-                <span style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
-              </span>
+              {customContent != null ? customContent : (
+                <>
+                  <span style={{
+                    ...getDropdownItemLabelStyle(isSelected),
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-all',
+                    width: '100%',
+                  }}>
+                    {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    {suggestion.description && (
+                      <span style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
+                    )}
+                    <span style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
+                  </span>
+                </>
+              )}
             </div>
           );
+        }
+
+        // Saved search items — custom renderer or default layout
+        if (suggestion.type === 'savedSearch' && renderSavedSearchItem && suggestion.sourceData) {
+          const customContent = renderSavedSearchItem(suggestion.sourceData as SavedSearch, isSelected);
+          if (customContent != null) {
+            return (
+              <div
+                key={i}
+                style={itemStyle}
+                onClick={() => onSelect(suggestion)}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
+                }}
+              >
+                {customContent}
+              </div>
+            );
+          }
         }
 
         return (

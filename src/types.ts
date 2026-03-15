@@ -260,4 +260,16 @@ export interface ElasticInputProps {
    * the current partial value text.
    */
   renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;
+  /**
+   * Custom renderer for history suggestion items in the dropdown. Return a React element
+   * to replace the default two-line layout, or `null`/`undefined` to keep the default.
+   * Receives the original `HistoryEntry` and whether the item is currently selected.
+   */
+  renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
+  /**
+   * Custom renderer for saved search suggestion items in the dropdown. Return a React element
+   * to replace the default layout, or `null`/`undefined` to keep the default.
+   * Receives the original `SavedSearch` and whether the item is currently selected.
+   */
+  renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
 }

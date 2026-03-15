@@ -174,11 +174,6 @@ export class Validator {
               error = `Expected "true" or "false", got "${node.value}"`;
             }
             break;
-          case 'enum':
-            if (field.suggestions && !field.suggestions.includes(node.value)) {
-              error = `"${node.value}" is not a valid value for ${node.field}. Options: ${field.suggestions.join(', ')}`;
-            }
-            break;
           case 'ip':
             if (!/^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/.test(node.value) && !node.value.includes('*')) {
               error = `"${node.value}" is not a valid IP address`;
@@ -332,11 +327,6 @@ export class Validator {
       case 'boolean':
         if (value !== 'true' && value !== 'false') {
           error = `Expected "true" or "false", got "${value}"`;
-        }
-        break;
-      case 'enum':
-        if (field.suggestions && !field.suggestions.includes(value)) {
-          error = `"${value}" is not a valid value for ${field.name}. Options: ${field.suggestions.join(', ')}`;
         }
         break;
       case 'ip':

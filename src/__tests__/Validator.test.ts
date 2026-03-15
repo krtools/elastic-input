@@ -45,15 +45,10 @@ describe('Validator', () => {
     expect(errors[0].message).toContain('unknown');
   });
 
-  it('flags invalid enum values', () => {
-    const errors = validate('status:bogus');
-    expect(errors).toHaveLength(1);
-    expect(errors[0].message).toContain('not a valid value');
-  });
-
-  it('accepts valid enum values', () => {
+  it('does not validate enum values (autocomplete only)', () => {
+    expect(validate('status:bogus')).toHaveLength(0);
     expect(validate('status:active')).toHaveLength(0);
-    expect(validate('status:inactive')).toHaveLength(0);
+    expect(validate('status:act*')).toHaveLength(0);
   });
 
   it('flags invalid numbers', () => {
@@ -136,12 +131,12 @@ describe('Validator', () => {
   });
 
   it('validates inside groups', () => {
-    const errors = validate('(status:bogus)');
+    const errors = validate('(price:abc)');
     expect(errors).toHaveLength(1);
   });
 
   it('validates inside NOT', () => {
-    const errors = validate('NOT status:bogus');
+    const errors = validate('NOT price:abc');
     expect(errors).toHaveLength(1);
   });
 
@@ -333,11 +328,8 @@ describe('Field-scoped group validation', () => {
     expect(validate('status:(active OR inactive)')).toHaveLength(0);
   });
 
-  it('flags invalid enum values in group', () => {
-    const errors = validate('status:(active OR bogus)');
-    expect(errors).toHaveLength(1);
-    expect(errors[0].message).toContain('not a valid value');
-    expect(errors[0].message).toContain('bogus');
+  it('does not validate enum values in group (autocomplete only)', () => {
+    expect(validate('status:(active OR bogus)')).toHaveLength(0);
   });
 
   it('flags unknown field in group', () => {

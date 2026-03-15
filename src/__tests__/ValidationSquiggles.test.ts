@@ -41,11 +41,9 @@ describe('Validation Error Positions', () => {
     expect(errors[0].end).toBe(7); // "unknown" length
   });
 
-  it('invalid enum value error covers the value', () => {
+  it('enum values are not validated (autocomplete only)', () => {
     const errors = validate('status:bad');
-    expect(errors).toHaveLength(1);
-    expect(errors[0].start).toBe(7); // after "status:"
-    expect(errors[0].end).toBe(10);  // end of "bad"
+    expect(errors).toHaveLength(0);
   });
 
   it('invalid number error covers the value', () => {
@@ -78,14 +76,14 @@ describe('Validation Error Positions', () => {
   });
 
   it('multiple errors have correct non-overlapping positions', () => {
-    const errors = validate('unknown:x AND status:bad');
+    const errors = validate('unknown:x AND price:abc');
     expect(errors).toHaveLength(2);
     // First: unknown field
     expect(errors[0].start).toBe(0);
     expect(errors[0].end).toBe(7);
-    // Second: invalid enum value
-    expect(errors[1].start).toBe(21); // after "unknown:x AND status:"
-    expect(errors[1].end).toBe(24);   // end of "bad"
+    // Second: invalid number value
+    expect(errors[1].start).toBe(20); // after "unknown:x AND price:"
+    expect(errors[1].end).toBe(23);   // end of "abc"
     // No overlap
     expect(errors[0].end).toBeLessThanOrEqual(errors[1].start);
   });
@@ -126,27 +124,27 @@ describe('Deferred Display Logic', () => {
   });
 
   it('shows error when cursor is before error range', () => {
-    // "status:active AND status:bad" — error is on "bad" at (25-28)
-    const errors = validate('status:active AND status:bad');
-    const badError = errors.find(e => e.message.includes('not a valid'));
-    expect(badError).toBeDefined();
+    // "status:active AND price:abc" — error is on "abc" at (24-27)
+    const errors = validate('status:active AND price:abc');
+    const numError = errors.find(e => e.message.includes('not a valid number'));
+    expect(numError).toBeDefined();
     // Cursor at position 5 — before the error
     const visible = getVisibleErrors(errors, 5);
-    expect(visible.some(e => e.message.includes('not a valid'))).toBe(true);
+    expect(visible.some(e => e.message.includes('not a valid number'))).toBe(true);
   });
 
   it('shows one error and hides another based on cursor position', () => {
-    const errors = validate('unknown:x AND status:bad');
+    const errors = validate('unknown:x AND price:abc');
     expect(errors).toHaveLength(2);
 
-    // Cursor at position 3 — inside first error (0-7), outside second (21-24)
+    // Cursor at position 3 — inside first error (0-7), outside second (20-23)
     const visible = getVisibleErrors(errors, 3);
     expect(visible).toHaveLength(1);
-    expect(visible[0].message).toContain('not a valid');
+    expect(visible[0].message).toContain('not a valid number');
   });
 
   it('shows all errors when cursor is outside all error ranges', () => {
-    const errors = validate('unknown:x AND status:bad');
+    const errors = validate('unknown:x AND price:abc');
     expect(errors).toHaveLength(2);
 
     // Cursor at position 12 — between the two errors
@@ -155,28 +153,27 @@ describe('Deferred Display Logic', () => {
   });
 
   it('hides value error when cursor is on the value being typed', () => {
-    const errors = validate('status:ba');
+    const errors = validate('price:ab');
     expect(errors).toHaveLength(1);
-    // Cursor at 9 — at end of "ba", within error range (7-9)
-    const visible = getVisibleErrors(errors, 9);
+    // Cursor at 8 — at end of "ab", within error range (6-8)
+    const visible = getVisibleErrors(errors, 8);
     expect(visible).toHaveLength(0);
   });
 
   it('shows value error once cursor moves to next term', () => {
-    const errors = validate('status:ba ');
-    // "ba" is invalid for status enum
-    const valueErrors = errors.filter(e => e.message.includes('not a valid'));
+    const errors = validate('price:ab ');
+    const valueErrors = errors.filter(e => e.message.includes('not a valid number'));
     expect(valueErrors).toHaveLength(1);
-    // Error is at (7-9), cursor at 10 (after space)
-    const visible = getVisibleErrors(valueErrors, 10);
+    // Error is at (6-8), cursor at 9 (after space)
+    const visible = getVisibleErrors(valueErrors, 9);
     expect(visible).toHaveLength(1);
   });
 });
 
 describe('onValidationChange callback', () => {
   it('errors include field name for field-specific errors', () => {
-    const errors = validate('status:bad');
-    expect(errors[0].field).toBe('status');
+    const errors = validate('price:abc');
+    expect(errors[0].field).toBe('price');
   });
 
   it('errors include field name for unknown fields', () => {

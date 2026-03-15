@@ -902,14 +902,13 @@ Errors are placed precisely on the relevant part of the input:
 | Error Type | Underlined Text | Example |
 |-----------|----------------|---------|
 | Unknown field | Field name | `unknown` in `unknown:value` |
-| Invalid enum value | Value | `bad` in `status:bad` |
 | Invalid number | Value | `abc` in `price:abc` |
 | Invalid boolean | Value | `maybe` in `is_vip:maybe` |
 | Invalid IP | Value | `notanip` in `ip:notanip` |
 | Custom validator | Value | `10` in `rating:10` |
 | Invalid comparison | Value | `active` in `status:>active` |
 
-- **Tests:** `ValidationSquiggles.test.ts` → "unknown field error covers the field name", "invalid enum value error covers the value", "invalid number error covers the value", "invalid boolean error covers the value", "invalid IP error covers the value", "custom validator error covers the value", "multiple errors have correct non-overlapping positions", "comparison op on non-numeric/date field produces error on value"
+- **Tests:** `ValidationSquiggles.test.ts` → "unknown field error covers the field name", "invalid number error covers the value", "invalid boolean error covers the value", "invalid IP error covers the value", "custom validator error covers the value", "multiple errors have correct non-overlapping positions", "comparison op on non-numeric/date field produces error on value"
 
 ### 9.6 Field Validation
 
@@ -921,14 +920,14 @@ Errors are placed precisely on the relevant part of the input:
 
 | Field Type | Valid | Invalid |
 |------------|-------|---------|
-| `enum` | Values in `suggestions` list | Anything else |
+| `enum` | — (no built-in validation; `suggestions` drive autocomplete only) | — |
 | `boolean` | `true`, `false` | Anything else |
 | `number` | Integers, decimals, negatives | Non-numeric strings |
 | `date` | ISO format, relative (`now-7d`) | Invalid formats |
 | `ip` | Valid IPv4, wildcards (`192.168.*`) | Malformed addresses |
 | `string` | Anything | — |
 
-- **Tests:** `Validator.test.ts` → "flags invalid enum values", "accepts valid enum values", "flags invalid numbers", "accepts valid numbers", "flags invalid booleans", "accepts valid booleans", "flags invalid IP addresses", "accepts valid IP addresses", "accepts wildcard IP", "flags invalid dates", "accepts valid date formats"
+- **Tests:** `Validator.test.ts` → "does not validate enum values (autocomplete only)", "flags invalid numbers", "accepts valid numbers", "flags invalid booleans", "accepts valid booleans", "flags invalid IP addresses", "accepts valid IP addresses", "accepts wildcard IP", "flags invalid dates", "accepts valid date formats"
 
 ### 9.8 Comparison Operator Validation
 

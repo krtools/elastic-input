@@ -674,5 +674,23 @@ describe('AutocompleteEngine', () => {
       const result = getSuggestions('[abc TO def]', 5);
       expect(result.suggestions).toHaveLength(0);
     });
+
+    it('shows date picker for RANGE + date field', () => {
+      const result = getSuggestions('created:[2024-01-01 TO 2024-12-31]', 15);
+      expect(result.showDatePicker).toBe(true);
+      expect(result.dateFieldName).toBe('created');
+      expect(result.suggestions).toHaveLength(0);
+    });
+
+    it('does not show date picker for RANGE + non-date field', () => {
+      const result = getSuggestions('price:[10 TO 100]', 10);
+      expect(result.showDatePicker).toBe(false);
+      expect(result.suggestions).toHaveLength(0);
+    });
+
+    it('does not show date picker for standalone range (no field)', () => {
+      const result = getSuggestions('[abc TO def]', 5);
+      expect(result.showDatePicker).toBe(false);
+    });
   });
 });

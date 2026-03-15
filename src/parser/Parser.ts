@@ -710,9 +710,16 @@ export class Parser {
       };
     }
 
-    // Cursor is inside a range expression — no autocomplete
+    // Cursor is inside a range expression
     if (currentToken?.type === TokenType.RANGE) {
-      return { type: 'RANGE', partial: '' };
+      const rangeIdx = tokens.indexOf(currentToken);
+      let fieldName = '';
+      for (let i = rangeIdx - 1; i >= 0; i--) {
+        if (tokens[i].type === TokenType.FIELD_NAME) { fieldName = tokens[i].value; break; }
+        if (tokens[i].type === TokenType.WHITESPACE || tokens[i].type === TokenType.COLON) continue;
+        break;
+      }
+      return { type: 'RANGE', partial: '', fieldName, token: currentToken };
     }
 
     // Right after a colon or comparison op — suggest field values

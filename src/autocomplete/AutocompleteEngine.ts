@@ -121,6 +121,14 @@ export class AutocompleteEngine {
           context,
         };
 
+      case 'RANGE': {
+        const field = context.fieldName ? this.resolveField(context.fieldName) : undefined;
+        if (field?.type === 'date') {
+          return { suggestions: [], showDatePicker: true, dateFieldName: field.name, context };
+        }
+        return { suggestions: [], showDatePicker: false, context };
+      }
+
       default:
         return { suggestions: [], showDatePicker: false, context };
     }

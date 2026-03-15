@@ -13,6 +13,7 @@ import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
+import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars } from '../utils/textUtils';
@@ -32,15 +33,22 @@ import { UndoStack } from '../utils/undoStack';
 // DatePickerPortal — small portal wrapper for the date picker
 // ---------------------------------------------------------------------------
 
+interface DatePickerInit {
+  mode: 'single' | 'range';
+  start: Date | null;
+  end: Date | null;
+}
+
 interface DatePickerPortalProps {
   position: { top: number; left: number };
   colors: Required<ColorConfig>;
   onSelect: (dateStr: string) => void;
   colorConfig?: ColorConfig;
   styleConfig?: StyleConfig;
+  datePickerInit?: DatePickerInit | null;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -70,7 +78,14 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
 
   return ReactDOM.createPortal(
     <div style={style} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
-      <DateRangePicker onSelect={onSelect} colors={colorConfig} styles={styleConfig} />
+      <DateRangePicker
+        onSelect={onSelect}
+        colors={colorConfig}
+        styles={styleConfig}
+        initialMode={datePickerInit?.mode}
+        initialStart={datePickerInit?.start}
+        initialEnd={datePickerInit?.end}
+      />
     </div>,
     portalRef.current
   );
@@ -166,6 +181,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [cursorOffset, setCursorOffset] = React.useState(0);
   const [selectionEnd, setSelectionEnd] = React.useState(0);
   const [autocompleteContext, setAutocompleteContext] = React.useState('');
+  const [datePickerInit, setDatePickerInit] = React.useState<DatePickerInit | null>(null);
 
   // Keep refs to latest state values needed in callbacks
   const stateRef = React.useRef({
@@ -247,6 +263,21 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = false;
       abortControllerRef.current?.abort();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+      // Parse range bounds for pre-populating the date picker
+      let init: DatePickerInit | null = null;
+      if (result.context.type === 'RANGE' && result.context.token) {
+        const raw = result.context.token.value;
+        const hasClosed = raw.endsWith(']') || raw.endsWith('}');
+        const inner = hasClosed ? raw.slice(1, -1) : raw.slice(1);
+        const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
+        if (toMatch) {
+          const lower = parseDate(toMatch[1].trim());
+          const upper = parseDate(toMatch[2].trim());
+          init = { mode: 'range', start: lower, end: upper };
+        }
+      }
+      setDatePickerInit(init);
 
       setSuggestions([]);
       setShowDropdown(false);
@@ -399,6 +430,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);
     setShowDatePicker(false);
+    setDatePickerInit(null);
     setSuggestions([]);
     setSelectedSuggestionIndex(-1);
     // Cancel any in-flight async work
@@ -968,6 +1000,7 @@ export function ElasticInput(props: ElasticInputProps) {
           onSelect={handleDateSelect}
           colorConfig={colors}
           styleConfig={stylesProp}
+          datePickerInit={datePickerInit}
         />
       ) : null}
     </div>

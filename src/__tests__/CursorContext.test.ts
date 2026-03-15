@@ -277,6 +277,24 @@ describe('getCursorContext', () => {
       expect(ctx.type).toBe('OPERATOR');
     });
 
+    it('includes fieldName for range after field:colon', () => {
+      const ctx = getContext('created:[2024-01-01 TO 2024-12-31]', 15);
+      expect(ctx.type).toBe('RANGE');
+      expect(ctx.fieldName).toBe('created');
+    });
+
+    it('includes token for range context', () => {
+      const ctx = getContext('created:[2024-01-01 TO 2024-12-31]', 15);
+      expect(ctx.token).toBeDefined();
+      expect(ctx.token!.value).toBe('[2024-01-01 TO 2024-12-31]');
+    });
+
+    it('has empty fieldName for standalone range', () => {
+      const ctx = getContext('[abc TO def]', 5);
+      expect(ctx.type).toBe('RANGE');
+      expect(ctx.fieldName).toBe('');
+    });
+
     it('suppresses suggestions when clicking on "b" in company:[a TO b]', () => {
       // "company:[a TO b]"
       //  0123456789...

@@ -14,6 +14,9 @@ interface DateRangePickerProps {
   onSelect: (dateStr: string) => void;
   colors?: ColorConfig;
   styles?: StyleConfig;
+  initialMode?: 'single' | 'range';
+  initialStart?: Date | null;
+  initialEnd?: Date | null;
 }
 
 type ViewLevel = 'days' | 'months' | 'years';
@@ -24,14 +27,15 @@ function getDecadeStart(year: number): number {
   return Math.floor(year / 10) * 10;
 }
 
-export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateRangePickerProps) {
+export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd }: DateRangePickerProps) {
   const now = new Date();
-  const [mode, setMode] = React.useState<'single' | 'range'>('single');
+  const initDate = initialStart ?? now;
+  const [mode, setMode] = React.useState<'single' | 'range'>(initialMode ?? 'single');
   const [viewLevel, setViewLevel] = React.useState<ViewLevel>('days');
-  const [viewYear, setViewYear] = React.useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = React.useState(now.getMonth());
-  const [rangeStart, setRangeStart] = React.useState<Date | null>(null);
-  const [rangeEnd, setRangeEnd] = React.useState<Date | null>(null);
+  const [viewYear, setViewYear] = React.useState(initDate.getFullYear());
+  const [viewMonth, setViewMonth] = React.useState(initDate.getMonth());
+  const [rangeStart, setRangeStart] = React.useState<Date | null>(initialStart ?? null);
+  const [rangeEnd, setRangeEnd] = React.useState<Date | null>(initialEnd ?? null);
   const [hoverDate, setHoverDate] = React.useState<Date | null>(null);
 
   const mergedColors = mergeColors(colors);

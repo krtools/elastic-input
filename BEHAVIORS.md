@@ -388,13 +388,14 @@ After a prefix operator (`-` or `+`), context is `FIELD_NAME`.
 
 ### 3.10 Range Expression Context
 
-When the cursor is inside a RANGE token (`[... TO ...]`), context is `RANGE` with empty partial. This produces no autocomplete suggestions — range bounds are manually entered.
+When the cursor is inside a RANGE token (`[... TO ...]`), context is `RANGE` with empty partial. The context now also includes `fieldName` (resolved by walking back through COLON to the preceding FIELD_NAME) and `token` (the RANGE token itself). For non-date fields this produces no autocomplete suggestions. For date fields, the date picker opens in range mode, pre-populated with the existing bounds.
 
-- `field:[ab|c TO def]` → `RANGE`, partial=`""`
-- `[* TO |now]` → `RANGE`, partial=`""`
-- `company:[a TO b]` with cursor on `b` → `RANGE`, no suggestions
+- `field:[ab|c TO def]` → `RANGE`, partial=`""`, fieldName=`"field"`, token=`[abc TO def]`
+- `[* TO |now]` → `RANGE`, partial=`""`, fieldName=`""` (standalone range, no field)
+- `company:[a TO b]` with cursor on `b` → `RANGE`, no suggestions (non-date field)
+- `created:[2024-01-01 TO 2024-12-31]` with cursor inside → `RANGE`, date picker opens in range mode with start=2024-01-01 and end=2024-12-31
 - `field:[abc TO def] |` → `OPERATOR` (after complete range, outside the token)
-- **Tests:** `CursorContext.test.ts` → "range expressions" suite (6 tests); `AutocompleteEngine.test.ts` → "range expression context" suite (3 tests)
+- **Tests:** `CursorContext.test.ts` → "range expressions" suite (9 tests); `AutocompleteEngine.test.ts` → "range expression context" suite (6 tests)
 
 ---
 
@@ -798,6 +799,7 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Single mode**: Clicking a day emits `YYYY-MM-DD`.
 - **Range mode**: First click sets range start, second click sets range end. Emits `[YYYY-MM-DD TO YYYY-MM-DD]`. Reversed selections are auto-corrected.
+- **Initial values**: The picker accepts `initialMode`, `initialStart`, and `initialEnd` props. When the cursor is inside an existing range expression on a date field (e.g., `created:[2024-01-01 TO 2024-12-31]`), the picker opens in range mode with the bounds pre-populated. The view navigates to the start date's month. Single-date contexts open in single mode (default).
 - **Range hover preview**: After the first click (start selected, end pending), hovering over any date highlights the preview range between start and the hovered date. This works across all view levels:
   - **Days view**: individual day cells in the preview range get the in-range highlight.
   - **Months view**: month cells whose month falls between start and hovered month are highlighted.

@@ -30,6 +30,8 @@ export type {
   ValidateValueContext,
   ValidationResult,
   ValidateReturn,
+  TabContext,
+  TabActionResult,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

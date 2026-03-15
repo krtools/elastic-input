@@ -164,7 +164,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
-    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, validateValue,
+    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp, validateValue,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -250,11 +250,11 @@ export function ElasticInput(props: ElasticInputProps) {
   // Keep refs to latest state values needed in callbacks
   const stateRef = React.useRef({
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
-    cursorOffset, selectionEnd, autocompleteContext, validationErrors,
+    cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
   });
   stateRef.current = {
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
-    cursorOffset, selectionEnd, autocompleteContext, validationErrors,
+    cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
   };
 
   // --- Helpers ---
@@ -656,7 +656,11 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [colors, onChange, onValidationChange]);
 
-  const acceptSuggestion = React.useCallback((suggestion: Suggestion, key: 'Enter' | 'Tab' = 'Enter') => {
+  const acceptSuggestion = React.useCallback((
+    suggestion: Suggestion,
+    key: 'Enter' | 'Tab' = 'Enter',
+    afterAccept?: (newValue: string, newAst: ASTNode | null) => void,
+  ) => {
     if (!suggestion) return;
     const s = stateRef.current;
 
@@ -671,8 +675,12 @@ export function ElasticInput(props: ElasticInputProps) {
       const newValue = before + char + after;
       const newCursorPos = before.length + char.length;
 
-      applyNewValue(newValue, newCursorPos, (newTokens) => {
-        updateSuggestionsFromTokens(newTokens, newCursorPos);
+      applyNewValue(newValue, newCursorPos, (newTokens, newAst) => {
+        if (afterAccept) {
+          afterAccept(newValue, newAst);
+        } else {
+          updateSuggestionsFromTokens(newTokens, newCursorPos);
+        }
       });
       return;
     }
@@ -705,7 +713,9 @@ export function ElasticInput(props: ElasticInputProps) {
     const shouldSubmit = key === 'Enter' && isFieldValue;
 
     applyNewValue(newValue, newCursorPos, (newTokens, newAst) => {
-      if (shouldSubmit) {
+      if (afterAccept) {
+        afterAccept(newValue, newAst);
+      } else if (shouldSubmit) {
         if (onSearch) onSearch(newValue, newAst);
       } else {
         updateSuggestionsFromTokens(newTokens, newCursorPos);
@@ -1093,17 +1103,61 @@ export function ElasticInput(props: ElasticInputProps) {
           setSelectedSuggestionIndex(i => Math.max(i - 1, -1));
           return;
         case 'Enter':
-        case 'Tab':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
-            // Non-interactive hints can't be accepted — close dropdown and
-            // let Tab add a trailing space / Enter submit, matching the
-            // behavior of fields with real suggestions.
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
               e.preventDefault();
               closeDropdown();
-              // "Exit" the field value: append a trailing space so the
-              // cursor lands ready for the next term.
+              const text = currentValueRef.current;
+              const offset = s.cursorOffset;
+              if (offset <= text.length && text[offset] !== ' ') {
+                const before = text.slice(0, offset);
+                const after = text.slice(offset);
+                const newValue = before + ' ' + after;
+                const newPos = offset + 1;
+                applyNewValue(newValue, newPos, () => {
+                  if (onSearch) onSearch(newValue, s.ast);
+                });
+              } else {
+                if (onSearch) onSearch(text, s.ast);
+              }
+              return;
+            }
+            e.preventDefault();
+            acceptSuggestion(selected, 'Enter');
+            return;
+          }
+          break;
+        case 'Tab': {
+          if (onTabProp) {
+            e.preventDefault();
+            const selectedSugg = s.selectedSuggestionIndex >= 0 ? s.suggestions[s.selectedSuggestionIndex] : null;
+            // Filter out non-acceptable suggestion types
+            const acceptableSugg = selectedSugg
+              && selectedSugg.type !== 'loading'
+              && selectedSugg.type !== 'error'
+              && !(selectedSugg.type === 'hint' && selectedSugg.text !== '#' && selectedSugg.text !== '!')
+              ? selectedSugg : null;
+            const ctx = s.cursorContext || { type: 'EMPTY' as const, partial: '' };
+            const result = onTabProp({ suggestion: acceptableSugg, cursorContext: ctx, query: currentValueRef.current });
+            if (result.accept && acceptableSugg) {
+              acceptSuggestion(acceptableSugg, 'Tab', (newValue, newAst) => {
+                if (result.submit && onSearch) onSearch(newValue, newAst);
+                if (result.blur) editorRef.current?.blur();
+              });
+            } else {
+              closeDropdown();
+              if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast);
+              if (result.blur) editorRef.current?.blur();
+            }
+            return;
+          }
+          // Default Tab behavior: accept suggestion if selected
+          if (s.selectedSuggestionIndex >= 0) {
+            const selected = s.suggestions[s.selectedSuggestionIndex];
+            if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
+              e.preventDefault();
+              closeDropdown();
               const text = currentValueRef.current;
               const offset = s.cursorOffset;
               if (offset <= text.length && text[offset] !== ' ') {
@@ -1112,27 +1166,32 @@ export function ElasticInput(props: ElasticInputProps) {
                 const newValue = before + ' ' + after;
                 const newPos = offset + 1;
                 applyNewValue(newValue, newPos, (newTokens) => {
-                  if (e.key === 'Enter') {
-                    if (onSearch) onSearch(newValue, s.ast);
-                  } else {
-                    updateSuggestionsFromTokens(newTokens, newPos);
-                  }
+                  updateSuggestionsFromTokens(newTokens, newPos);
                 });
-              } else {
-                if (e.key === 'Enter' && onSearch) onSearch(text, s.ast);
               }
               return;
             }
             e.preventDefault();
-            acceptSuggestion(selected, e.key);
+            acceptSuggestion(selected, 'Tab');
             return;
           }
-          break;
+          break; // Tab with no selection falls through to browser default
+        }
         case 'Escape':
           e.preventDefault();
           closeDropdown();
           return;
       }
+    }
+
+    // Tab with no dropdown — onTab intercepts if provided
+    if (e.key === 'Tab' && onTabProp) {
+      e.preventDefault();
+      const ctx = s.cursorContext || { type: 'EMPTY' as const, partial: '' };
+      const result = onTabProp({ suggestion: null, cursorContext: ctx, query: currentValueRef.current });
+      if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast);
+      if (result.blur) editorRef.current?.blur();
+      return;
     }
 
     if (s.showDatePicker && e.key === 'Escape') {
@@ -1146,7 +1205,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

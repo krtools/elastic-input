@@ -675,7 +675,33 @@ A trailing space is **not** appended for:
 
 ### 7.2 Tab — Accept Suggestion
 
-Tab accepts the currently highlighted suggestion. **Tab never submits the search.**
+Tab accepts the currently highlighted suggestion. **Tab never submits the search** (by default).
+
+#### 7.2.1 Custom Tab Behavior (`onTab`)
+
+When the `onTab` prop is provided, **all** Tab key presses are intercepted (both with and without dropdown). The callback receives a `TabContext` with:
+
+- `suggestion` — the currently highlighted acceptable suggestion, or `null` if nothing is selected (or if the selected item is a non-interactive hint/loading/error indicator)
+- `cursorContext` — current `CursorContext` (what the user is typing)
+- `query` — the current raw query string
+
+The callback must return a `TabActionResult` object. Each action defaults to `false` when omitted:
+
+| Action | Effect |
+|--------|--------|
+| `accept` | Accept the selected suggestion (no-op if `suggestion` is `null`) |
+| `blur` | Move focus out of the input |
+| `submit` | Trigger `onSearch` with the current (post-accept if applicable) query |
+
+Actions execute in order: accept → submit → blur. When `accept` and `submit` are both true, the search is submitted with the **post-accept** query value.
+
+Examples:
+- `{}` — do nothing (Tab is swallowed, no action taken)
+- `{ accept: true }` — accept suggestion only (same as default behavior)
+- `{ blur: true }` — just tab out, don't accept
+- `{ accept: true, blur: true, submit: true }` — accept, submit, then move focus
+
+When `onTab` is **not provided**, default behavior applies: accept the selected suggestion if any, otherwise browser-default tab-out.
 
 ### 7.3 Enter — Accept & Possibly Submit
 
@@ -1192,6 +1218,9 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `dropdownAlignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom |
 | `dropdownMode` | `'always' \| 'never' \| 'manual'` | `'always'` | Controls when the dropdown appears: always, never, or on Ctrl+Space |
 | `onKeyDown` | `(e: React.KeyboardEvent) => void` | — | Called before internal keyboard handling; `preventDefault()` skips internal handling |
+| `onFocus` | `() => void` | — | Called when the input gains focus |
+| `onBlur` | `() => void` | — | Called when the input loses focus |
+| `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

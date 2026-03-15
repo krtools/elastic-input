@@ -122,6 +122,10 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
 | `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
+| `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
+| `onFocus` | `() => void` | — | Called when the input gains focus |
+| `onBlur` | `() => void` | — | Called when the input loses focus |
+| `onTab` | `(context) => TabActionResult` | — | Override Tab key behavior (accept/blur/submit) |
 
 ## Field Configuration
 

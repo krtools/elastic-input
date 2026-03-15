@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ASTNode } from './parser/ast';
 import { CursorContext } from './parser/Parser';
+import { Suggestion } from './autocomplete/suggestionTypes';
 import { ValidationError } from './validation/Validator';
 
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
@@ -241,6 +242,26 @@ export interface ElasticInputAPI {
  * />
  * ```
  */
+/** Context passed to the `onTab` callback. */
+export interface TabContext {
+  /** The currently selected suggestion, or `null` if nothing is highlighted. */
+  suggestion: Suggestion | null;
+  /** Current cursor context (what the user is typing). */
+  cursorContext: CursorContext;
+  /** The current raw query string. */
+  query: string;
+}
+
+/** Return type for the `onTab` callback. Each action defaults to `false` when omitted. */
+export interface TabActionResult {
+  /** Accept the currently selected suggestion (if any). */
+  accept?: boolean;
+  /** Move focus out of the input. */
+  blur?: boolean;
+  /** Trigger `onSearch` with the current (post-accept) query. */
+  submit?: boolean;
+}
+
 /** Field definitions — either a static array or an async loader function. */
 export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
 
@@ -320,6 +341,27 @@ export interface ElasticInputProps {
   onFocus?: () => void;
   /** Called when the input loses focus. */
   onBlur?: () => void;
+  /**
+   * Override Tab key behavior. Called when Tab is pressed, with the current suggestion (if any),
+   * cursor context, and query string. Return an object specifying which actions to perform.
+   * Each action defaults to `false` when omitted.
+   *
+   * - `accept`: Accept the currently selected suggestion (if any).
+   * - `blur`: Move focus out of the input.
+   * - `submit`: Trigger `onSearch` with the current query.
+   *
+   * If this prop is not provided, default behavior applies (accept suggestion if selected,
+   * otherwise browser-default tab-out).
+   *
+   * @example
+   * ```tsx
+   * onTab={({ suggestion }) => ({
+   *   accept: !!suggestion,
+   *   blur: true,
+   * })}
+   * ```
+   */
+  onTab?: (context: TabContext) => TabActionResult;
   /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error

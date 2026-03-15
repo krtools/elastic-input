@@ -24,7 +24,9 @@ export function getEditableStyle(colors: Required<ColorConfig>, styles: Required
   return {
     minHeight: styles.inputMinHeight,
     padding: styles.inputPadding,
-    border: `${styles.inputBorderWidth} solid ${styles.inputBorderColor}`,
+    borderWidth: styles.inputBorderWidth,
+    borderStyle: 'solid',
+    borderColor: styles.inputBorderColor,
     borderRadius: styles.inputBorderRadius,
     outline: 'none',
     fontSize: styles.fontSize,

@@ -212,6 +212,9 @@ export function ElasticInput(props: ElasticInputProps) {
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
   // was activated via Ctrl+Space. Reset when context changes.
   const manualActivationContextRef = React.useRef<string | null>(null);
+  // Stable ref to the latest updateSuggestionsFromTokens so processInput (defined
+  // earlier) always calls the current version without a stale closure.
+  const updateSuggestionsRef = React.useRef<(toks: Token[], offset: number) => void>(() => {});
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -308,7 +311,7 @@ export function ElasticInput(props: ElasticInputProps) {
       setCursorOffset(offset);
 
       if (updateDropdown) {
-        updateSuggestionsFromTokens(newTokens, offset);
+        updateSuggestionsRef.current(newTokens, offset);
       }
     } else {
       setTokens(newTokens);
@@ -535,6 +538,9 @@ export function ElasticInput(props: ElasticInputProps) {
       }, debounceMs);
     }
   }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode]);
+
+  // Keep the ref current so processInput always calls the latest version
+  updateSuggestionsRef.current = updateSuggestionsFromTokens;
 
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);

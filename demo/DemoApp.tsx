@@ -139,6 +139,31 @@ export function DemoApp() {
           {searchResult && <div style={styles.queryResult}>{searchResult}</div>}
         </div>
 
+        {/* Validation errors */}
+        {validationErrors.length > 0 && (
+          <div style={{
+            marginBottom: '12px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: theme.bg,
+            border: `1px solid ${theme.border}`,
+            fontSize: '12px',
+            lineHeight: 1.6,
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '4px', color: theme.text }}>
+              Errors ({validationErrors.length})
+            </div>
+            {validationErrors.map((e, i) => (
+              <div key={i} style={{ color: e.severity === 'warning' ? '#d4a72c' : '#cf222e' }}>
+                {e.severity === 'warning' ? '\u26a0' : '\u2716'}{' '}
+                <span style={{ color: theme.textSecondary, fontFamily: 'monospace' }}>[{e.start}:{e.end}]</span>{' '}
+                {e.message}
+                {e.field ? <span style={{ color: theme.textSecondary }}> ({e.field})</span> : null}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Inspector toggle */}
         <div style={{ marginBottom: '16px' }}>
           <button

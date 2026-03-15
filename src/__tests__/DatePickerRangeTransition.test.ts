@@ -25,10 +25,10 @@ describe('Date picker range → single transition', () => {
       expect(init!.mode).toBe('range');
       expect(init!.start).toBeInstanceOf(Date);
       expect(init!.end).toBeInstanceOf(Date);
-      expect(init!.start!.getUTCFullYear()).toBe(2024);
-      expect(init!.start!.getUTCMonth()).toBe(0);
-      expect(init!.end!.getUTCFullYear()).toBe(2024);
-      expect(init!.end!.getUTCMonth()).toBe(11);
+      expect(init!.start!.getFullYear()).toBe(2024);
+      expect(init!.start!.getMonth()).toBe(0);
+      expect(init!.end!.getFullYear()).toBe(2024);
+      expect(init!.end!.getMonth()).toBe(11);
     });
 
     it('returns single init with parsed date for FIELD_VALUE with date value', () => {

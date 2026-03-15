@@ -72,6 +72,20 @@ describe('parseDate', () => {
     expect(result!.getFullYear()).toBe(2024);
   });
 
+  it('parses YYYY-MM-DD as local date, not UTC (no off-by-one in negative TZ)', () => {
+    const result = parseDate('2024-01-15');
+    expect(result!.getFullYear()).toBe(2024);
+    expect(result!.getMonth()).toBe(0);
+    expect(result!.getDate()).toBe(15);
+  });
+
+  it('parses YYYY/MM/DD as local date', () => {
+    const result = parseDate('2024/06/20');
+    expect(result!.getFullYear()).toBe(2024);
+    expect(result!.getMonth()).toBe(5);
+    expect(result!.getDate()).toBe(20);
+  });
+
   it('returns null for invalid string', () => {
     expect(parseDate('not-a-date')).toBeNull();
   });

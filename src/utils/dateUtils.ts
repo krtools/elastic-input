@@ -40,6 +40,14 @@ export function parseDate(value: string): Date | null {
     return date;
   }
 
+  // Date-only strings (YYYY-MM-DD, YYYY/MM/DD) are parsed as UTC by the
+  // Date constructor, which shifts the day in negative-offset timezones.
+  // Construct with local timezone components instead.
+  const ymdMatch = value.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+  if (ymdMatch) {
+    return new Date(parseInt(ymdMatch[1], 10), parseInt(ymdMatch[2], 10) - 1, parseInt(ymdMatch[3], 10));
+  }
+
   const parsed = new Date(value);
   return isNaN(parsed.getTime()) ? null : parsed;
 }

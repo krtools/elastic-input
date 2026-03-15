@@ -139,8 +139,10 @@ describe('Validator', () => {
     expect(errors).toHaveLength(1);
   });
 
-  it('returns no errors for empty value', () => {
-    expect(validate('status:')).toHaveLength(0);
+  it('flags missing value after field colon', () => {
+    const errors = validate('status:');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "status:"');
   });
 
   it('returns no errors for null AST', () => {
@@ -677,5 +679,82 @@ describe('Validation warnings (ValidationResult return type)', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Not a valid email');
     expect(errors[0].severity).toBe('warning');
+  });
+});
+
+describe('Incomplete expression errors', () => {
+  it('flags field with missing value: name:', () => {
+    const errors = validate('name:');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "name:"');
+    expect(errors[0].field).toBe('name');
+  });
+
+  it('flags field with whitespace-only value: name:  ', () => {
+    const errors = validate('name:  ');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "name:"');
+  });
+
+  it('flags comparison op with no value: price:>', () => {
+    const errors = validate('price:>');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "price>"');
+    expect(errors[0].field).toBe('price');
+  });
+
+  it('flags comparison op >=  with no value', () => {
+    const errors = validate('price:>=');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "price>="');
+  });
+
+  it('flags [TO] — no whitespace so parser treats "TO" as lower, upper is empty', () => {
+    const errors = validate('price:[TO]');
+    // Parser treats "TO" as the lower bound (no whitespace around TO keyword),
+    // so the validator sees: lower="TO" (invalid number) + upper="" (empty bound)
+    const messages = errors.map(e => e.message);
+    expect(messages).toContain('Missing upper bound in range');
+    expect(errors.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('flags empty range bounds with spaces: [ TO ]', () => {
+    const errors = validate('price:[ TO ]');
+    expect(errors).toHaveLength(2);
+    expect(errors[0].message).toBe('Missing lower bound in range');
+    expect(errors[1].message).toBe('Missing upper bound in range');
+  });
+
+  it('flags only missing lower bound when upper is present', () => {
+    const errors = validate('price:[ TO 100]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing lower bound in range');
+  });
+
+  it('flags only missing upper bound when lower is present', () => {
+    const errors = validate('price:[0 TO ]');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing upper bound in range');
+  });
+
+  it('does not flag wildcard range bounds', () => {
+    expect(validate('price:[* TO 100]')).toHaveLength(0);
+    expect(validate('price:[0 TO *]')).toHaveLength(0);
+    expect(validate('price:[* TO *]')).toHaveLength(0);
+  });
+
+  it('does not flag complete field values', () => {
+    expect(validate('name:hello')).toHaveLength(0);
+    expect(validate('price:>100')).toHaveLength(0);
+  });
+
+  it('allows empty groups: field:()', () => {
+    expect(validate('name:()')).toHaveLength(0);
+  });
+
+  it('flags empty value among valid terms', () => {
+    const errors = validate('name:hello AND status:');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Missing value after "status:"');
   });
 });

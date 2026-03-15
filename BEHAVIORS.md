@@ -1037,9 +1037,24 @@ Warning squiggles are rendered with an amber/yellow color (`warning` color key) 
 ### 9.17 Non-Validated Cases
 
 - Bare terms (freeform search words) are not validated
-- Empty values pass validation
+- Empty field groups (`field:()`) pass validation
 - Null AST (empty input) passes validation
-- **Tests:** `Validator.test.ts` → "does not validate bare terms", "returns no errors for empty value", "returns no errors for null AST"
+- **Tests:** `Validator.test.ts` → "does not validate bare terms", "returns no errors for null AST", "Incomplete expression errors" suite
+
+### 9.4.1 Incomplete Expression Errors
+
+The validator flags structurally incomplete expressions that would produce empty or broken Elasticsearch queries:
+
+| Pattern | Example | Error Message |
+|---------|---------|---------------|
+| Field with missing value | `name:` | `Missing value after "name:"` |
+| Comparison op with missing value | `price:>` | `Missing value after "price>"` |
+| Empty range lower bound | `price:[ TO 100]` | `Missing lower bound in range` |
+| Empty range upper bound | `price:[0 TO ]` | `Missing upper bound in range` |
+
+Wildcard range bounds (`*`) are not flagged — `[* TO 100]` is valid Elasticsearch syntax.
+
+- **Tests:** `Validator.test.ts` → "Incomplete expression errors" suite
 
 ---
 

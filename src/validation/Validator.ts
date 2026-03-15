@@ -78,6 +78,9 @@ export class Validator {
         break;
 
       case 'Range': {
+        // Check for empty range bounds regardless of field
+        this.validateEmptyRangeBounds(node, errors);
+
         if (node.field && node.field !== '*') {
           const rangeField = this.fields.get(node.field);
           if (!rangeField) {
@@ -109,7 +112,16 @@ export class Validator {
           return;
         }
 
-        if (node.value === '') return;
+        if (node.value === '') {
+          const opLabel = node.operator === ':' ? ':' : node.operator;
+          errors.push({
+            message: `Missing value after "${node.field}${opLabel}"`,
+            start: node.start,
+            end: node.end,
+            field: node.field,
+          });
+          return;
+        }
 
         // Validate modifiers
         if (node.fuzzy !== undefined && node.fuzzy > 2) {
@@ -335,11 +347,31 @@ export class Validator {
     }
   }
 
+  /** Flag empty range bounds (e.g. `[TO]`, `[ TO ]`). */
+  private validateEmptyRangeBounds(node: RangeNode, errors: ValidationError[]): void {
+    if (node.lower !== '*' && node.lower.trim() === '') {
+      errors.push({
+        message: 'Missing lower bound in range',
+        start: node.start,
+        end: node.start + 1, // highlight the opening bracket
+        field: node.field,
+      });
+    }
+    if (node.upper !== '*' && node.upper.trim() === '') {
+      errors.push({
+        message: 'Missing upper bound in range',
+        start: node.end - 1, // highlight the closing bracket
+        end: node.end,
+        field: node.field,
+      });
+    }
+  }
+
   /** Validate range bounds against a field config. */
   private validateRangeBounds(field: FieldConfig, node: RangeNode, errors: ValidationError[]): void {
     const bounds: Array<{ value: string; label: string; start: number; end: number; context: ValidationContext }> = [];
-    if (node.lower !== '*') bounds.push({ value: node.lower, label: 'Range start', start: node.lowerStart, end: node.lowerEnd, context: { position: 'RANGE_START' } });
-    if (node.upper !== '*') bounds.push({ value: node.upper, label: 'Range end', start: node.upperStart, end: node.upperEnd, context: { position: 'RANGE_END' } });
+    if (node.lower !== '*' && node.lower.trim() !== '') bounds.push({ value: node.lower, label: 'Range start', start: node.lowerStart, end: node.lowerEnd, context: { position: 'RANGE_START' } });
+    if (node.upper !== '*' && node.upper.trim() !== '') bounds.push({ value: node.upper, label: 'Range end', start: node.upperStart, end: node.upperEnd, context: { position: 'RANGE_END' } });
 
     for (const bound of bounds) {
       let error: string | null = null;

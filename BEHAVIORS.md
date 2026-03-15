@@ -817,7 +817,7 @@ Controls when the autocomplete dropdown appears:
 
 | Mode | Behavior |
 |------|----------|
-| `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. |
+| `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. If dismissed (e.g. via Escape), **Ctrl+Space** (Cmd+Space on macOS) restores it. |
 | `'never'` | Dropdown is completely disabled. No suggestions, date picker, or hints are shown. |
 | `'manual'` | Dropdown only appears after the user presses **Ctrl+Space** (or Cmd+Space on macOS). Once activated, the dropdown stays open for the current context type. When the context changes (e.g. moving from a field name to a field value), the dropdown is dismissed and must be re-activated with another Ctrl+Space. Escape also dismisses it. |
 

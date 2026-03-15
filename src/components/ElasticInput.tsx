@@ -1069,12 +1069,13 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    // Ctrl+Space: activate dropdown in manual mode
-    if (e.key === ' ' && (e.ctrlKey || e.metaKey) && dropdownMode === 'manual') {
+    // Ctrl+Space: activate/restore dropdown
+    if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      // Get current context and activate for it
-      const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
-      manualActivationContextRef.current = result.context.type;
+      if (dropdownMode === 'manual') {
+        const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
+        manualActivationContextRef.current = result.context.type;
+      }
       updateSuggestionsFromTokens(s.tokens, s.cursorOffset);
       return;
     }

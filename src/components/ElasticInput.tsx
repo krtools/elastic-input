@@ -916,28 +916,27 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const s = stateRef.current;
 
-    // Performance: before destructive edits on large highlighted DOM, strip spans
-    // down to plain text so the browser doesn't have to split/merge hundreds of
-    // elements. The debounced highlight pass will re-apply coloring afterwards.
+    // Performance: before bulk selection operations on large highlighted DOM,
+    // strip spans to plain text so the browser doesn't have to split/merge
+    // hundreds of elements. Only triggers for large selections — single-char
+    // backspace/delete at a cursor position only touches 1-2 spans and is fast.
     if (editorRef.current && editorRef.current.childNodes.length > 40) {
-      const isDestructive = e.key === 'Backspace' || e.key === 'Delete'
-        || (e.key === 'x' && (e.ctrlKey || e.metaKey)); // cut
       const sel = window.getSelection();
       const hasSelection = sel != null && !sel.isCollapsed;
-      // Also simplify for printable keys that will replace the selection
-      const willReplace = hasSelection && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1;
 
-      if (isDestructive || willReplace) {
-        const text = currentValueRef.current;
-        const offset = getCaretCharOffset(editorRef.current);
-        const selRange = hasSelection ? getSelectionCharRange(editorRef.current) : null;
-        // Replace styled spans with a single text node
-        editorRef.current.textContent = text;
-        // Restore caret/selection on the now-simple DOM
-        if (selRange && selRange.start !== selRange.end) {
-          setSelectionCharRange(editorRef.current, selRange.start, selRange.end);
-        } else {
-          setCaretCharOffset(editorRef.current, offset);
+      if (hasSelection) {
+        const selRange = getSelectionCharRange(editorRef.current);
+        const selectionSize = selRange.end - selRange.start;
+
+        if (selectionSize > 20) {
+          const isDestructive = e.key === 'Backspace' || e.key === 'Delete'
+            || (e.key === 'x' && (e.ctrlKey || e.metaKey)); // cut
+          const willReplace = !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1;
+
+          if (isDestructive || willReplace) {
+            editorRef.current.textContent = currentValueRef.current;
+            setSelectionCharRange(editorRef.current, selRange.start, selRange.end);
+          }
         }
       }
     }

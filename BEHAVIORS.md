@@ -1111,7 +1111,15 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 
 - **Tests:** `parenMatch.test.ts` → 12 tests covering basic matching, nesting, priority, unmatched, and edge cases
 
-### 9.5.4 Theme Transition Re-highlighting
+### 9.5.4 Large Input Performance
+
+For large inputs (hundreds of tokens), two optimizations prevent browser lock-up:
+
+**Debounced highlight rebuild:** When the input has >80 tokens, the `innerHTML` replacement (which destroys and rebuilds all spans) is debounced by 60ms during active typing. The browser natively handles the text edit within existing spans, so highlighting stays visually intact with slightly stale token boundaries until the debounced refresh. Programmatic updates (`setValue`, controlled value, initial load) bypass the debounce and highlight immediately.
+
+**DOM simplification for bulk selection operations:** When the editor has >40 child nodes and the user is about to delete or replace a large selection (>20 characters), the component strips all syntax-highlighting spans down to plain text before the browser processes the edit. This prevents forced reflow from the browser splitting/merging hundreds of styled spans. Single-character edits (backspace/delete at a cursor position, or small selection replacements) are not stripped — they only touch 1-2 spans and are fast natively.
+
+### 9.5.5 Theme Transition Re-highlighting
 
 When the `colors` prop changes (e.g. switching between light and dark themes), the inline-styled HTML in the contentEditable editor must be regenerated with the new color values. The paren matching effect tracks the previous `colors` reference and forces a `buildHighlightedHTML` re-render when it changes, bypassing the paren-match-key early-return optimization. Without this, the old color values remain baked into the HTML spans until the next text edit.
 

@@ -3,6 +3,7 @@ import { Lexer } from '../lexer/Lexer';
 import { AutocompleteEngine, AutocompleteResult } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig } from '../types';
 import { computeDatePickerInit, shouldRemountDatePicker } from '../components/ElasticInput';
+import { parseDate } from '../utils/dateUtils';
 
 const FIELDS: FieldConfig[] = [
   { name: 'created', label: 'Created Date', type: 'date' },
@@ -141,6 +142,72 @@ describe('Date picker range → single transition', () => {
       const init = computeDatePickerInit(result.context);
       // Simulating: picker was already open with same date, user clicks again
       expect(shouldRemountDatePicker(init, init)).toBe(false);
+    });
+  });
+
+  describe('range view should navigate to end date month (bug #1)', () => {
+    it('range init with distant start and recent end uses end date for view', () => {
+      // [now-365d TO now] → start ≈ March 2025, end ≈ March 2026
+      // The picker should navigate to the end date's month so the user sees "now"
+      const result = getResult('created:[2025-03-15 TO 2026-03-15]', 15);
+      const init = computeDatePickerInit(result.context);
+      expect(init).not.toBeNull();
+      expect(init!.mode).toBe('range');
+      expect(init!.end).toBeInstanceOf(Date);
+      expect(init!.end!.getFullYear()).toBe(2026);
+      expect(init!.end!.getMonth()).toBe(2); // March
+      // DateRangePicker uses initialEnd for view when in range mode
+      // → viewYear=2026, viewMonth=2 (March) — user sees today's month
+    });
+
+    it('range init with close dates uses end date for view', () => {
+      const result = getResult('created:[2026-03-01 TO 2026-03-15]', 15);
+      const init = computeDatePickerInit(result.context);
+      expect(init!.mode).toBe('range');
+      expect(init!.start!.getMonth()).toBe(2);
+      expect(init!.end!.getMonth()).toBe(2);
+      // Both in same month — no issue either way
+    });
+  });
+
+  describe('replacement range for date picker (bug #2)', () => {
+    it('FIELD_VALUE with value token gives value token bounds', () => {
+      const result = getResult('created:2024-01-15');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      const token = result.context.token;
+      expect(token).toBeDefined();
+      // Token should be the VALUE, not the COLON
+      expect(token!.type).toBe('VALUE');
+      expect(token!.value).toBe('2024-01-15');
+    });
+
+    it('FIELD_VALUE with no value gives undefined token (insert at cursor)', () => {
+      const result = getResult('created:');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      // When cursor is right after the colon with no value, token is undefined.
+      // handleDateSelect should insert at the cursor position (after the colon).
+      expect(result.context.token).toBeUndefined();
+    });
+
+    it('cursor on colon with following value gives VALUE token, not COLON', () => {
+      // Cursor at end of colon (offset 8), but value follows
+      const result = getResult('created:2024-01-15', 8);
+      expect(result.context.type).toBe('FIELD_VALUE');
+      const token = result.context.token;
+      expect(token).toBeDefined();
+      expect(token!.type).toBe('VALUE');
+      expect(token!.value).toBe('2024-01-15');
+    });
+
+    it('RANGE context gives RANGE token covering entire bracket expression', () => {
+      const input = 'created:[2024-01-01 TO 2024-12-31]';
+      const result = getResult(input, 15);
+      expect(result.context.type).toBe('RANGE');
+      const token = result.context.token;
+      expect(token).toBeDefined();
+      expect(token!.type).toBe('RANGE');
+      expect(token!.start).toBe(8); // starts at '['
+      expect(token!.end).toBe(input.length); // ends after ']'
     });
   });
 });

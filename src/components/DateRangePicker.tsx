@@ -29,7 +29,10 @@ function getDecadeStart(year: number): number {
 
 export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd }: DateRangePickerProps) {
   const now = new Date();
-  const initDate = initialStart ?? now;
+  // In range mode, navigate to the end date's month so the user sees "now"
+  // rather than a distant start date (e.g. [now-365d TO now] → show March 2026).
+  const initDate = (initialMode === 'range' && initialEnd) ? initialEnd
+    : initialStart ?? now;
   const [mode, setMode] = React.useState<'single' | 'range'>(initialMode ?? 'single');
   const [viewLevel, setViewLevel] = React.useState<ViewLevel>('days');
   const [viewYear, setViewYear] = React.useState(initDate.getFullYear());

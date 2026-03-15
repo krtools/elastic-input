@@ -204,6 +204,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
+  const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -317,6 +318,20 @@ export function ElasticInput(props: ElasticInputProps) {
       const prevInit = datePickerInitRef.current;
       datePickerInitRef.current = init;
       setDatePickerInit(init);
+
+      // Save the replacement range for handleDateSelect.
+      // For RANGE context the token covers `[... TO ...]`.
+      // For FIELD_VALUE the token is the value being edited, but when no value
+      // exists yet the parser returns the preceding COLON / COMPARISON_OP token
+      // — in that case we insert *after* the operator rather than replacing it.
+      const ctxToken = result.context.token;
+      if (ctxToken && (ctxToken.type === 'COLON' || ctxToken.type === 'COMPARISON_OP')) {
+        datePickerReplaceRef.current = { start: ctxToken.end, end: ctxToken.end };
+      } else if (ctxToken) {
+        datePickerReplaceRef.current = { start: ctxToken.start, end: ctxToken.end };
+      } else {
+        datePickerReplaceRef.current = { start: offset, end: offset };
+      }
 
       // Force remount when mode changes (e.g. range → single after pasting a
       // single date over a range expression). Without this, DateRangePicker
@@ -478,6 +493,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDatePicker(false);
     setDatePickerInit(null);
     datePickerInitRef.current = null;
+    datePickerReplaceRef.current = null;
     setSuggestions([]);
     setSelectedSuggestionIndex(-1);
     // Cancel any in-flight async work
@@ -956,10 +972,12 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const handleDateSelect = React.useCallback((dateStr: string) => {
     const s = stateRef.current;
-    const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
-    const token = result.context.token;
-    const start = token ? token.start : s.cursorOffset;
-    const end = token ? token.end : s.cursorOffset;
+    // Use the replacement range captured when the date picker was opened,
+    // so we always replace the right token regardless of where the cursor
+    // has drifted since then (e.g. after clicking inside the picker).
+    const saved = datePickerReplaceRef.current;
+    const start = saved ? saved.start : s.cursorOffset;
+    const end = saved ? saved.end : s.cursorOffset;
 
     const before = currentValueRef.current.slice(0, start);
     const after = currentValueRef.current.slice(end);

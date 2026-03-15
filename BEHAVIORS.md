@@ -799,7 +799,7 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Single mode**: Clicking a day emits `YYYY-MM-DD`.
 - **Range mode**: First click sets range start, second click sets range end. Emits `[YYYY-MM-DD TO YYYY-MM-DD]`. Reversed selections are auto-corrected.
-- **Initial values**: The picker accepts `initialMode`, `initialStart`, and `initialEnd` props. When the cursor is inside an existing range expression on a date field (e.g., `created:[2024-01-01 TO 2024-12-31]`), the picker opens in range mode with the bounds pre-populated. When clicking into an existing single date value (e.g., `created:2024-01-15`), the picker opens in single mode with that date highlighted (blue background, white text via `daySelected` style). The view navigates to the selected date's month. Empty contexts (`created:` with no value) open with no date pre-selected.
+- **Initial values**: The picker accepts `initialMode`, `initialStart`, and `initialEnd` props. When the cursor is inside an existing range expression on a date field (e.g., `created:[2024-01-01 TO 2024-12-31]`), the picker opens in range mode with the bounds pre-populated. When clicking into an existing single date value (e.g., `created:2024-01-15`), the picker opens in single mode with that date highlighted (blue background, white text via `daySelected` style). In range mode, the view navigates to the **end** date's month (so `[now-365d TO now]` shows the current month, not a month a year ago). In single mode, the view navigates to the selected date's month. Empty contexts (`created:` with no value) open with no date pre-selected. **Tests:** `DatePickerRangeTransition.test.ts` → "range view should navigate to end date month (bug #1)" suite
 - **Range → single transition**: When the picker is already open and the init state changes (mode switch or different date), the picker is forced to remount so `useState` picks up the fresh initial values. The `shouldRemountDatePicker` function compares mode and date timestamps between previous and new init; when any differ, `showDatePicker` is set to `false` before the rAF re-opens it. **Tests:** `DatePickerRangeTransition.test.ts` → "shouldRemountDatePicker" suite (6 tests), "full paste-over-range scenario" suite (3 tests), "single date highlight on reopen" suite (3 tests)
 - **Range hover preview**: After the first click (start selected, end pending), hovering over any date highlights the preview range between start and the hovered date. This works across all view levels:
   - **Days view**: individual day cells in the preview range get the in-range highlight.
@@ -810,7 +810,11 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly", "hover date creates a preview range with isDateInRange", "hover preview works when hovering before the start date (reversed)", "no preview when hoverDate is null (mouse left the calendar)", "month-level preview", "year-level preview"
 
-#### 8.3.5 Trailing Space After Date Selection
+#### 8.3.5 Replacement Range Capture
+
+When the date picker opens, the replacement range (start/end character offsets) is captured from the current context token and stored in `datePickerReplaceRef`. When the user selects a date, `handleDateSelect` uses this saved range instead of re-computing from the current cursor position. This prevents the bug where the cursor drifts (e.g., after clicking inside the picker) and the date gets inserted at the wrong position instead of replacing the existing value. For RANGE contexts the replacement covers the entire `[... TO ...]` expression; for FIELD_VALUE contexts it covers the value token; for empty contexts (no value after colon) it inserts at the cursor position. **Tests:** `DatePickerRangeTransition.test.ts` → "replacement range for date picker (bug #2)" suite
+
+#### 8.3.6 Trailing Space After Date Selection
 
 When a date value is selected from the date picker and the cursor is at the end of the input (or only whitespace follows), a trailing space is appended after the inserted value. This enables seamless continuation of the query without manually pressing space.
 

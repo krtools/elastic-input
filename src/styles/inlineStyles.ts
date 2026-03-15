@@ -160,7 +160,7 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       marginBottom: '8px',
     },
     navButton: {
-      background: 'none',
+      backgroundColor: 'transparent',
       border: 'none',
       cursor: 'pointer',
       fontSize: '16px',
@@ -199,7 +199,7 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       borderRadius: '4px',
       color: colors.text,
       border: 'none',
-      background: 'none',
+      backgroundColor: 'transparent',
     },
     dayHover: {
       backgroundColor: colors.dropdownHover,
@@ -234,7 +234,7 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       cursor: 'pointer',
       fontSize: '12px',
       fontWeight: 500,
-      background: 'none',
+      backgroundColor: 'transparent',
       color: colors.text,
     },
     rangeToggleButtonActive: {
@@ -252,7 +252,7 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       textAlign: 'left' as const,
       padding: '4px 8px',
       border: 'none',
-      background: 'none',
+      backgroundColor: 'transparent',
       cursor: 'pointer',
       fontSize: '12px',
       color: colors.dropdownSelected,

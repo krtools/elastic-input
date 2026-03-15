@@ -9,6 +9,7 @@ import {
   isDateInRange,
   getMonthName,
 } from '../utils/dateUtils';
+import { getDatePickerStyle, mergeColors, mergeStyles } from '../styles/inlineStyles';
 
 describe('formatDate', () => {
   it('formats a date as YYYY-MM-DD', () => {
@@ -480,5 +481,23 @@ describe('Range hover preview logic', () => {
     // Outside
     expect(2021 >= Math.min(startYear, hoverYear) && 2021 <= Math.max(startYear, hoverYear)).toBe(false);
     expect(2026 >= Math.min(startYear, hoverYear) && 2026 <= Math.max(startYear, hoverYear)).toBe(false);
+  });
+});
+
+describe('Date picker style consistency', () => {
+  // day, dayInRange, and daySelected all use the backgroundColor longhand.
+  // Mixing shorthand `background` with longhand `backgroundColor` causes
+  // stale backgrounds when React removes the longhand on re-render.
+
+  it('day style uses backgroundColor (not background shorthand) to avoid conflict with dayInRange', () => {
+    const s = getDatePickerStyle(mergeColors(), mergeStyles());
+
+    // day must use backgroundColor, not background
+    expect(s.day).toHaveProperty('backgroundColor');
+    expect(s.day).not.toHaveProperty('background');
+
+    // dayInRange and daySelected also use backgroundColor
+    expect(s.dayInRange).toHaveProperty('backgroundColor');
+    expect(s.daySelected).toHaveProperty('backgroundColor');
   });
 });

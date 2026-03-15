@@ -142,14 +142,24 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
       ...(isSelected ? styles.daySelected : {}),
     };
 
+    const isRangePreviewing = mode === 'range' && rangeStart && !rangeEnd;
+
     dayCells.push(
       <button
         key={d}
         style={dayStyle}
         onClick={() => selectDay(d)}
-        onMouseEnter={() => {
-          if (mode === 'range' && rangeStart && !rangeEnd) {
+        onMouseEnter={(e) => {
+          if (isRangePreviewing) {
             setHoverDate(date);
+          } else if (!isSelected) {
+            (e.currentTarget as HTMLElement).style.backgroundColor = mergedColors.dropdownHover;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!isRangePreviewing && !isSelected) {
+            (e.currentTarget as HTMLElement).style.backgroundColor = inRange
+              ? 'rgba(9, 105, 218, 0.1)' : 'transparent';
           }
         }}
       >
@@ -208,7 +218,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
         <button
           style={{
             ...styles.monthLabel,
-            background: 'none',
+            backgroundColor: 'transparent',
             border: 'none',
             cursor: canZoomOut ? 'pointer' : 'default',
             padding: '2px 8px',
@@ -250,6 +260,8 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
             );
             const isCurrent = i === today.getMonth() && viewYear === today.getFullYear();
 
+            const isRangePreviewing = mode === 'range' && rangeStart && !rangeEnd;
+
             return (
               <button
                 key={name}
@@ -259,9 +271,17 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
                   ...(monthIsEndpoint ? styles.daySelected : {}),
                 }}
                 onClick={() => selectMonth(i)}
-                onMouseEnter={() => {
-                  if (mode === 'range' && rangeStart && !rangeEnd) {
+                onMouseEnter={(e) => {
+                  if (isRangePreviewing) {
                     setHoverDate(monthDate);
+                  } else if (!monthIsEndpoint) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = mergedColors.dropdownHover;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isRangePreviewing && !monthIsEndpoint) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = monthInRange
+                      ? 'rgba(9, 105, 218, 0.1)' : 'transparent';
                   }
                 }}
               >
@@ -285,6 +305,8 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
             const yearIsEndpoint = (rangeStart && rangeStart.getFullYear() === year) ||
               (previewEnd && previewEnd.getFullYear() === year);
 
+            const isRangePreviewing = mode === 'range' && rangeStart && !rangeEnd;
+
             return (
               <button
                 key={year}
@@ -295,9 +317,17 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
                   ...(yearIsEndpoint ? styles.daySelected : {}),
                 }}
                 onClick={() => selectYear(year)}
-                onMouseEnter={() => {
-                  if (mode === 'range' && rangeStart && !rangeEnd) {
+                onMouseEnter={(e) => {
+                  if (isRangePreviewing) {
                     setHoverDate(yearDate);
+                  } else if (!yearIsEndpoint) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = mergedColors.dropdownHover;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isRangePreviewing && !yearIsEndpoint) {
+                    (e.currentTarget as HTMLElement).style.backgroundColor = yearInRange
+                      ? 'rgba(9, 105, 218, 0.1)' : 'transparent';
                   }
                 }}
               >

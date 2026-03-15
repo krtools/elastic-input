@@ -62,6 +62,11 @@ describe('Validator', () => {
     expect(validate('price:99.5')).toHaveLength(0);
   });
 
+  it('accepts field:-value as valid (negated value shorthand)', () => {
+    expect(validate('status:-inactive')).toHaveLength(0);
+    expect(validate('price:-5')).toHaveLength(0);
+  });
+
   it('flags invalid booleans', () => {
     const errors = validate('is_vip:yes');
     expect(errors).toHaveLength(1);

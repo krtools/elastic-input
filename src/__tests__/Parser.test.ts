@@ -28,6 +28,17 @@ describe('Parser', () => {
       });
     });
 
+    it('parses field:-value as a single FieldValue (not negation)', () => {
+      const ast = parse('status:-inactive');
+      expect(ast).toMatchObject({
+        type: 'FieldValue',
+        field: 'status',
+        operator: ':',
+        value: '-inactive',
+        quoted: false,
+      });
+    });
+
     it('parses a quoted field value', () => {
       const ast = parse('name:"John Doe"');
       expect(ast).toMatchObject({

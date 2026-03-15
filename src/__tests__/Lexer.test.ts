@@ -225,6 +225,20 @@ describe('Lexer', () => {
       expect(lexValues('last-contact:2024')).toEqual(['last-contact', ':', '2024']);
     });
 
+    it('treats - after colon as part of value, not prefix op', () => {
+      expect(lexTypes('status:-inactive')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+      expect(lexValues('status:-inactive')).toEqual(['status', ':', '-inactive']);
+    });
+
+    it('treats + after colon as part of value, not prefix op', () => {
+      expect(lexTypes('score:+5')).toEqual([
+        TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
+      ]);
+      expect(lexValues('score:+5')).toEqual(['score', ':', '+5']);
+    });
+
     it('does not treat standalone - as prefix op', () => {
       // - at end of input with nothing after it
       const tokens = lex('a -');

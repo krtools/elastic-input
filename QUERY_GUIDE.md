@@ -86,6 +86,17 @@ status:active || status:pending
 
 Operators are case-insensitive: `and`, `And`, `AND` all work.
 
+### Negated field values
+
+You can negate a single field value with a dash directly after the colon:
+
+```
+status:-inactive       finds where status is NOT inactive
+level:-DEBUG           finds where level is NOT DEBUG
+```
+
+This is shorthand for `status:(-inactive)` or `NOT status:inactive`.
+
 ### Operator precedence
 
 NOT binds tightest, then AND, then OR. Use parentheses when mixing AND and OR
@@ -316,6 +327,7 @@ Each field has a type that determines what values are valid:
 | `AND` / `&&` | Both conditions | `a AND b` |
 | `OR` / `||` | Either condition | `a OR b` |
 | `NOT` / `-` | Exclude | `NOT a`, `-a` |
+| `field:-value` | Field is NOT value | `status:-inactive` |
 | `(...)` | Group | `(a OR b) AND c` |
 | `field:(a OR b)` | Field group | `status:(active OR pending)` |
 | `*` / `?` | Wildcards | `name:J*`, `name:J?hn` |

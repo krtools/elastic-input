@@ -60,7 +60,8 @@ A `-` or `+` immediately before a term (field name, quoted string, paren, `#`, `
 
 - `-status:active` → `PREFIX_OP("-")`, `FIELD_NAME("status")`, `COLON`, `VALUE("active")`
 - `last-contact:x` → `FIELD_NAME("last-contact")`, `COLON`, `VALUE("x")`
-- **Tests:** `Lexer.test.ts` → "tokenizes - as prefix operator before a field", "tokenizes + as prefix operator before a field", "tokenizes - before a bare term", "tokenizes - before parenthesized group", "tokenizes - before quoted string", "tokenizes - before saved search", "preserves hyphen in mid-word field names", "does not treat standalone - as prefix op"
+- `status:-inactive` → `FIELD_NAME("status")`, `COLON`, `VALUE("-inactive")` — the `-` after a colon is part of the value, **not** a prefix op. This supports the `field:-value` negated-value shorthand (equivalent to `field:(-value)` in Elasticsearch).
+- **Tests:** `Lexer.test.ts` → "tokenizes - as prefix operator before a field", "tokenizes + as prefix operator before a field", "tokenizes - before a bare term", "tokenizes - before parenthesized group", "tokenizes - before quoted string", "tokenizes - before saved search", "preserves hyphen in mid-word field names", "treats - after colon as part of value, not prefix op", "treats + after colon as part of value, not prefix op", "does not treat standalone - as prefix op"
 
 ### 1.8 Whitespace
 

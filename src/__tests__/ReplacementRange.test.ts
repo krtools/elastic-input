@@ -270,6 +270,54 @@ describe('Selection Replacement', () => {
   });
 });
 
+describe('Stale selectionEnd must not expand replacement range', () => {
+  it('re-typing field name after delete does not consume value characters', () => {
+    // Scenario: user had "created:2026-03-02 ", deleted "created",
+    // typed "dat" before the colon → "dat:2026-03-02 " with cursor at 3.
+    // If selectionEnd is stale from the previous select-and-delete (e.g. 7),
+    // Math.max(replaceEnd, selectionEnd) would over-consume into the value.
+    // Fix: selectionEnd must equal cursorOffset when there is no active selection.
+    const input = 'dat:2026-03-02 ';
+    const result = getSuggestions(input, 3);
+    const createdSugg = result.suggestions.find(s => s.text === 'created:');
+    expect(createdSugg).toBeDefined();
+    // Replacement range should cover "dat:" (0-4)
+    expect(createdSugg!.replaceStart).toBe(0);
+    expect(createdSugg!.replaceEnd).toBe(4);
+
+    // With correct (synchronized) selectionEnd = cursorOffset = 3
+    const correct = acceptSuggestionWithSelection(
+      input, 'created:',
+      createdSugg!.replaceStart, createdSugg!.replaceEnd,
+      3, 3 // collapsed cursor — selectionEnd matches cursorOffset
+    );
+    expect(correct).toBe('created:2026-03-02 ');
+
+    // Demonstrate the bug: stale selectionEnd = 7 from prior select-and-delete
+    const buggy = acceptSuggestionWithSelection(
+      input, 'created:',
+      createdSugg!.replaceStart, createdSugg!.replaceEnd,
+      3, 7 // stale selectionEnd — this was the bug
+    );
+    expect(buggy).toBe('created:6-03-02 '); // wrong! ate "202"
+  });
+
+  it('typing partial field in middle of query does not bleed with stale selection', () => {
+    // "x AND dat:2026-03-02" with cursor at 9 (after "dat"), selectionEnd = 9
+    const input = 'x AND dat:2026-03-02';
+    const result = getSuggestions(input, 9);
+    const createdSugg = result.suggestions.find(s => s.text === 'created:');
+    expect(createdSugg).toBeDefined();
+
+    const newValue = acceptSuggestionWithSelection(
+      input, 'created:',
+      createdSugg!.replaceStart, createdSugg!.replaceEnd,
+      9, 9 // collapsed cursor
+    );
+    expect(newValue).toBe('x AND created:2026-03-02');
+  });
+});
+
 describe('Cursor at colon-value boundary', () => {
   it('cursor at colon end with following value returns FIELD_VALUE with token', () => {
     // "status:active" — offset 7 is at COLON(6,7).end = VALUE(7,13).start

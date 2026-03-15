@@ -346,6 +346,7 @@ export function ElasticInput(props: ElasticInputProps) {
       setValidationErrors(newErrors);
       setIsEmpty(text.length === 0);
       setCursorOffset(offset);
+      setSelectionEnd(offset);
 
       if (updateDropdown) {
         updateSuggestionsRef.current(newTokens, offset);

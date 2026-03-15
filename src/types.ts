@@ -282,4 +282,6 @@ export interface ElasticInputProps {
    * Receives the original `SavedSearch` and whether the item is currently selected.
    */
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
+  /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 }

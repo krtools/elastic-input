@@ -164,6 +164,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
+    onKeyDown: onKeyDownProp,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -274,12 +275,22 @@ export function ElasticInput(props: ElasticInputProps) {
     return containerRef.current.getBoundingClientRect().width;
   }, [dropdownAlignToInput]);
 
-  // Show dropdown, updating position. When dropdownAlignToInput is true and
-  // the dropdown is already visible, skip the hide/show cycle and position
-  // recomputation to prevent jitter.
+  // Show dropdown, updating position. In full-width mode the position is always
+  // the container bottom-left, so we set it synchronously (no rAF) to avoid
+  // stale-position flash and jitter. In caret-following mode we use rAF so the
+  // caret rect is measured after the DOM has updated.
   const showDropdownAtPosition = React.useCallback((height: number, width: number, kind: 'dropdown' | 'datePicker' = 'dropdown') => {
-    const alreadyVisible = kind === 'datePicker' ? stateRef.current.showDatePicker : stateRef.current.showDropdown;
-    if (dropdownAlignToInput && alreadyVisible) return; // position is stable
+    if (dropdownAlignToInput) {
+      // Container-relative: position is stable, set synchronously
+      if (kind === 'datePicker') {
+        setShowDatePicker(true);
+      } else {
+        setShowDropdown(true);
+      }
+      setDropdownPosition(computeDropdownPosition(height, width));
+      return;
+    }
+    // Caret-following: defer to rAF so caret rect is fresh
     requestAnimationFrame(() => {
       if (kind === 'datePicker') {
         setShowDatePicker(true);
@@ -747,6 +758,17 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, []);
 
+  // Proactively close dropdown when dropdownMode changes
+  React.useEffect(() => {
+    if (dropdownMode === 'never') {
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      setSuggestions([]);
+    }
+    // Reset manual activation when mode changes
+    manualActivationContextRef.current = null;
+  }, [dropdownMode]);
+
   // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
   const prevParenMatchRef = React.useRef<string | null>(null);
   const prevColorsRef = React.useRef(colors);
@@ -863,6 +885,10 @@ export function ElasticInput(props: ElasticInputProps) {
   }, [colors, onChange, onValidationChange, closeDropdown]);
 
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
+    // External handler gets first shot; if it preventDefault()s, skip internal handling
+    if (onKeyDownProp) onKeyDownProp(e as React.KeyboardEvent<HTMLDivElement>);
+    if (e.defaultPrevented) return;
+
     const s = stateRef.current;
 
     // Bracket/quote wrapping: when text is selected and user types an opening
@@ -981,7 +1007,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

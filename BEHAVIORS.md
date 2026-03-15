@@ -1120,6 +1120,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
 | `dropdownAlignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom |
 | `dropdownMode` | `'always' \| 'never' \| 'manual'` | `'always'` | Controls when the dropdown appears: always, never, or on Ctrl+Space |
+| `onKeyDown` | `(e: React.KeyboardEvent) => void` | — | Called before internal keyboard handling; `preventDefault()` skips internal handling |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

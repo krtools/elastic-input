@@ -1099,8 +1099,14 @@ export function ElasticInput(props: ElasticInputProps) {
                 const before = text.slice(0, offset);
                 const after = text.slice(offset);
                 const newValue = before + ' ' + after;
-                applyNewValue(newValue, offset + 1);
-                if (e.key === 'Enter' && onSearch) onSearch(newValue, s.ast);
+                const newPos = offset + 1;
+                applyNewValue(newValue, newPos, (newTokens) => {
+                  if (e.key === 'Enter') {
+                    if (onSearch) onSearch(newValue, s.ast);
+                  } else {
+                    updateSuggestionsFromTokens(newTokens, newPos);
+                  }
+                });
               } else {
                 if (e.key === 'Enter' && onSearch) onSearch(text, s.ast);
               }
@@ -1268,7 +1274,7 @@ export function ElasticInput(props: ElasticInputProps) {
       <AutocompleteDropdown
         suggestions={suggestions}
         selectedIndex={selectedSuggestionIndex}
-        onSelect={(s: Suggestion) => acceptSuggestion(s)}
+        onSelect={(s: Suggestion) => acceptSuggestion(s, 'Tab')}
         position={dropdownPosition}
         colors={colors}
         styles={stylesProp}

@@ -1,7 +1,14 @@
 import { ASTNode, RangeNode } from '../parser/ast';
-import { FieldConfig, ValidationContext } from '../types';
+import { FieldConfig, ValidationContext, ValidateReturn } from '../types';
 import { validateNumber } from './numberValidator';
 import { validateDate } from './dateValidator';
+
+/** Normalize a ValidateReturn into message + severity, or null if valid. */
+function normalizeValidateResult(result: ValidateReturn): { message: string; severity: 'error' | 'warning' } | null {
+  if (result == null) return null;
+  if (typeof result === 'string') return { message: result, severity: 'error' };
+  return result;
+}
 
 /** A validation or syntax error with character offsets for squiggly underline display. */
 export interface ValidationError {
@@ -155,7 +162,17 @@ export class Validator {
 
         // Custom validator
         if (!error && field.validate) {
-          error = field.validate(node.value, { position: 'FIELD_VALUE' });
+          const result = normalizeValidateResult(field.validate(node.value, { position: 'FIELD_VALUE' }));
+          if (result) {
+            const valueStart = node.end - node.value.length;
+            errors.push({
+              message: result.message,
+              start: valueStart,
+              end: node.end,
+              field: node.field,
+              severity: result.severity,
+            });
+          }
         }
 
         if (error) {
@@ -296,7 +313,16 @@ export class Validator {
     }
 
     if (!error && field.validate) {
-      error = field.validate(value, { position: 'FIELD_VALUE' });
+      const result = normalizeValidateResult(field.validate(value, { position: 'FIELD_VALUE' }));
+      if (result) {
+        errors.push({
+          message: result.message,
+          start,
+          end,
+          field: field.name,
+          severity: result.severity,
+        });
+      }
     }
 
     if (error) {
@@ -333,7 +359,16 @@ export class Validator {
 
       // Custom validator with range context
       if (!error && field.validate) {
-        error = field.validate(bound.value, bound.context);
+        const result = normalizeValidateResult(field.validate(bound.value, bound.context));
+        if (result) {
+          errors.push({
+            message: result.message,
+            start: bound.start,
+            end: bound.end,
+            field: field.name,
+            severity: result.severity,
+          });
+        }
       }
 
       if (error) {

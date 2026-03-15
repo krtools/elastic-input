@@ -930,9 +930,14 @@ Comparison operators (`>`, `>=`, `<`, `<=`) are only allowed on `number` and `da
 
 ### 9.9 Custom Validators
 
-Fields can provide a `validate` function that receives the value and returns an error string or `null`.
+Fields can provide a `validate` function that receives the value and returns:
+- `null` — valid, no issue
+- `string` — error message (red squiggles, backward compatible)
+- `{ message: string, severity: 'error' | 'warning' }` — explicit severity control. Warnings render as amber squiggles instead of red.
 
-- **Tests:** `Validator.test.ts` → "runs custom validator", "passes custom validator for valid value"
+The `ValidationResult` and `ValidateReturn` types are exported for consumers.
+
+- **Tests:** `Validator.test.ts` → "runs custom validator", "passes custom validator for valid value", "Validation warnings (ValidationResult return type)" suite
 
 ### 9.10 Nested Validation
 

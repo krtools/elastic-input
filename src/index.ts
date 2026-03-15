@@ -28,6 +28,8 @@ export type {
   ColorConfig,
   StyleConfig,
   ValidationContext,
+  ValidationResult,
+  ValidateReturn,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

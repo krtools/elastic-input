@@ -591,3 +591,91 @@ describe('ValidationContext in custom validate callback', () => {
     expect(errors[1].end).toBe(16);
   });
 });
+
+describe('Validation warnings (ValidationResult return type)', () => {
+  const warningFields: FieldConfig[] = [
+    {
+      name: 'email',
+      type: 'string',
+      validate: (v) => {
+        if (v.includes('*') || v.includes('?')) return null;
+        if (!v.includes('@')) return { message: 'Not a valid email', severity: 'warning' };
+        return null;
+      },
+    },
+    {
+      name: 'score',
+      type: 'number',
+      validate: (v) => {
+        const n = Number(v);
+        if (n > 1000) return { message: 'Unusually high score', severity: 'warning' };
+        if (n < 0) return 'Score cannot be negative'; // plain string = error
+        return null;
+      },
+    },
+  ];
+
+  function validateW(input: string) {
+    const tokens = new Lexer(input).tokenize();
+    const ast = new Parser(tokens).parse();
+    return new Validator(warningFields).validate(ast);
+  }
+
+  it('returns warning severity from validate callback', () => {
+    const errors = validateW('email:blah');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Not a valid email');
+    expect(errors[0].severity).toBe('warning');
+  });
+
+  it('returns no warning when value passes validation', () => {
+    expect(validateW('email:user@example.com')).toHaveLength(0);
+  });
+
+  it('returns no warning when wildcard is present', () => {
+    expect(validateW('email:*blah*')).toHaveLength(0);
+  });
+
+  it('plain string return is still treated as error', () => {
+    const errors = validateW('score:-5');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Score cannot be negative');
+    expect(errors[0].severity).toBe('error');
+  });
+
+  it('warning from number field validate', () => {
+    const errors = validateW('score:9999');
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Unusually high score');
+    expect(errors[0].severity).toBe('warning');
+  });
+
+  it('warning on range bounds', () => {
+    const rangeFields: FieldConfig[] = [{
+      name: 'score',
+      type: 'number',
+      validate: (v, ctx) => {
+        const n = Number(v);
+        if (ctx?.position === 'RANGE_END' && n > 1000) {
+          return { message: 'Upper bound is very high', severity: 'warning' };
+        }
+        return null;
+      },
+    }];
+    const tokens = new Lexer('score:[0 TO 5000]').tokenize();
+    const ast = new Parser(tokens).parse();
+    const errors = new Validator(rangeFields).validate(ast);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Upper bound is very high');
+    expect(errors[0].severity).toBe('warning');
+  });
+
+  it('warning in field group context', () => {
+    const tokens = new Lexer('email:(blah)').tokenize();
+    const ast = new Parser(tokens).parse();
+    const errors = new Validator(warningFields).validate(ast);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toBe('Not a valid email');
+    expect(errors[0].severity).toBe('warning');
+  });
+});

@@ -2,7 +2,12 @@ import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem } from '../src/t
 
 export const CRM_FIELDS: FieldConfig[] = [
   { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
-  { name: 'email', label: 'Email', type: 'string', description: 'Email address' },
+  { name: 'email', label: 'Email', type: 'string', description: 'Email address',
+    validate: (v) => {
+      if (v.includes('*') || v.includes('?')) return null; // wildcards are fine
+      if (!v.includes('@')) return { message: 'Not a valid email — did you mean to use a wildcard (*)?', severity: 'warning' as const };
+      return null;
+    } },
   { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number',
     validate: (v) => /^[\d\-\+\(\)\s]+$/.test(v) ? null : 'Invalid phone format' },
   { name: 'status', label: 'Status', type: 'enum',

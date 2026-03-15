@@ -485,3 +485,38 @@ describe('Tab vs Enter behavior for field value selection', () => {
     expect(newValue).toBe('status:active AND level:ERROR ');
   });
 });
+
+describe('Hint suggestions in freeform fields', () => {
+  it('string field returns a hint suggestion with empty text', () => {
+    const engine = getEngine();
+    const result = getSuggestions(engine, 'name:something');
+    expect(result.context.type).toBe('FIELD_VALUE');
+    expect(result.context.fieldName).toBe('name');
+    // Freeform fields produce a hint (non-selectable), not a real suggestion
+    expect(result.suggestions.length).toBe(1);
+    expect(result.suggestions[0].type).toBe('hint');
+    expect(result.suggestions[0].text).toBe('');
+  });
+
+  it('Tab on a hint should "exit" the field — trailing space confirms the value', () => {
+    // Simulates the ElasticInput keydown handler behavior:
+    // When Tab/Enter hits a non-interactive hint, close dropdown and add trailing space.
+    const engine = getEngine();
+    const input = 'name:something';
+    const result = getSuggestions(engine, input);
+    const hint = result.suggestions[0];
+
+    // The hint has empty text — accepting it via the normal path would delete
+    // the value. Instead, the component adds a trailing space at cursor offset.
+    const cursorOffset = input.length;
+    const newValue = input.slice(0, cursorOffset) + ' ' + input.slice(cursorOffset);
+    const newCursorPos = cursorOffset + 1;
+
+    expect(newValue).toBe('name:something ');
+    expect(newCursorPos).toBe(15);
+
+    // After exiting, cursor is past the space — context should change
+    const next = getSuggestions(engine, newValue, newCursorPos);
+    expect(next.context.type).not.toBe('FIELD_VALUE');
+  });
+});

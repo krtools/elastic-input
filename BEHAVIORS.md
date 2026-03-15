@@ -728,8 +728,11 @@ The dropdown's selected index determines which item is highlighted and which Ent
 
 - **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus).
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
+- **Non-interactive hint selected** (freeform fields like `name:something` where the only dropdown item is a hint such as "Type to search..."): Tab adds a trailing space after the typed value and closes the dropdown, confirming the term. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
 - **ArrowUp past first item**: deselects all (returns to index -1).
 - **Loading state** ("Searching..." for async fields): no item is pre-selected.
+
+- **Tests:** `SuggestionChaining.test.ts` → "string field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
 
 ---
 

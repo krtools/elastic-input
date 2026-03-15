@@ -20,6 +20,11 @@ interface SquigglyRect {
   error: ValidationError;
 }
 
+// Max errors to measure — avoids DOM-measuring hundreds of squigglies
+const MAX_VISIBLE_ERRORS = 30;
+// Debounce delay for DOM measurements during active input
+const MEASURE_DEBOUNCE_MS = 150;
+
 function findPositionAtOffset(
   parent: Node,
   targetOffset: number
@@ -91,7 +96,7 @@ function getOffsetRects(
   return results;
 }
 
-function getSquigglyRects(
+function measureSquigglyRects(
   errors: ValidationError[],
   editorRef: HTMLDivElement | null,
   cursorOffset: number
@@ -99,8 +104,11 @@ function getSquigglyRects(
   if (!editorRef || errors.length === 0) return [];
 
   const rects: SquigglyRect[] = [];
+  let measured = 0;
 
   for (const error of errors) {
+    if (measured >= MAX_VISIBLE_ERRORS) break;
+
     // Deferred display: don't show error if cursor is within the error range
     if (cursorOffset >= error.start && cursorOffset <= error.end) {
       continue;
@@ -116,6 +124,7 @@ function getSquigglyRects(
         error,
       });
     }
+    measured++;
   }
 
   return rects;
@@ -133,11 +142,33 @@ function squigglyBgForColor(hexColor: string) {
 export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef }: ValidationSquigglesProps) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const [mousePos, setMousePos] = React.useState<{ x: number; clientY: number }>({ x: 0, clientY: 0 });
+  const [rects, setRects] = React.useState<SquigglyRect[]>([]);
   const rectsRef = React.useRef<SquigglyRect[]>([]);
   const tooltipRef = React.useRef<HTMLDivElement | null>(null);
+  const measureTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const rects = getSquigglyRects(errors, editorRef, cursorOffset);
-  rectsRef.current = rects;
+  // Debounce DOM measurements: schedule after a pause in input changes
+  React.useEffect(() => {
+    if (measureTimerRef.current) clearTimeout(measureTimerRef.current);
+
+    // If errors cleared, update immediately (no DOM measurement needed)
+    if (errors.length === 0) {
+      setRects([]);
+      rectsRef.current = [];
+      setHoveredIndex(null);
+      return;
+    }
+
+    measureTimerRef.current = setTimeout(() => {
+      const measured = measureSquigglyRects(errors, editorRef, cursorOffset);
+      setRects(measured);
+      rectsRef.current = measured;
+    }, MEASURE_DEBOUNCE_MS);
+
+    return () => {
+      if (measureTimerRef.current) clearTimeout(measureTimerRef.current);
+    };
+  }, [errors, editorRef, cursorOffset]);
 
   // Track mouse position at the container level to detect hover over error text
   // without blocking clicks on the editor

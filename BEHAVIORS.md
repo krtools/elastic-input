@@ -846,6 +846,8 @@ Validation errors are rendered as red wavy underlines beneath the invalid text. 
 
 The squigglies are absolutely positioned relative to the input container, with positions computed from DOM `Range.getClientRects()` measurements. For errors spanning multiple lines, each line gets its own squiggly underline (one rect per line), preventing the single-bounding-box problem where a multi-line range would produce a squiggly covering the entire width of the input.
 
+DOM measurements for squiggly positions are **debounced** (150ms) to avoid layout thrashing during rapid input. A maximum of 30 errors are measured per cycle to cap the cost of large queries with many validation errors. When errors clear entirely (e.g., deleting all text), squigglies are removed immediately without waiting for the debounce.
+
 ### 9.2 Hover Tooltips
 
 Hovering over a squiggly underline displays a styled tooltip with the error/warning message. The tooltip:

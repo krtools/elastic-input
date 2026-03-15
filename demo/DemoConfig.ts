@@ -15,7 +15,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'tags', label: 'Tags', type: 'string',
     suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
     description: 'Contact tags' },
-  { name: 'age', label: 'Age', type: 'number', description: 'Contact age (years since DOB)' },
+  { name: 'age', label: 'Age', type: 'string', description: 'Contact age (years since DOB)', placeholder: false },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)', asyncSearch: true },
 ];
 
@@ -66,6 +66,13 @@ export function demoValidateValue(ctx: ValidateValueContext): ValidateReturn {
   if (ctx.fieldName === 'phone') {
     if (!/^[\d\-\+\(\)\s]+$/.test(ctx.value)) {
       return 'Invalid phone format';
+    }
+  }
+
+  // Age format: single number, range (21-27), or comma-separated (21,24,23-29)
+  if (ctx.fieldName === 'age' && ctx.position === 'field_value') {
+    if (!/^\d+(-\d+)?(,\d+(-\d+)?)*$/.test(ctx.value)) {
+      return 'Expected age, range (21-27), or list (21,24,23-29)';
     }
   }
 

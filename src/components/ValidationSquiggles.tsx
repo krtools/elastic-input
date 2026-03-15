@@ -156,12 +156,10 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       setHoveredIndex(null);
     };
 
-    container.addEventListener('mousemove', handleMouseMove);
-    container.addEventListener('mouseleave', handleMouseLeave);
-    return () => {
-      container.removeEventListener('mousemove', handleMouseMove);
-      container.removeEventListener('mouseleave', handleMouseLeave);
-    };
+    const controller = new AbortController();
+    container.addEventListener('mousemove', handleMouseMove, { signal: controller.signal });
+    container.addEventListener('mouseleave', handleMouseLeave, { signal: controller.signal });
+    return () => controller.abort();
   }, [containerRef, editorRef]);
 
   if (rects.length === 0) return null;
@@ -196,46 +194,43 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q2 0 4 2 Q6 4 8 2' stroke='${encoded}' fill='none' stroke-width='0.8'/%3E%3C/svg%3E")`;
   }
 
-  return React.createElement(React.Fragment, null,
-    ...rects.map((r, i) => {
-      const isWarning = r.error.severity === 'warning';
-      const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
-      const svgBg = squigglyBgForColor(squigglyColor);
-      // Position the wave just under the text
-      const waveTop = r.top + r.height - 2;
+  return (
+    <>
+      {rects.map((r, i) => {
+        const isWarning = r.error.severity === 'warning';
+        const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
+        const svgBg = squigglyBgForColor(squigglyColor);
+        const waveTop = r.top + r.height - 2;
 
-      const tooltipStyle: React.CSSProperties = {
-        ...makeTooltipStyle(r),
-        color: squigglyColor,
-        borderColor: squigglyColor,
-      };
+        const tooltipStyle: React.CSSProperties = {
+          ...makeTooltipStyle(r),
+          color: squigglyColor,
+          borderColor: squigglyColor,
+        };
 
-      return [
-        // Wave underline — pointerEvents none so it never blocks the editor
-        React.createElement('div', {
-          key: `wave-${i}`,
-          style: {
-            position: 'absolute' as const,
-            left: `${r.left}px`,
-            top: `${waveTop}px`,
-            width: `${r.width}px`,
-            height: '4px',
-            zIndex: 1,
-            backgroundImage: svgBg,
-            backgroundRepeat: 'repeat-x',
-            backgroundPosition: 'left top',
-            backgroundSize: 'auto 4px',
-            pointerEvents: 'none' as const,
-          },
-        },
-          // Tooltip anchored to the wave position, shown when hovered
-          hoveredIndex === i
-            ? React.createElement('div', {
-                style: tooltipStyle,
-              }, r.error.message)
-            : null,
-        ),
-      ];
-    })
+        return (
+          <div
+            key={`wave-${i}`}
+            style={{
+              position: 'absolute',
+              left: `${r.left}px`,
+              top: `${waveTop}px`,
+              width: `${r.width}px`,
+              height: '4px',
+              zIndex: 1,
+              backgroundImage: svgBg,
+              backgroundRepeat: 'repeat-x',
+              backgroundPosition: 'left top',
+              backgroundSize: 'auto 4px',
+              pointerEvents: 'none',
+            }}
+          >
+            {hoveredIndex === i ? (
+              <div style={tooltipStyle}>{r.error.message}</div>
+            ) : null}
+          </div>
+        );
+      })}
+    </>
   );
 }

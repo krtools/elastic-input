@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "target": "ES2018",
+    "target": "ES2022",
     "module": "ESNext",
-    "lib": ["DOM", "DOM.Iterable", "ES2018"],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "jsx": "react",
     "declaration": true,
     "declarationDir": "dist",

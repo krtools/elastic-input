@@ -1,6 +1,17 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Suggestion } from '../autocomplete/suggestionTypes';
+
+// Inject spinner keyframes once
+if (typeof document !== 'undefined') {
+  const styleId = 'elastic-input-keyframes';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = '@keyframes elastic-input-spin { to { transform: rotate(360deg); } }';
+    document.head.appendChild(style);
+  }
+}
 import { ColorConfig, StyleConfig } from '../types';
 import {
   mergeColors,
@@ -42,11 +53,7 @@ function highlightMatch(text: string, partial: string | undefined, isSelected: b
     textUnderlineOffset: '2px',
   };
 
-  return React.createElement(React.Fragment, null,
-    before,
-    React.createElement('span', { style: matchStyle }, match),
-    after,
-  );
+  return <>{before}<span style={matchStyle}>{match}</span>{after}</>;
 }
 
 export function AutocompleteDropdown({
@@ -132,7 +139,6 @@ export function AutocompleteDropdown({
                 {suggestion.label || 'Searching...'}
               </span>
               <span style={{ marginLeft: '6px', display: 'inline-block', animation: 'elastic-input-spin 1s linear infinite', width: '14px', height: '14px', border: '2px solid', borderColor: `${mergedColors.placeholder} transparent ${mergedColors.placeholder} transparent`, borderRadius: '50%' }} />
-              <style>{`@keyframes elastic-input-spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           );
         }

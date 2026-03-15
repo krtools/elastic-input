@@ -16,10 +16,11 @@
     "test:watch": "vitest"
   },
   "browserslist": [
-    "Chrome >= 85",
-    "Firefox >= 103",
-    "Safari >= 16.4",
-    "Edge >= 85"
+    "Chrome >= 115",
+    "Firefox >= 140",
+    "Safari >= 18.0",
+    "Edge >= 122",
+    "Samsung >= 23"
   ],
   "engines": {
     "node": ">=18.0.0"

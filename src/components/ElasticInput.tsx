@@ -139,7 +139,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const typingGroupTimerRef = React.useRef<any>(null);
   const isUndoRedoRef = React.useRef(false);
 
-  const fetchIdRef = React.useRef(0);       // monotonic counter to discard stale async results
+  const abortControllerRef = React.useRef<AbortController | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
 
   // Mutable refs for engine/validator so they stay current without re-renders
@@ -245,7 +245,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (result.showDatePicker) {
       // Context changed to date picker — cancel any async cycle
       asyncActiveRef.current = false;
-      fetchIdRef.current++;
+      abortControllerRef.current?.abort();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
       setSuggestions([]);
@@ -268,7 +268,7 @@ export function ElasticInput(props: ElasticInputProps) {
     } else if (!willFetchAsync) {
       // Context changed away from async field — cancel any in-flight async work
       asyncActiveRef.current = false;
-      fetchIdRef.current++;
+      abortControllerRef.current?.abort();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
 
@@ -331,9 +331,10 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
-
-      // Increment fetch ID — any in-flight fetch with a lower ID is stale
-      const currentFetchId = ++fetchIdRef.current;
+      // Abort previous fetch and create new controller
+      abortControllerRef.current?.abort();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       debounceTimerRef.current = setTimeout(async () => {
         const token = result.context.token;
@@ -343,8 +344,8 @@ export function ElasticInput(props: ElasticInputProps) {
         try {
           const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);
 
-          // Discard stale results — a newer fetch has been initiated
-          if (fetchIdRef.current !== currentFetchId) return;
+          // Discard stale results — this fetch was aborted
+          if (controller.signal.aborted) return;
 
           const mapped: Suggestion[] = fetchedSuggestions.map(s => ({
             text: s.text,
@@ -384,9 +385,8 @@ export function ElasticInput(props: ElasticInputProps) {
             }
           }
         } catch (e) {
-    
           // Only close dropdown if this is still the latest request
-          if (fetchIdRef.current === currentFetchId) {
+          if (!controller.signal.aborted) {
             setShowDropdown(false);
             setSuggestions([]);
             asyncActiveRef.current = false;
@@ -403,7 +403,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setSelectedSuggestionIndex(-1);
     // Cancel any in-flight async work
     asyncActiveRef.current = false;
-    fetchIdRef.current++;
+    abortControllerRef.current?.abort();
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
   }, []);
 
@@ -588,11 +588,11 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [value, processInput]);
 
-  // Cleanup debounce timer
+  // Cleanup debounce timer and abort in-flight fetches
   React.useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-
+      abortControllerRef.current?.abort();
     };
   }, []);
 

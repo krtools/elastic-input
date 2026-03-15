@@ -207,6 +207,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const isUndoRedoRef = React.useRef(false);
 
   const abortControllerRef = React.useRef<AbortController | null>(null);
+  const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
@@ -301,6 +302,17 @@ export function ElasticInput(props: ElasticInputProps) {
     });
   }, [dropdownAlignToInput, computeDropdownPosition]);
 
+  // Threshold: above this token count, debounce the expensive innerHTML replacement
+  const HIGHLIGHT_DEBOUNCE_THRESHOLD = 80;
+  const HIGHLIGHT_DEBOUNCE_MS = 60;
+
+  const applyHighlight = React.useCallback((tokens: Token[], offset: number) => {
+    if (!editorRef.current) return;
+    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset });
+    editorRef.current.innerHTML = html;
+    setCaretCharOffset(editorRef.current, offset);
+  }, [colors]);
+
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     const lexer = new Lexer(text);
     const newTokens = lexer.tokenize();
@@ -311,9 +323,21 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: offset });
-      editorRef.current.innerHTML = html;
-      setCaretCharOffset(editorRef.current, offset);
+
+      // For large inputs during user typing, debounce the expensive DOM rebuild
+      if (updateDropdown && newTokens.length > HIGHLIGHT_DEBOUNCE_THRESHOLD) {
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = setTimeout(() => {
+          highlightTimerRef.current = null;
+          if (editorRef.current) {
+            const freshOffset = getCaretCharOffset(editorRef.current);
+            applyHighlight(newTokens, freshOffset);
+          }
+        }, HIGHLIGHT_DEBOUNCE_MS);
+      } else {
+        if (highlightTimerRef.current) { clearTimeout(highlightTimerRef.current); highlightTimerRef.current = null; }
+        applyHighlight(newTokens, offset);
+      }
 
       setTokens(newTokens);
       setAst(newAst);
@@ -333,7 +357,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange]);
+  }, [colors, onChange, onValidationChange, applyHighlight]);
 
   // Apply renderFieldHint to hint suggestions when in a field value context
   const applyFieldHint = React.useCallback((suggestions: Suggestion[], context: { type: string; fieldName?: string; partial: string }) => {
@@ -754,6 +778,7 @@ export function ElasticInput(props: ElasticInputProps) {
   React.useEffect(() => {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
       abortControllerRef.current?.abort();
     };
   }, []);

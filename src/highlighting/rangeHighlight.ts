@@ -9,7 +9,7 @@ export interface RangePart {
 }
 
 const RANGE_COLOR_MAP: Record<RangePartType, keyof ColorConfig> = {
-  bracket: 'operator',
+  bracket: 'paren',
   toKeyword: 'booleanOp',
   bareValue: 'fieldValue',
   quotedValue: 'quoted',

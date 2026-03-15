@@ -2,7 +2,6 @@
   "name": "elastic-input",
   "version": "0.1.0",
   "description": "Syntax-aware smart autocomplete input for Elastic query syntax",
-  "main": "dist/elastic-input.cjs.js",
   "module": "dist/elastic-input.es.js",
   "types": "dist/index.d.ts",
   "files": [

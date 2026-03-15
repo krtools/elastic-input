@@ -10,8 +10,8 @@ export default defineConfig({
     lib: {
       entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'ElasticInput',
-      formats: ['es', 'cjs'],
-      fileName: (format) => `elastic-input.${format}.js`,
+      formats: ['es'],
+      fileName: () => `elastic-input.es.js`,
     },
     rollupOptions: {
       external: ['react', 'react-dom'],

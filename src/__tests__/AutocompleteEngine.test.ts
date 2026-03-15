@@ -4,8 +4,8 @@ import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig, SavedSearch, HistoryEntry } from '../types';
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', label: 'Status', type: 'enum', suggestions: ['active', 'inactive', 'pending'] },
-  { name: 'level', label: 'Log Level', type: 'enum', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] },
+  { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
+  { name: 'level', label: 'Log Level', type: 'string', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] },
   { name: 'name', label: 'Contact Name', type: 'string' },
   { name: 'price', label: 'Price', type: 'number' },
   { name: 'created', label: 'Created Date', type: 'date' },
@@ -553,7 +553,7 @@ describe('AutocompleteEngine', () => {
 
   describe('asyncSearch flag', () => {
     const mixedFields: FieldConfig[] = [
-      { name: 'status', type: 'enum', suggestions: ['active', 'inactive', 'pending'] },
+      { name: 'status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
       { name: 'company', type: 'string', asyncSearch: true, placeholder: 'Search companies...' },
       { name: 'email', type: 'string' },
       { name: 'brand', type: 'string', asyncSearch: true },
@@ -606,7 +606,7 @@ describe('AutocompleteEngine', () => {
   describe('field aliases', () => {
     const aliasedFields: FieldConfig[] = [
       { name: 'name', type: 'string', label: 'Contact Name', aliases: ['contact_name', 'full_name'] },
-      { name: 'status', type: 'enum', suggestions: ['active', 'inactive'], aliases: ['state'] },
+      { name: 'status', type: 'string', suggestions: ['active', 'inactive'], aliases: ['state'] },
       { name: 'price', type: 'number' },
     ];
 

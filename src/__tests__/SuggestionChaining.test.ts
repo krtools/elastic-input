@@ -16,8 +16,8 @@ import { Suggestion } from '../autocomplete/suggestionTypes';
  */
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', label: 'Status', type: 'enum', suggestions: ['active', 'inactive', 'pending'] },
-  { name: 'level', label: 'Log Level', type: 'enum', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR'] },
+  { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
+  { name: 'level', label: 'Log Level', type: 'string', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR'] },
   { name: 'name', label: 'Name', type: 'string' },
   { name: 'price', label: 'Price', type: 'number' },
   { name: 'created', label: 'Created Date', type: 'date' },

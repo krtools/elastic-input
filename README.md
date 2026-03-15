@@ -35,7 +35,7 @@ const fields: FieldConfig[] = [
   {
     name: 'status',
     label: 'Status',
-    type: 'enum',
+    type: 'string',
     suggestions: ['active', 'inactive', 'pending'],
     description: 'Account status',
   },
@@ -129,10 +129,9 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 interface FieldConfig {
   name: string;          // Field identifier used in queries
   label?: string;        // Display label (used in autocomplete)
-  type: FieldType;       // 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'ip'
-  suggestions?: string[];// Autocomplete values (required for 'enum' type)
+  type: FieldType;       // 'string' | 'number' | 'date' | 'boolean' | 'ip'
+  suggestions?: string[];// Autocomplete values (any field type can have suggestions)
   operators?: string[];  // Allowed operators (future use)
-  validate?: (value: string) => string | null; // Custom validator
   description?: string;  // Shown in autocomplete dropdown
 }
 ```
@@ -141,7 +140,6 @@ interface FieldConfig {
 
 | Type | Autocomplete | Validation | Comparison Ops |
 |------|-------------|------------|----------------|
-| `enum` | Shows `suggestions` list, filtered by input | Must match a suggestion | No |
 | `boolean` | Shows `true` / `false` | Must be `true` or `false` | No |
 | `number` | Shows hint "Enter a number" | Must be numeric | Yes (`>`, `>=`, `<`, `<=`) |
 | `date` | Opens date picker with calendar | ISO dates, relative dates (`now-7d`) | Yes |
@@ -400,7 +398,7 @@ const ast = parser.parse();
 
 // Validate
 const fields: FieldConfig[] = [
-  { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
+  { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
   { name: 'price', type: 'number' },
 ];
 const validator = new Validator(fields);

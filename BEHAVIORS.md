@@ -422,7 +422,7 @@ Shown in `FIELD_VALUE` context. Behavior depends on field type:
 
 | Field Type | Behavior |
 |------------|----------|
-| `enum` | Shows `field.suggestions` filtered by partial (startsWith > includes). Skipped when `fetchSuggestions` is provided — async is the single source of truth. |
+| `string` (with `suggestions`) | Shows `field.suggestions` filtered by partial (startsWith > includes). Skipped when `fetchSuggestions` is provided — async is the single source of truth. |
 | `boolean` | Shows `true`, `false` filtered by partial |
 | `date` | Opens a date picker (no text suggestions) |
 | `number` | Shows hint: "Enter a number" (persists while typing) |
@@ -440,7 +440,7 @@ When async results arrive (via `fetchSuggestions`), they replace the hint. When 
 
 For fully custom hint rendering (e.g. multiline rich content with instructions), the `renderFieldHint` prop accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
 
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field with no suggestions", "shows hint for IP field", "shows no hint while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all values after colon for field with suggestions", "filters values by prefix", "filters values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field with no suggestions", "shows hint for IP field", "shows no hint while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
 ### 4.3 Operator Suggestions
 
@@ -596,7 +596,7 @@ Accepting a field suggestion (e.g., `status:`) immediately shows value suggestio
 - Type `is` → accept `is_vip:` → shows `[true, false]`
 - Type `pri` → accept `price:` → shows hint "Enter a number"
 - Type `cre` → accept `created:` → opens date picker
-- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows enum value suggestions", "selecting \"level:\" shows enum value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows no suggestions (string field, no default hint)"
+- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows value suggestions", "selecting \"level:\" shows value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows no suggestions (string field, no default hint)"
 
 ### 6.2 Value → Operator
 
@@ -920,14 +920,13 @@ Errors are placed precisely on the relevant part of the input:
 
 | Field Type | Valid | Invalid |
 |------------|-------|---------|
-| `enum` | — (no built-in validation; `suggestions` drive autocomplete only) | — |
 | `boolean` | `true`, `false` | Anything else |
 | `number` | Integers, decimals, negatives | Non-numeric strings |
 | `date` | ISO format, relative (`now-7d`) | Invalid formats |
 | `ip` | Valid IPv4, wildcards (`192.168.*`) | Malformed addresses |
 | `string` | Anything | — |
 
-- **Tests:** `Validator.test.ts` → "does not validate enum values (autocomplete only)", "flags invalid numbers", "accepts valid numbers", "flags invalid booleans", "accepts valid booleans", "flags invalid IP addresses", "accepts valid IP addresses", "accepts wildcard IP", "flags invalid dates", "accepts valid date formats"
+- **Tests:** `Validator.test.ts` → "flags invalid numbers", "accepts valid numbers", "flags invalid booleans", "accepts valid booleans", "flags invalid IP addresses", "accepts valid IP addresses", "accepts wildcard IP", "flags invalid dates", "accepts valid date formats"
 
 ### 9.8 Comparison Operator Validation
 
@@ -989,7 +988,6 @@ Range expressions (`RangeNode`) are validated by checking each bound against the
 | `date` | Both bounds must be valid dates | `created:[now-7d TO now]` ✓, `created:[invalid TO now]` ✗ |
 | `boolean` | Ranges not supported | `is_vip:[true TO false]` ✗ |
 | `string`, `ip` | No validation (lexicographic OK) | `name:[abc TO def]` ✓ |
-| `enum` | No range-specific validation | |
 
 Rounding syntax (`now/d`, `now-1d/d`) is accepted for date ranges. Unknown fields produce an "Unknown field" error.
 

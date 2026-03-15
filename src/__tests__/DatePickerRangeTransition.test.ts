@@ -7,7 +7,7 @@ import { parseDate } from '../utils/dateUtils';
 
 const FIELDS: FieldConfig[] = [
   { name: 'created', label: 'Created Date', type: 'date' },
-  { name: 'status', label: 'Status', type: 'enum', suggestions: ['active'] },
+  { name: 'status', label: 'Status', type: 'string', suggestions: ['active'] },
   { name: 'price', label: 'Price', type: 'number' },
 ];
 

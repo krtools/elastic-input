@@ -5,7 +5,7 @@ import { Validator, ValidateValueFn } from '../validation/Validator';
 import { FieldConfig, ValidateValueContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
+  { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
   { name: 'price', type: 'number' },
   { name: 'created', type: 'date' },
   { name: 'is_vip', type: 'boolean' },
@@ -442,7 +442,7 @@ describe('Ambiguous precedence warnings', () => {
     const ALIASED_FIELDS: FieldConfig[] = [
       { name: 'name', type: 'string', aliases: ['contact_name', 'full_name'] },
       { name: 'price', type: 'number', aliases: ['cost'] },
-      { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
+      { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
     ];
 
     function validateAliased(input: string) {

@@ -4,7 +4,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
   { name: 'email', label: 'Email', type: 'string', description: 'Email address' },
   { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number' },
-  { name: 'status', label: 'Status', type: 'enum',
+  { name: 'status', label: 'Status', type: 'string',
     suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
     description: 'Contact status', placeholder: 'Search statuses...' },
   { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true, asyncSearchLabel: 'Searching companies...' },
@@ -12,16 +12,16 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
   { name: 'last_contact', label: 'Last Contact', type: 'date', description: 'Last interaction date' },
   { name: 'is_vip', label: 'VIP', type: 'boolean', description: 'Whether the contact is a VIP' },
-  { name: 'tags', label: 'Tags', type: 'enum',
+  { name: 'tags', label: 'Tags', type: 'string',
     suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
     description: 'Contact tags' },
 ];
 
 export const LOG_FIELDS: FieldConfig[] = [
-  { name: 'level', label: 'Log Level', type: 'enum',
+  { name: 'level', label: 'Log Level', type: 'string',
     suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
     description: 'Severity level' },
-  { name: 'service', label: 'Service', type: 'enum',
+  { name: 'service', label: 'Service', type: 'string',
     suggestions: ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service'],
     description: 'Microservice name' },
   { name: 'message', label: 'Message', type: 'string', description: 'Log message content' },
@@ -35,7 +35,7 @@ export const LOG_FIELDS: FieldConfig[] = [
 
 export const ECOMMERCE_FIELDS: FieldConfig[] = [
   { name: 'product', label: 'Product Name', type: 'string', description: 'Product name' },
-  { name: 'category', label: 'Category', type: 'enum',
+  { name: 'category', label: 'Category', type: 'string',
     suggestions: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
     description: 'Product category' },
   { name: 'price', label: 'Price', type: 'number', description: 'Product price' },

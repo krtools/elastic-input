@@ -12,7 +12,7 @@ function parse(input: string) {
 }
 
 const FIELDS = [
-  { name: 'status', type: 'enum' as const, suggestions: ['active', 'inactive'] },
+  { name: 'status', type: 'string' as const, suggestions: ['active', 'inactive'] },
   { name: 'name', type: 'string' as const },
   { name: 'price', type: 'number' as const },
 ];

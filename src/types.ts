@@ -3,7 +3,7 @@ import { ASTNode } from './parser/ast';
 import { ValidationError } from './validation/Validator';
 
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
-export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'ip';
+export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'ip';
 
 /** Structured result from a custom validation callback, allowing explicit severity control. */
 export interface ValidationResult {
@@ -232,7 +232,7 @@ export interface ElasticInputAPI {
  * ```tsx
  * <ElasticInput
  *   fields={[
- *     { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
+ *     { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
  *     { name: 'price', type: 'number' },
  *   ]}
  *   onSearch={(query, ast) => console.log('Search:', query)}

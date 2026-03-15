@@ -73,6 +73,7 @@ export function DemoApp() {
   }, [showTabMenu]);
 
   const handleTab = React.useCallback((ctx: TabContext): TabActionResult => {
+    if (ctx.suggestion) return { accept: true };
     return { accept: tabActions.accept, blur: tabActions.blur, submit: tabActions.submit };
   }, [tabActions]);
 

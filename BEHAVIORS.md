@@ -335,7 +335,8 @@ Returned when typing a bare word that could be a field name.
 - Cursor at position 0 in `status:active` → `FIELD_NAME`, partial=`"status"`
 - After `AND ` → `FIELD_NAME`, partial=`""`
 - After `-` prefix → `FIELD_NAME`, partial=`""`
-- **Tests:** `CursorContext.test.ts` → "returns FIELD_NAME while typing a word", "returns FIELD_NAME with cursor mid-word", "returns FIELD_NAME after AND", "returns FIELD_NAME after OR", "returns FIELD_NAME after NOT", "returns FIELD_NAME while typing after AND"
+- Cursor before an orphan colon (no preceding field name): `|:blah`, `(|:blah)`, `acme AND |:blah` → `FIELD_NAME`, partial=`""`. This allows field autocomplete when the user forgot to type the field name before a colon.
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_NAME while typing a word", "returns FIELD_NAME with cursor mid-word", "returns FIELD_NAME after AND", "returns FIELD_NAME after OR", "returns FIELD_NAME after NOT", "returns FIELD_NAME while typing after AND", "returns FIELD_NAME at cursor before orphan colon at start of input", "returns FIELD_NAME at cursor before orphan colon after LPAREN", "returns FIELD_NAME at cursor before orphan colon after AND", "returns FIELD_NAME at cursor before orphan colon in grouped expression"
 
 ### 3.4 Field Value Context
 

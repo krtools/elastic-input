@@ -46,6 +46,27 @@ describe('getCursorContext', () => {
     it('returns FIELD_NAME while typing after AND', () => {
       expect(getContext('a AND st')).toMatchObject({ type: 'FIELD_NAME', partial: 'st' });
     });
+
+    it('returns FIELD_NAME at cursor before orphan colon at start of input', () => {
+      expect(getContext(':blah', 0)).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+    });
+
+    it('returns FIELD_NAME at cursor before orphan colon after LPAREN', () => {
+      expect(getContext('(:blah)', 1)).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+    });
+
+    it('returns FIELD_NAME at cursor before orphan colon after AND', () => {
+      expect(getContext('acme AND :blah', 9)).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+    });
+
+    it('returns FIELD_NAME at cursor before orphan colon in grouped expression', () => {
+      expect(getContext('(acme AND :blah)', 10)).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+    });
+
+    it('returns FIELD_VALUE at end of colon even with orphan-colon-like input', () => {
+      // cursor at end of colon (not start) — always FIELD_VALUE
+      expect(getContext(':blah', 1)).toMatchObject({ type: 'FIELD_VALUE', partial: 'blah' });
+    });
   });
 
   describe('field value context', () => {

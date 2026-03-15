@@ -725,6 +725,10 @@ export class Parser {
         }
         if (tokens[i].type !== TokenType.WHITESPACE) break;
       }
+      // Cursor at start of colon with no preceding field name — suggest field names
+      if (!fieldName && cursorOffset === currentToken.start) {
+        return { type: 'FIELD_NAME', partial: '', token: undefined };
+      }
       // If cursor is at the end of the colon and a value token follows,
       // include that value token so replacements cover it
       if (cursorOffset === currentToken.end) {

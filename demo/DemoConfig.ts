@@ -15,6 +15,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'tags', label: 'Tags', type: 'string',
     suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
     description: 'Contact tags' },
+  { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)', asyncSearch: true },
 ];
 
 export const LOG_FIELDS: FieldConfig[] = [
@@ -102,6 +103,11 @@ ALL_FIELD_VALUES['company'] = MOCK_COMPANIES;
 ALL_FIELD_VALUES['brand'] = MOCK_BRANDS;
 
 export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
+  // Simulate a broken endpoint for the "broken" demo field
+  if (fieldName === 'broken') {
+    return new Promise((_, reject) => setTimeout(() => reject(new Error('Service unavailable')), 300));
+  }
+
   const items = ALL_FIELD_VALUES[fieldName];
   if (!items) return Promise.resolve([]);
 

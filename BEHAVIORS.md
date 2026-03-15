@@ -537,6 +537,13 @@ The "Searching..." loading item is a non-selectable dropdown entry with an anima
 
 Async fetches are debounced by `suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
 
+#### 4.8.5 Error Handling
+
+When `fetchSuggestions` throws or rejects, the dropdown shows an error message instead of silently closing. The error message is the exception's `message` property (or a generic fallback). The error item is non-interactive (not selectable, styled in the `error` color from `ColorConfig`).
+
+- Stale errors (from aborted requests) are discarded, same as stale results.
+- Typing again triggers a new fetch attempt — no manual retry needed.
+
 ### 4.9 Dropdown Header (`renderDropdownHeader`)
 
 An optional header can be rendered above the suggestion list via the `renderDropdownHeader` prop. The callback receives the current `CursorContext` and returns a `ReactNode`, `null`, or `undefined`. When the return value is nullish, no header is shown.

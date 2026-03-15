@@ -162,6 +162,17 @@ export function AutocompleteDropdown({
           );
         }
 
+        // Error indicator
+        if (suggestion.type === 'error') {
+          return (
+            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: 0.8 }}>
+              <span style={{ ...getDropdownItemLabelStyle(false), color: mergedColors.error }}>
+                {suggestion.label || 'Error loading suggestions'}
+              </span>
+            </div>
+          );
+        }
+
         // Loading indicator
         if (suggestion.type === 'loading') {
           return (

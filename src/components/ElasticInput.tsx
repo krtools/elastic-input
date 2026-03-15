@@ -570,10 +570,19 @@ export function ElasticInput(props: ElasticInputProps) {
             }
           }
         } catch (e) {
-          // Only close dropdown if this is still the latest request
+          // Only update if this is still the latest request
           if (!controller.signal.aborted) {
-            setShowDropdown(false);
-            setSuggestions([]);
+            const errorMsg = e instanceof Error ? e.message : 'Error loading suggestions';
+            const errorSuggestion: Suggestion = {
+              text: '',
+              label: errorMsg,
+              type: 'error',
+              replaceStart: start,
+              replaceEnd: end,
+            };
+            setSuggestions([errorSuggestion]);
+            setSelectedSuggestionIndex(-1);
+            showDropdownAtPosition(32, 300);
             asyncActiveRef.current = false;
           }
         }

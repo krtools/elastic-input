@@ -164,7 +164,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
-    onKeyDown: onKeyDownProp, validateValue,
+    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, validateValue,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -1161,6 +1161,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const handleFocus = React.useCallback(() => {
     setIsFocused(true);
+    onFocusProp?.();
     // Defer suggestion update so isFocused state is committed
     requestAnimationFrame(() => {
       if (editorRef.current) {
@@ -1173,7 +1174,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }
     });
-  }, [handleInput, updateSuggestionsFromTokens]);
+  }, [handleInput, updateSuggestionsFromTokens, onFocusProp]);
 
   const handleBlur = React.useCallback(() => {
     setIsFocused(false);
@@ -1181,7 +1182,8 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDatePicker(false);
     // Set cursor to -1 so deferred display shows all errors when blurred
     setCursorOffset(-1);
-  }, []);
+    onBlurProp?.();
+  }, [onBlurProp]);
 
   const handleClick = React.useCallback(() => {
     if (!editorRef.current) return;

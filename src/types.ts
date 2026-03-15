@@ -316,6 +316,10 @@ export interface ElasticInputProps {
   renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  /** Called when the input gains focus. */
+  onFocus?: () => void;
+  /** Called when the input loses focus. */
+  onBlur?: () => void;
   /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error

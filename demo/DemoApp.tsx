@@ -7,7 +7,7 @@ import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
   SAMPLE_SAVED_SEARCHES, SAMPLE_HISTORY,
-  mockFetchSuggestions,
+  mockFetchSuggestions, demoValidateValue,
 } from './DemoConfig';
 import { lightTheme, darkTheme, getAppStyles } from './styles';
 
@@ -128,6 +128,7 @@ export function DemoApp() {
                 maxSuggestions={8}
                 dropdownAlignToInput={dropdownAlignToInput}
                 dropdownMode={dropdownMode}
+                validateValue={demoValidateValue}
                 inputRef={api => { inputApiRef.current = api; }}
               />
             </div>

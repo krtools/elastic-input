@@ -5,12 +5,6 @@ import { ValidationError } from './validation/Validator';
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
 export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'ip';
 
-/** Context passed to custom validation callbacks describing where the value appears in the query. */
-export interface ValidationContext {
-  /** Position of the value being validated. */
-  position: 'FIELD_VALUE' | 'RANGE_START' | 'RANGE_END';
-}
-
 /** Structured result from a custom validation callback, allowing explicit severity control. */
 export interface ValidationResult {
   /** Human-readable message. */
@@ -19,8 +13,28 @@ export interface ValidationResult {
   severity: 'error' | 'warning';
 }
 
-/** Return type for the `validate` callback on FieldConfig. A plain string is treated as an error. */
+/** Return type for the `validateValue` callback. A plain string is treated as an error. */
 export type ValidateReturn = string | ValidationResult | null;
+
+/**
+ * Context passed to the top-level `validateValue` callback describing the value being validated.
+ */
+export interface ValidateValueContext {
+  /** The raw value string being validated. */
+  value: string;
+  /** Where this value appears in the query. */
+  position: 'field_value' | 'range_start' | 'range_end' | 'bare_term' | 'field_group_term';
+  /** Field name, if this value is associated with a field (absent for bare terms). */
+  fieldName?: string;
+  /** Resolved FieldConfig, if this value is associated with a known field. */
+  fieldConfig?: FieldConfig;
+  /** Whether the value is double-quoted (phrase). */
+  quoted: boolean;
+  /** Comparison operator if present (e.g. `>`, `>=`, `<`, `<=`). Only for field_value position. */
+  operator?: string;
+  /** For range bounds: whether the bound is inclusive (`[`/`]`) or exclusive (`{`/`}`). */
+  inclusive?: boolean;
+}
 
 /** Configuration for a searchable field. Defines the field's name, type, and validation behavior. */
 export interface FieldConfig {
@@ -36,8 +50,6 @@ export interface FieldConfig {
   suggestions?: string[];
   /** Allowed comparison operators. Defaults to `>`, `>=`, `<`, `<=` for number/date fields. */
   operators?: string[];
-  /** Custom validation function. Return an error message string (treated as error), a `{ message, severity }` object for explicit severity control, or `null` if valid. Receives optional context describing whether the value is a field value, range start, or range end. */
-  validate?: (value: string, context?: ValidationContext) => ValidateReturn;
   /** Description shown alongside the field in autocomplete suggestions. */
   description?: string;
   /** Custom placeholder hint shown in the dropdown while typing a value for this field (e.g. "Search by company name..."). Overrides the default type-based hint. Set to `false` to suppress the hint entirely. */
@@ -297,4 +309,10 @@ export interface ElasticInputProps {
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  /**
+   * Top-level custom validation callback. Called for every value in the query (field values,
+   * range bounds, bare terms, field group terms). Return an error string (treated as error
+   * severity), a `{ message, severity }` object, or `null` if valid.
+   */
+  validateValue?: (context: ValidateValueContext) => ValidateReturn;
 }

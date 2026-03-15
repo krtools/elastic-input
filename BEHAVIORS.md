@@ -939,16 +939,28 @@ Comparison operators (`>`, `>=`, `<`, `<=`) are only allowed on `number` and `da
 - `status:>active` ✗
 - **Tests:** `Validator.test.ts` → "flags comparison operator on non-numeric/date field", "allows comparison operator on number field", "allows comparison operator on date field"
 
-### 9.9 Custom Validators
+### 9.9 Custom Validation (`validateValue` prop)
 
-Fields can provide a `validate` function that receives the value and returns:
+Custom validation is provided via a single top-level `validateValue` prop on `ElasticInput`, rather than per-field `validate` callbacks on `FieldConfig`. The callback receives a `ValidateValueContext` with:
+
+- `value` — the raw value string
+- `position` — `'field_value'`, `'range_start'`, `'range_end'`, `'bare_term'`, or `'field_group_term'`
+- `fieldName` — the field name (absent for bare terms)
+- `fieldConfig` — the resolved `FieldConfig` (absent for bare terms)
+- `quoted` — whether the value is double-quoted
+- `operator` — comparison operator if present (e.g. `>`, `>=`; only for `field_value`)
+- `inclusive` — for range bounds, whether the bracket is inclusive (`[`/`]`) or exclusive (`{`/`}`)
+
+Return values:
 - `null` — valid, no issue
-- `string` — error message (red squiggles, backward compatible)
-- `{ message: string, severity: 'error' | 'warning' }` — explicit severity control. Warnings render as amber squiggles instead of red.
+- `string` — error message (red squiggles)
+- `{ message: string, severity: 'error' | 'warning' }` — explicit severity control. Warnings render as amber squiggles.
 
-The `ValidationResult` and `ValidateReturn` types are exported for consumers.
+The callback is passed to `Validator.validate(ast, validateValueFn?)`, not to the constructor, so changing it doesn't require re-instantiating the Validator. Inside `ElasticInput`, the callback is stored in a ref to avoid stale closures.
 
-- **Tests:** `Validator.test.ts` → "runs custom validator", "passes custom validator for valid value", "Validation warnings (ValidationResult return type)" suite
+The `ValidateValueContext`, `ValidationResult`, `ValidateReturn`, and `ValidateValueFn` types are exported for consumers.
+
+- **Tests:** `Validator.test.ts` → "runs custom validateValue callback", "passes custom validateValue for valid value", "ValidateValueContext in validateValue callback" suite, "Validation warnings (ValidationResult return type)" suite
 
 ### 9.10 Nested Validation
 
@@ -988,9 +1000,9 @@ Ranges inside `FieldGroup` nodes are validated against the group's field config.
 
 Validation errors on range bounds are positioned on the **specific bound** (lower or upper), not on the entire range expression. `RangeNode` includes `lowerStart`/`lowerEnd`/`upperStart`/`upperEnd` character offsets computed by the parser. For `price:[abc TO def]`, the error on `abc` highlights only characters 7-10, and `def` highlights 14-17.
 
-Custom `field.validate` callbacks receive an optional second argument `ValidationContext` with a `position` property: `'FIELD_VALUE'` for normal field:value, `'RANGE_START'` for the lower bound, or `'RANGE_END'` for the upper bound of a range expression.
+The top-level `validateValue` callback receives range bounds with `position: 'range_start'` or `'range_end'`, along with `inclusive` indicating bracket type and `fieldConfig` for the range's field.
 
-- **Tests:** `Validator.test.ts` → "Range validation" suite, "Per-bound range validation offsets" suite, "ValidationContext in custom validate callback" suite
+- **Tests:** `Validator.test.ts` → "Range validation" suite, "Per-bound range validation offsets" suite, "ValidateValueContext in validateValue callback" suite
 
 ### 9.13 Field-Scoped Group Validation
 
@@ -1047,10 +1059,10 @@ Warning squiggles are rendered with an amber/yellow color (`warning` color key) 
 
 ### 9.17 Non-Validated Cases
 
-- Bare terms (freeform search words) are not validated
+- Bare terms have no built-in type validation, but the `validateValue` callback is still called with `position: 'bare_term'` for custom validation
 - Empty field groups (`field:()`) pass validation
 - Null AST (empty input) passes validation
-- **Tests:** `Validator.test.ts` → "does not validate bare terms", "returns no errors for null AST", "Incomplete expression errors" suite
+- **Tests:** `Validator.test.ts` → "does not validate bare terms" (no built-in errors), "returns no errors for null AST", "Incomplete expression errors" suite, "passes bare_term context for unfielded terms" (validateValue callback)
 
 ### 9.4.1 Incomplete Expression Errors
 

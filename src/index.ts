@@ -27,7 +27,7 @@ export type {
   SuggestionItem,
   ColorConfig,
   StyleConfig,
-  ValidationContext,
+  ValidateValueContext,
   ValidationResult,
   ValidateReturn,
 } from './types';
@@ -36,5 +36,5 @@ export type {
 export type { Token, TokenType } from './lexer/tokens';
 export type { ASTNode } from './parser/ast';
 export type { CursorContext, CursorContextType } from './parser/Parser';
-export type { ValidationError } from './validation/Validator';
+export type { ValidationError, ValidateValueFn } from './validation/Validator';
 export type { Suggestion } from './autocomplete/suggestionTypes';

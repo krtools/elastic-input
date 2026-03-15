@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator, ValidationError } from '../validation/Validator';
+import { Validator, ValidationError, ValidateValueFn } from '../validation/Validator';
 import { FieldConfig } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -11,16 +11,21 @@ const FIELDS: FieldConfig[] = [
   { name: 'is_vip', type: 'boolean' },
   { name: 'ip', type: 'ip' },
   { name: 'name', type: 'string' },
-  { name: 'rating', type: 'number', validate: (v) => {
-    const n = Number(v);
-    return (n >= 1 && n <= 5) ? null : 'Rating must be between 1 and 5';
-  }},
+  { name: 'rating', type: 'number' },
 ];
+
+const ratingValidator: ValidateValueFn = (ctx) => {
+  if (ctx.fieldName === 'rating') {
+    const n = Number(ctx.value);
+    return (n >= 1 && n <= 5) ? null : 'Rating must be between 1 and 5';
+  }
+  return null;
+};
 
 function validate(input: string) {
   const tokens = new Lexer(input).tokenize();
   const ast = new Parser(tokens).parse();
-  return new Validator(FIELDS).validate(ast);
+  return new Validator(FIELDS).validate(ast, ratingValidator);
 }
 
 // Simulate the deferred display logic from ValidationSquiggles

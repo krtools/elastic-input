@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator } from '../validation/Validator';
-import { FieldConfig, ValidationContext } from '../types';
+import { Validator, ValidateValueFn } from '../validation/Validator';
+import { FieldConfig, ValidateValueContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
   { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
@@ -11,16 +11,22 @@ const FIELDS: FieldConfig[] = [
   { name: 'is_vip', type: 'boolean' },
   { name: 'ip', type: 'ip' },
   { name: 'name', type: 'string' },
-  { name: 'rating', type: 'number', validate: (v) => {
-    const n = Number(v);
-    return (n >= 1 && n <= 5) ? null : 'Rating must be between 1 and 5';
-  }},
+  { name: 'rating', type: 'number' },
 ];
 
-function validate(input: string) {
+/** Rating validator used as top-level validateValue in tests that need custom validation. */
+const ratingValidator: ValidateValueFn = (ctx) => {
+  if (ctx.fieldName === 'rating') {
+    const n = Number(ctx.value);
+    return (n >= 1 && n <= 5) ? null : 'Rating must be between 1 and 5';
+  }
+  return null;
+};
+
+function validate(input: string, validateValueFn?: ValidateValueFn) {
   const tokens = new Lexer(input).tokenize();
   const ast = new Parser(tokens).parse();
-  return new Validator(FIELDS).validate(ast);
+  return new Validator(FIELDS).validate(ast, validateValueFn);
 }
 
 describe('Validator', () => {
@@ -113,14 +119,14 @@ describe('Validator', () => {
     expect(validate('created:>2024-01-01')).toHaveLength(0);
   });
 
-  it('runs custom validator', () => {
-    const errors = validate('rating:10');
+  it('runs custom validateValue callback', () => {
+    const errors = validate('rating:10', ratingValidator);
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toContain('between 1 and 5');
   });
 
-  it('passes custom validator for valid value', () => {
-    expect(validate('rating:3')).toHaveLength(0);
+  it('passes custom validateValue for valid value', () => {
+    expect(validate('rating:3', ratingValidator)).toHaveLength(0);
   });
 
   it('validates nested boolean expressions', () => {
@@ -540,50 +546,59 @@ describe('Per-bound range validation offsets', () => {
   });
 });
 
-describe('ValidationContext in custom validate callback', () => {
-  it('passes FIELD_VALUE context for field:value', () => {
-    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
-    const fields: FieldConfig[] = [{ name: 'rating', type: 'number', validate: validateFn }];
+describe('ValidateValueContext in validateValue callback', () => {
+  it('passes field_value context for field:value', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const fields: FieldConfig[] = [{ name: 'rating', type: 'number' }];
     const tokens = new Lexer('rating:5').tokenize();
     const ast = new Parser(tokens).parse();
-    new Validator(fields).validate(ast);
-    expect(validateFn).toHaveBeenCalledWith('5', { position: 'FIELD_VALUE' });
+    new Validator(fields).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '5',
+      position: 'field_value',
+      fieldName: 'rating',
+      quoted: false,
+    }));
   });
 
-  it('passes RANGE_START and RANGE_END context for range bounds', () => {
-    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
-    const fields: FieldConfig[] = [{ name: 'price', type: 'number', validate: validateFn }];
+  it('passes range_start and range_end context for range bounds', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const fields: FieldConfig[] = [{ name: 'price', type: 'number' }];
     const tokens = new Lexer('price:[10 TO 100]').tokenize();
     const ast = new Parser(tokens).parse();
-    new Validator(fields).validate(ast);
+    new Validator(fields).validate(ast, validateFn);
     expect(validateFn).toHaveBeenCalledTimes(2);
-    expect(validateFn).toHaveBeenCalledWith('10', { position: 'RANGE_START' });
-    expect(validateFn).toHaveBeenCalledWith('100', { position: 'RANGE_END' });
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '10', position: 'range_start', fieldName: 'price', inclusive: true,
+    }));
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '100', position: 'range_end', fieldName: 'price', inclusive: true,
+    }));
   });
 
   it('skips wildcard bounds but validates non-wildcard bound', () => {
-    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
-    const fields: FieldConfig[] = [{ name: 'price', type: 'number', validate: validateFn }];
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const fields: FieldConfig[] = [{ name: 'price', type: 'number' }];
     const tokens = new Lexer('price:[* TO 100]').tokenize();
     const ast = new Parser(tokens).parse();
-    new Validator(fields).validate(ast);
+    new Validator(fields).validate(ast, validateFn);
     expect(validateFn).toHaveBeenCalledTimes(1);
-    expect(validateFn).toHaveBeenCalledWith('100', { position: 'RANGE_END' });
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '100', position: 'range_end',
+    }));
   });
 
   it('custom validator can return error on specific range bound', () => {
-    const fields: FieldConfig[] = [{
-      name: 'score', type: 'number',
-      validate: (value, ctx) => {
-        const n = Number(value);
-        if (ctx?.position === 'RANGE_START' && n < 0) return 'Range start must be >= 0';
-        if (ctx?.position === 'RANGE_END' && n > 100) return 'Range end must be <= 100';
-        return null;
-      },
-    }];
+    const fields: FieldConfig[] = [{ name: 'score', type: 'number' }];
+    const validateFn: ValidateValueFn = (ctx) => {
+      const n = Number(ctx.value);
+      if (ctx.position === 'range_start' && n < 0) return 'Range start must be >= 0';
+      if (ctx.position === 'range_end' && n > 100) return 'Range end must be <= 100';
+      return null;
+    };
     const tokens = new Lexer('score:[-5 TO 200]').tokenize();
     const ast = new Parser(tokens).parse();
-    const errors = new Validator(fields).validate(ast);
+    const errors = new Validator(fields).validate(ast, validateFn);
     expect(errors).toHaveLength(2);
     expect(errors[0].message).toBe('Range start must be >= 0');
     expect(errors[0].start).toBe(7); // "-5"
@@ -592,38 +607,94 @@ describe('ValidationContext in custom validate callback', () => {
     expect(errors[1].start).toBe(13); // "200"
     expect(errors[1].end).toBe(16);
   });
+
+  it('passes bare_term context for unfielded terms', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const tokens = new Lexer('hello').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(FIELDS).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: 'hello', position: 'bare_term', quoted: false,
+    }));
+    expect(validateFn.mock.calls[0][0].fieldName).toBeUndefined();
+  });
+
+  it('passes field_group_term context for terms inside field group', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const tokens = new Lexer('status:(active inactive)').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(FIELDS).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledTimes(2);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: 'active', position: 'field_group_term', fieldName: 'status',
+    }));
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: 'inactive', position: 'field_group_term', fieldName: 'status',
+    }));
+  });
+
+  it('passes inclusive=false for exclusive range brackets', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const fields: FieldConfig[] = [{ name: 'price', type: 'number' }];
+    const tokens = new Lexer('price:{10 TO 100}').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(fields).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '10', position: 'range_start', inclusive: false,
+    }));
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '100', position: 'range_end', inclusive: false,
+    }));
+  });
+
+  it('passes operator for comparison field values', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const tokens = new Lexer('price:>100').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(FIELDS).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: '100', position: 'field_value', fieldName: 'price', operator: '>',
+    }));
+  });
+
+  it('does not pass operator for colon-only field values', () => {
+    const validateFn = vi.fn((_ctx: ValidateValueContext) => null);
+    const tokens = new Lexer('name:hello').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(FIELDS).validate(ast, validateFn);
+    expect(validateFn).toHaveBeenCalledWith(expect.objectContaining({
+      value: 'hello', position: 'field_value', fieldName: 'name',
+    }));
+    expect(validateFn.mock.calls[0][0].operator).toBeUndefined();
+  });
 });
 
 describe('Validation warnings (ValidationResult return type)', () => {
   const warningFields: FieldConfig[] = [
-    {
-      name: 'email',
-      type: 'string',
-      validate: (v) => {
-        if (v.includes('*') || v.includes('?')) return null;
-        if (!v.includes('@')) return { message: 'Not a valid email', severity: 'warning' };
-        return null;
-      },
-    },
-    {
-      name: 'score',
-      type: 'number',
-      validate: (v) => {
-        const n = Number(v);
-        if (n > 1000) return { message: 'Unusually high score', severity: 'warning' };
-        if (n < 0) return 'Score cannot be negative'; // plain string = error
-        return null;
-      },
-    },
+    { name: 'email', type: 'string' },
+    { name: 'score', type: 'number' },
   ];
+
+  const warningValidator: ValidateValueFn = (ctx) => {
+    if (ctx.fieldName === 'email') {
+      if (ctx.value.includes('*') || ctx.value.includes('?')) return null;
+      if (!ctx.value.includes('@')) return { message: 'Not a valid email', severity: 'warning' };
+    }
+    if (ctx.fieldName === 'score') {
+      const n = Number(ctx.value);
+      if (n > 1000) return { message: 'Unusually high score', severity: 'warning' };
+      if (n < 0) return 'Score cannot be negative'; // plain string = error
+    }
+    return null;
+  };
 
   function validateW(input: string) {
     const tokens = new Lexer(input).tokenize();
     const ast = new Parser(tokens).parse();
-    return new Validator(warningFields).validate(ast);
+    return new Validator(warningFields).validate(ast, warningValidator);
   }
 
-  it('returns warning severity from validate callback', () => {
+  it('returns warning severity from validateValue callback', () => {
     const errors = validateW('email:blah');
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Not a valid email');
@@ -645,7 +716,7 @@ describe('Validation warnings (ValidationResult return type)', () => {
     expect(errors[0].severity).toBe('error');
   });
 
-  it('warning from number field validate', () => {
+  it('warning from number field validateValue', () => {
     const errors = validateW('score:9999');
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Unusually high score');
@@ -653,20 +724,17 @@ describe('Validation warnings (ValidationResult return type)', () => {
   });
 
   it('warning on range bounds', () => {
-    const rangeFields: FieldConfig[] = [{
-      name: 'score',
-      type: 'number',
-      validate: (v, ctx) => {
-        const n = Number(v);
-        if (ctx?.position === 'RANGE_END' && n > 1000) {
-          return { message: 'Upper bound is very high', severity: 'warning' };
-        }
-        return null;
-      },
-    }];
+    const rangeFields: FieldConfig[] = [{ name: 'score', type: 'number' }];
+    const rangeValidator: ValidateValueFn = (ctx) => {
+      const n = Number(ctx.value);
+      if (ctx.position === 'range_end' && n > 1000) {
+        return { message: 'Upper bound is very high', severity: 'warning' };
+      }
+      return null;
+    };
     const tokens = new Lexer('score:[0 TO 5000]').tokenize();
     const ast = new Parser(tokens).parse();
-    const errors = new Validator(rangeFields).validate(ast);
+    const errors = new Validator(rangeFields).validate(ast, rangeValidator);
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Upper bound is very high');
     expect(errors[0].severity).toBe('warning');
@@ -675,7 +743,7 @@ describe('Validation warnings (ValidationResult return type)', () => {
   it('warning in field group context', () => {
     const tokens = new Lexer('email:(blah)').tokenize();
     const ast = new Parser(tokens).parse();
-    const errors = new Validator(warningFields).validate(ast);
+    const errors = new Validator(warningFields).validate(ast, warningValidator);
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Not a valid email');
     expect(errors[0].severity).toBe('warning');

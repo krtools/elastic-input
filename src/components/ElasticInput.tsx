@@ -164,7 +164,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
-    onKeyDown: onKeyDownProp,
+    onKeyDown: onKeyDownProp, validateValue,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -227,6 +227,8 @@ export function ElasticInput(props: ElasticInputProps) {
     )
   );
   const validatorRef = React.useRef(new Validator(initialFields));
+  const validateValueRef = React.useRef(validateValue);
+  validateValueRef.current = validateValue;
 
   // --- State ---
   const [tokens, setTokens] = React.useState<Token[]>([]);
@@ -321,7 +323,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -616,7 +618,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos });
@@ -929,7 +931,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos });
@@ -1006,7 +1008,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
-        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst)];
+        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd });
         editorRef.current.innerHTML = html;

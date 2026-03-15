@@ -1,79 +1,82 @@
-import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem, ValidateReturn } from '../src/types';
-
-/** Warn about leading wildcards — they force full index scans in Elasticsearch. */
-function warnLeadingWildcard(v: string): ValidateReturn {
-  if (v.startsWith('*') || v.startsWith('?')) {
-    return { message: 'Leading wildcard — query may be slow and could be queued', severity: 'warning' };
-  }
-  return null;
-}
-
-/** Chain validators: returns first non-null result. */
-function chainValidate(...fns: ((v: string) => ValidateReturn)[]): (v: string) => ValidateReturn {
-  return (v) => {
-    for (const fn of fns) {
-      const r = fn(v);
-      if (r != null) return r;
-    }
-    return null;
-  };
-}
+import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem, ValidateValueContext, ValidateReturn } from '../src/types';
 
 export const CRM_FIELDS: FieldConfig[] = [
-  { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact', validate: warnLeadingWildcard },
-  { name: 'email', label: 'Email', type: 'string', description: 'Email address',
-    validate: chainValidate(warnLeadingWildcard, (v) => {
-      if (v.includes('*') || v.includes('?')) return null;
-      if (!v.includes('@')) return { message: 'Not a valid email — did you mean to use a wildcard (*)?', severity: 'warning' as const };
-      return null;
-    }) },
-  { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number',
-    validate: chainValidate(warnLeadingWildcard, (v) => /^[\d\-\+\(\)\s]+$/.test(v) ? null : 'Invalid phone format') },
+  { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
+  { name: 'email', label: 'Email', type: 'string', description: 'Email address' },
+  { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number' },
   { name: 'status', label: 'Status', type: 'enum',
     suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
-    description: 'Contact status', placeholder: 'Search statuses...', validate: warnLeadingWildcard },
-  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true, asyncSearchLabel: 'Searching companies...', validate: warnLeadingWildcard },
+    description: 'Contact status', placeholder: 'Search statuses...' },
+  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true, asyncSearchLabel: 'Searching companies...' },
   { name: 'deal_value', label: 'Deal Value', type: 'number', description: 'Deal value in dollars' },
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
   { name: 'last_contact', label: 'Last Contact', type: 'date', description: 'Last interaction date' },
   { name: 'is_vip', label: 'VIP', type: 'boolean', description: 'Whether the contact is a VIP' },
   { name: 'tags', label: 'Tags', type: 'enum',
     suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
-    description: 'Contact tags', validate: warnLeadingWildcard },
+    description: 'Contact tags' },
 ];
 
 export const LOG_FIELDS: FieldConfig[] = [
   { name: 'level', label: 'Log Level', type: 'enum',
     suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
-    description: 'Severity level', validate: warnLeadingWildcard },
+    description: 'Severity level' },
   { name: 'service', label: 'Service', type: 'enum',
     suggestions: ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service'],
-    description: 'Microservice name', validate: warnLeadingWildcard },
-  { name: 'message', label: 'Message', type: 'string', description: 'Log message content', validate: warnLeadingWildcard },
+    description: 'Microservice name' },
+  { name: 'message', label: 'Message', type: 'string', description: 'Log message content' },
   { name: 'timestamp', label: 'Timestamp', type: 'date', description: 'When the log was recorded' },
-  { name: 'request_id', label: 'Request ID', type: 'string', description: 'Unique request identifier', validate: warnLeadingWildcard },
+  { name: 'request_id', label: 'Request ID', type: 'string', description: 'Unique request identifier' },
   { name: 'status_code', label: 'Status Code', type: 'number', description: 'HTTP status code' },
   { name: 'duration_ms', label: 'Duration (ms)', type: 'number', description: 'Request duration' },
-  { name: 'host', label: 'Host', type: 'string', description: 'Server hostname', validate: warnLeadingWildcard },
-  { name: 'ip', label: 'Client IP', type: 'ip', description: 'Client IP address', validate: warnLeadingWildcard },
+  { name: 'host', label: 'Host', type: 'string', description: 'Server hostname' },
+  { name: 'ip', label: 'Client IP', type: 'ip', description: 'Client IP address' },
 ];
 
 export const ECOMMERCE_FIELDS: FieldConfig[] = [
-  { name: 'product', label: 'Product Name', type: 'string', description: 'Product name', validate: warnLeadingWildcard },
+  { name: 'product', label: 'Product Name', type: 'string', description: 'Product name' },
   { name: 'category', label: 'Category', type: 'enum',
     suggestions: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
-    description: 'Product category', validate: warnLeadingWildcard },
+    description: 'Product category' },
   { name: 'price', label: 'Price', type: 'number', description: 'Product price' },
-  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...', asyncSearch: true, validate: warnLeadingWildcard },
+  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...', asyncSearch: true },
   { name: 'in_stock', label: 'In Stock', type: 'boolean', description: 'Availability' },
-  { name: 'rating', label: 'Rating', type: 'number', description: 'Customer rating (1-5)',
-    validate: (v) => {
-      const n = Number(v);
-      return (n >= 1 && n <= 5) ? null : 'Rating must be between 1 and 5';
-    }},
+  { name: 'rating', label: 'Rating', type: 'number', description: 'Customer rating (1-5)' },
   { name: 'added_date', label: 'Added Date', type: 'date', description: 'When product was added' },
-  { name: 'sku', label: 'SKU', type: 'string', description: 'Stock keeping unit', validate: warnLeadingWildcard },
+  { name: 'sku', label: 'SKU', type: 'string', description: 'Stock keeping unit' },
 ];
+
+/** Top-level demo validator — handles all custom validation in one place. */
+export function demoValidateValue(ctx: ValidateValueContext): ValidateReturn {
+  // Leading wildcard warning (applies to all non-phrase values)
+  if (!ctx.quoted && (ctx.value.startsWith('*') || ctx.value.startsWith('?'))) {
+    return { message: 'Leading wildcard — query may be slow and could be queued', severity: 'warning' };
+  }
+
+  // Email-specific warnings
+  if (ctx.fieldName === 'email') {
+    if (!ctx.value.includes('*') && !ctx.value.includes('?') && !ctx.value.includes('@')) {
+      return { message: 'Not a valid email — did you mean to use a wildcard (*)?', severity: 'warning' as const };
+    }
+  }
+
+  // Phone format validation
+  if (ctx.fieldName === 'phone') {
+    if (!/^[\d\-\+\(\)\s]+$/.test(ctx.value)) {
+      return 'Invalid phone format';
+    }
+  }
+
+  // Rating range check
+  if (ctx.fieldName === 'rating' && (ctx.position === 'field_value' || ctx.position === 'field_group_term')) {
+    const n = Number(ctx.value);
+    if (!(n >= 1 && n <= 5)) {
+      return 'Rating must be between 1 and 5';
+    }
+  }
+
+  return null;
+}
 
 const MOCK_COMPANIES = [
   'Acme Corp', 'Globex Inc', 'Initech', 'Hooli', 'Piedmont Partners',

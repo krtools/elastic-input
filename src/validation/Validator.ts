@@ -1,7 +1,10 @@
 import { ASTNode, RangeNode } from '../parser/ast';
-import { FieldConfig, ValidationContext, ValidateReturn } from '../types';
+import { FieldConfig, ValidateReturn, ValidateValueContext } from '../types';
 import { validateNumber } from './numberValidator';
 import { validateDate } from './dateValidator';
+
+/** Callback type for external value validation. */
+export type ValidateValueFn = (context: ValidateValueContext) => ValidateReturn;
 
 /** Normalize a ValidateReturn into message + severity, or null if valid. */
 function normalizeValidateResult(result: ValidateReturn): { message: string; severity: 'error' | 'warning' } | null {
@@ -38,15 +41,15 @@ export class Validator {
     }
   }
 
-  validate(ast: ASTNode | null): ValidationError[] {
+  validate(ast: ASTNode | null, validateValueFn?: ValidateValueFn): ValidationError[] {
     if (!ast) return [];
     const errors: ValidationError[] = [];
-    this.walkNode(ast, errors);
+    this.walkNode(ast, errors, validateValueFn);
     this.checkAmbiguousPrecedence(ast, errors);
     return errors;
   }
 
-  private walkNode(node: ASTNode, errors: ValidationError[]): void {
+  private walkNode(node: ASTNode, errors: ValidationError[], validateValueFn?: ValidateValueFn): void {
     switch (node.type) {
       case 'BareTerm': {
         // Validate modifiers on bare terms
@@ -71,6 +74,22 @@ export class Validator {
             end: node.end,
           });
         }
+        // Custom validator for bare terms
+        if (validateValueFn && node.value !== '') {
+          const result = normalizeValidateResult(validateValueFn({
+            value: node.value,
+            position: 'bare_term',
+            quoted: node.quoted,
+          }));
+          if (result) {
+            errors.push({
+              message: result.message,
+              start: node.start,
+              end: node.end,
+              severity: result.severity,
+            });
+          }
+        }
         break;
       }
 
@@ -91,7 +110,7 @@ export class Validator {
               field: node.field,
             });
           } else {
-            this.validateRangeBounds(rangeField, node, errors);
+            this.validateRangeBounds(rangeField, node, errors, validateValueFn);
           }
         }
         break;
@@ -173,8 +192,15 @@ export class Validator {
         }
 
         // Custom validator
-        if (!error && field.validate) {
-          const result = normalizeValidateResult(field.validate(node.value, { position: 'FIELD_VALUE' }));
+        if (!error && validateValueFn) {
+          const result = normalizeValidateResult(validateValueFn({
+            value: node.value,
+            position: 'field_value',
+            fieldName: field.name,
+            fieldConfig: field,
+            quoted: node.quoted,
+            operator: node.operator !== ':' ? node.operator : undefined,
+          }));
           if (result) {
             const valueStart = node.end - node.value.length;
             errors.push({
@@ -203,7 +229,7 @@ export class Validator {
       case 'FieldGroup': {
         // * as field name means all fields — skip field-specific validation
         if (node.field === '*') {
-          this.walkNode(node.expression, errors);
+          this.walkNode(node.expression, errors, validateValueFn);
         } else {
           const groupField = this.fields.get(node.field);
           if (!groupField) {
@@ -214,7 +240,7 @@ export class Validator {
               field: node.field,
             });
           } else {
-            this.walkFieldGroup(node.expression, groupField, errors);
+            this.walkFieldGroup(node.expression, groupField, errors, validateValueFn);
           }
         }
         if (node.boost !== undefined && node.boost <= 0) {
@@ -228,12 +254,12 @@ export class Validator {
       }
 
       case 'BooleanExpr':
-        this.walkNode(node.left, errors);
-        this.walkNode(node.right, errors);
+        this.walkNode(node.left, errors, validateValueFn);
+        this.walkNode(node.right, errors, validateValueFn);
         break;
 
       case 'Group':
-        this.walkNode(node.expression, errors);
+        this.walkNode(node.expression, errors, validateValueFn);
         if (node.boost !== undefined && node.boost <= 0) {
           errors.push({
             message: `Boost value must be positive (got ${node.boost})`,
@@ -244,7 +270,7 @@ export class Validator {
         break;
 
       case 'Not':
-        this.walkNode(node.expression, errors);
+        this.walkNode(node.expression, errors, validateValueFn);
         break;
 
       case 'Error':
@@ -258,42 +284,42 @@ export class Validator {
   }
 
   /** Walk inside a FieldGroup, validating bare terms / field values against the group's field config. */
-  private walkFieldGroup(node: ASTNode, field: FieldConfig, errors: ValidationError[]): void {
+  private walkFieldGroup(node: ASTNode, field: FieldConfig, errors: ValidationError[], validateValueFn?: ValidateValueFn): void {
     switch (node.type) {
       case 'BareTerm': {
         if (node.value === '') return;
-        this.validateFieldValue(field, node.value, node.quoted, ':', node.start, node.end, errors);
+        this.validateFieldValue(field, node.value, node.quoted, ':', node.start, node.end, errors, validateValueFn);
         break;
       }
       case 'FieldValue': {
         // Nested field:value inside a group — validate normally
-        this.walkNode(node, errors);
+        this.walkNode(node, errors, validateValueFn);
         break;
       }
       case 'Range': {
-        this.validateRangeBounds(field, node, errors);
+        this.validateRangeBounds(field, node, errors, validateValueFn);
         break;
       }
       case 'BooleanExpr':
-        this.walkFieldGroup(node.left, field, errors);
-        this.walkFieldGroup(node.right, field, errors);
+        this.walkFieldGroup(node.left, field, errors, validateValueFn);
+        this.walkFieldGroup(node.right, field, errors, validateValueFn);
         break;
       case 'Group':
-        this.walkFieldGroup(node.expression, field, errors);
+        this.walkFieldGroup(node.expression, field, errors, validateValueFn);
         break;
       case 'Not':
-        this.walkFieldGroup(node.expression, field, errors);
+        this.walkFieldGroup(node.expression, field, errors, validateValueFn);
         break;
       default:
-        this.walkNode(node, errors);
+        this.walkNode(node, errors, validateValueFn);
         break;
     }
   }
 
   /** Validate a value against a field config (shared between FieldValue and FieldGroup terms). */
   private validateFieldValue(
-    field: FieldConfig, value: string, _quoted: boolean, operator: string,
-    start: number, end: number, errors: ValidationError[],
+    field: FieldConfig, value: string, quoted: boolean, operator: string,
+    start: number, end: number, errors: ValidationError[], validateValueFn?: ValidateValueFn,
   ): void {
     let error: string | null = null;
     switch (field.type) {
@@ -324,8 +350,15 @@ export class Validator {
       error = `Comparison operator "${operator}" is not valid for ${field.type} fields`;
     }
 
-    if (!error && field.validate) {
-      const result = normalizeValidateResult(field.validate(value, { position: 'FIELD_VALUE' }));
+    if (!error && validateValueFn) {
+      const result = normalizeValidateResult(validateValueFn({
+        value,
+        position: 'field_group_term',
+        fieldName: field.name,
+        fieldConfig: field,
+        quoted,
+        operator: operator !== ':' ? operator : undefined,
+      }));
       if (result) {
         errors.push({
           message: result.message,
@@ -368,10 +401,10 @@ export class Validator {
   }
 
   /** Validate range bounds against a field config. */
-  private validateRangeBounds(field: FieldConfig, node: RangeNode, errors: ValidationError[]): void {
-    const bounds: Array<{ value: string; label: string; start: number; end: number; context: ValidationContext }> = [];
-    if (node.lower !== '*' && node.lower.trim() !== '') bounds.push({ value: node.lower, label: 'Range start', start: node.lowerStart, end: node.lowerEnd, context: { position: 'RANGE_START' } });
-    if (node.upper !== '*' && node.upper.trim() !== '') bounds.push({ value: node.upper, label: 'Range end', start: node.upperStart, end: node.upperEnd, context: { position: 'RANGE_END' } });
+  private validateRangeBounds(field: FieldConfig, node: RangeNode, errors: ValidationError[], validateValueFn?: ValidateValueFn): void {
+    const bounds: Array<{ value: string; label: string; start: number; end: number; position: 'range_start' | 'range_end'; inclusive: boolean }> = [];
+    if (node.lower !== '*' && node.lower.trim() !== '') bounds.push({ value: node.lower, label: 'Range start', start: node.lowerStart, end: node.lowerEnd, position: 'range_start', inclusive: node.lowerInclusive });
+    if (node.upper !== '*' && node.upper.trim() !== '') bounds.push({ value: node.upper, label: 'Range end', start: node.upperStart, end: node.upperEnd, position: 'range_end', inclusive: node.upperInclusive });
 
     for (const bound of bounds) {
       let error: string | null = null;
@@ -390,8 +423,15 @@ export class Validator {
       }
 
       // Custom validator with range context
-      if (!error && field.validate) {
-        const result = normalizeValidateResult(field.validate(bound.value, bound.context));
+      if (!error && validateValueFn) {
+        const result = normalizeValidateResult(validateValueFn({
+          value: bound.value,
+          position: bound.position,
+          fieldName: field.name,
+          fieldConfig: field,
+          quoted: false,
+          inclusive: bound.inclusive,
+        }));
         if (result) {
           errors.push({
             message: result.message,

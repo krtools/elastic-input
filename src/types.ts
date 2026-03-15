@@ -261,6 +261,8 @@ export interface ElasticInputProps {
   multiline?: boolean;
   /** When true, the dropdown spans the full width of the input and is affixed to its bottom edge, instead of following the caret. @default false */
   dropdownAlignToInput?: boolean;
+  /** Controls when the autocomplete dropdown appears. `'always'` shows it automatically as you type (default). `'never'` disables the dropdown entirely. `'manual'` requires Ctrl+Space to activate for the current context — once the context changes the dropdown is dismissed and must be re-activated. @default 'always' */
+  dropdownMode?: 'always' | 'never' | 'manual';
   /**
    * Custom renderer for field value hints in the dropdown. Called when the cursor is in a
    * field value position. Return a React element for rich content, or `null`/`undefined` to

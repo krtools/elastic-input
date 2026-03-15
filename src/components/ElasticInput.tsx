@@ -162,9 +162,11 @@ export function ElasticInput(props: ElasticInputProps) {
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
-    multiline: multilineProp, dropdownAlignToInput,
+    multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
   } = props;
+
+  const dropdownMode = dropdownModeProp ?? 'always';
 
   const multiline = multilineProp !== false; // default true
 
@@ -207,6 +209,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
+  // For 'manual' dropdown mode: tracks the context type for which the dropdown
+  // was activated via Ctrl+Space. Reset when context changes.
+  const manualActivationContextRef = React.useRef<string | null>(null);
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -266,6 +271,22 @@ export function ElasticInput(props: ElasticInputProps) {
     return containerRef.current.getBoundingClientRect().width;
   }, [dropdownAlignToInput]);
 
+  // Show dropdown, updating position. When dropdownAlignToInput is true and
+  // the dropdown is already visible, skip the hide/show cycle and position
+  // recomputation to prevent jitter.
+  const showDropdownAtPosition = React.useCallback((height: number, width: number, kind: 'dropdown' | 'datePicker' = 'dropdown') => {
+    const alreadyVisible = kind === 'datePicker' ? stateRef.current.showDatePicker : stateRef.current.showDropdown;
+    if (dropdownAlignToInput && alreadyVisible) return; // position is stable
+    requestAnimationFrame(() => {
+      if (kind === 'datePicker') {
+        setShowDatePicker(true);
+      } else {
+        setShowDropdown(true);
+      }
+      setDropdownPosition(computeDropdownPosition(height, width));
+    });
+  }, [dropdownAlignToInput, computeDropdownPosition]);
+
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     const lexer = new Lexer(text);
     const newTokens = lexer.tokenize();
@@ -317,6 +338,31 @@ export function ElasticInput(props: ElasticInputProps) {
     const result = engineRef.current.getSuggestions(toks, offset);
     const contextType = result.context.type;
 
+    // Dropdown mode gating
+    if (dropdownMode === 'never') {
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      setSuggestions([]);
+      return;
+    }
+    if (dropdownMode === 'manual') {
+      // If manual activation is set but context changed, dismiss
+      if (manualActivationContextRef.current && manualActivationContextRef.current !== contextType) {
+        manualActivationContextRef.current = null;
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSuggestions([]);
+        return;
+      }
+      // If not activated, don't show anything
+      if (!manualActivationContextRef.current) {
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSuggestions([]);
+        return;
+      }
+    }
+
     // Determine if this context will trigger an async fetch
     // Only fields with asyncSearch: true get the immediate "Searching..." treatment
     const resolvedField = result.context.fieldName
@@ -363,12 +409,9 @@ export function ElasticInput(props: ElasticInputProps) {
       }
 
       setSuggestions([]);
-      setShowDropdown(false);
+      if (!dropdownAlignToInput) setShowDropdown(false);
       setAutocompleteContext(contextType);
-      requestAnimationFrame(() => {
-        setShowDatePicker(true);
-        setDropdownPosition(computeDropdownPosition(350, 300));
-      });
+      showDropdownAtPosition(350, 300, 'datePicker');
       return;
     }
 
@@ -388,14 +431,11 @@ export function ElasticInput(props: ElasticInputProps) {
       const newSuggestions = applyFieldHint(result.suggestions, result.context);
       if (newSuggestions.length > 0) {
         setSuggestions(newSuggestions);
-        setShowDropdown(false);
+        if (!dropdownAlignToInput) setShowDropdown(false);
         setShowDatePicker(false);
         setSelectedSuggestionIndex(result.context.partial ? 0 : -1);
         setAutocompleteContext(contextType);
-        requestAnimationFrame(() => {
-          setShowDropdown(true);
-          setDropdownPosition(computeDropdownPosition(newSuggestions.length * 32, 300));
-        });
+        showDropdownAtPosition(newSuggestions.length * 32, 300);
       } else {
         setShowDropdown(false);
         setShowDatePicker(false);
@@ -420,14 +460,11 @@ export function ElasticInput(props: ElasticInputProps) {
         replaceEnd: end,
       };
       setSuggestions([loadingSuggestion]);
-      setShowDropdown(false);
+      if (!dropdownAlignToInput) setShowDropdown(false);
       setShowDatePicker(false);
       setSelectedSuggestionIndex(-1);
       setAutocompleteContext(contextType);
-      requestAnimationFrame(() => {
-        setShowDropdown(true);
-        setDropdownPosition(computeDropdownPosition(32, 300));
-      });
+      showDropdownAtPosition(32, 300);
     }
 
     // Handle async fetchSuggestions
@@ -470,10 +507,7 @@ export function ElasticInput(props: ElasticInputProps) {
           if (mapped.length > 0) {
             setSuggestions(mapped);
             setSelectedSuggestionIndex(partial ? 0 : -1);
-            requestAnimationFrame(() => {
-              setShowDropdown(true);
-              setDropdownPosition(computeDropdownPosition(mapped.length * 32, 300));
-            });
+            showDropdownAtPosition(mapped.length * 32, 300);
           } else {
             // No async results — fall back to the sync hint (e.g. "Search companies...")
             const syncResult = engineRef.current.getSuggestions(stateRef.current.tokens, stateRef.current.cursorOffset);
@@ -484,10 +518,7 @@ export function ElasticInput(props: ElasticInputProps) {
             if (hintSuggestions.length > 0) {
               setSuggestions(hintSuggestions);
               setSelectedSuggestionIndex(syncResult.context.partial ? 0 : -1);
-              requestAnimationFrame(() => {
-                setShowDropdown(true);
-                setDropdownPosition(computeDropdownPosition(hintSuggestions.length * 32, 300));
-              });
+              showDropdownAtPosition(hintSuggestions.length * 32, 300);
             } else {
               setShowDropdown(false);
               setSuggestions([]);
@@ -503,7 +534,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition]);
+  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode]);
 
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);
@@ -517,6 +548,8 @@ export function ElasticInput(props: ElasticInputProps) {
     asyncActiveRef.current = false;
     abortControllerRef.current?.abort();
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+    // Reset manual activation so next Ctrl+Space re-activates
+    manualActivationContextRef.current = null;
   }, []);
 
   const applyNewValue = React.useCallback((
@@ -858,6 +891,16 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Ctrl+Space: activate dropdown in manual mode
+    if (e.key === ' ' && (e.ctrlKey || e.metaKey) && dropdownMode === 'manual') {
+      e.preventDefault();
+      // Get current context and activate for it
+      const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
+      manualActivationContextRef.current = result.context.type;
+      updateSuggestionsFromTokens(s.tokens, s.cursorOffset);
+      return;
+    }
+
     // Ctrl+Enter always submits
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -932,7 +975,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

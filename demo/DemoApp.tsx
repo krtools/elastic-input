@@ -35,6 +35,7 @@ export function DemoApp() {
   const [searchResult, setSearchResult] = React.useState('');
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
+  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual'>('always');
 
   const theme = isDark ? darkTheme : lightTheme;
   const colors = isDark ? DARK_COLORS : DEFAULT_COLORS;
@@ -69,7 +70,16 @@ export function DemoApp() {
             Syntax-aware smart autocomplete input for Elastic query syntax
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <select
+            style={{ ...styles.themeToggle, cursor: 'pointer' }}
+            value={dropdownMode}
+            onChange={e => setDropdownMode(e.target.value as 'always' | 'never' | 'manual')}
+          >
+            <option value="always">Dropdown: Always</option>
+            <option value="never">Dropdown: Never</option>
+            <option value="manual">Dropdown: Ctrl+Space</option>
+          </select>
           <button
             style={styles.themeToggle}
             onClick={() => setDropdownAlignToInput(d => !d)}
@@ -116,6 +126,7 @@ export function DemoApp() {
                 fetchSuggestions={mockFetchSuggestions}
                 maxSuggestions={8}
                 dropdownAlignToInput={dropdownAlignToInput}
+                dropdownMode={dropdownMode}
               />
             </div>
             <button

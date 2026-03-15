@@ -414,6 +414,15 @@ export class Parser {
       const lparen = this.advance();
       if (!this.peek() || this.peek()!.type === TokenType.RPAREN) {
         const rp = this.match(TokenType.RPAREN);
+        if (!rp) {
+          this.errors.push({
+            type: 'Error',
+            value: lparen.value,
+            message: 'Unclosed parenthesis',
+            start: lparen.start,
+            end: lparen.end,
+          });
+        }
         const emptyGroup: GroupNode = {
           type: 'Group',
           expression: { type: 'BareTerm', value: '', quoted: false, start: lparen.end, end: lparen.end },
@@ -481,6 +490,15 @@ export class Parser {
           const lparen = this.advance();
           if (!this.peek() || this.peek()!.type === TokenType.RPAREN) {
             const rp = this.match(TokenType.RPAREN);
+            if (!rp) {
+              this.errors.push({
+                type: 'Error',
+                value: lparen.value,
+                message: 'Unclosed parenthesis',
+                start: lparen.start,
+                end: lparen.end,
+              });
+            }
             const emptyFieldGroup: FieldGroupNode = {
               type: 'FieldGroup',
               field: field.value,
@@ -647,6 +665,25 @@ export class Parser {
         start: t.start,
         end: t.end,
       });
+    }
+
+    // Stray closing paren at expression start
+    if (token.type === TokenType.RPAREN) {
+      const t = this.advance();
+      this.errors.push({
+        type: 'Error',
+        value: t.value,
+        message: 'Unexpected closing parenthesis',
+        start: t.start,
+        end: t.end,
+      });
+      return {
+        type: 'Error',
+        value: t.value,
+        message: 'Unexpected closing parenthesis',
+        start: t.start,
+        end: t.end,
+      };
     }
 
     // Unknown/unexpected token

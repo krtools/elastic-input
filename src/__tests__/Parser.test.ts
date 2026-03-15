@@ -701,6 +701,40 @@ describe('Parser', () => {
       expect(errors).toHaveLength(0);
     });
 
+    it('reports unclosed parenthesis for bare (', () => {
+      const { errors } = parseWithErrors('(');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unclosed parenthesis',
+        start: 0,
+        end: 1,
+      });
+    });
+
+    it('reports unclosed parenthesis for bare ) as unexpected closing', () => {
+      const { errors } = parseWithErrors(')');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unexpected closing parenthesis',
+      });
+    });
+
+    it('reports unclosed parenthesis for abc (', () => {
+      const { errors } = parseWithErrors('abc (');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unclosed parenthesis',
+      });
+    });
+
+    it('reports unclosed parenthesis for field:(', () => {
+      const { errors } = parseWithErrors('field:(');
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({
+        message: 'Unclosed parenthesis',
+      });
+    });
+
     it('reports unclosed double quote on bare term', () => {
       const { ast, errors } = parseWithErrors('"hello world');
       expect(ast).not.toBeNull();

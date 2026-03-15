@@ -798,9 +798,14 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Single mode**: Clicking a day emits `YYYY-MM-DD`.
 - **Range mode**: First click sets range start, second click sets range end. Emits `[YYYY-MM-DD TO YYYY-MM-DD]`. Reversed selections are auto-corrected.
+- **Range hover preview**: After the first click (start selected, end pending), hovering over any date highlights the preview range between start and the hovered date. This works across all view levels:
+  - **Days view**: individual day cells in the preview range get the in-range highlight.
+  - **Months view**: month cells whose month falls between start and hovered month are highlighted.
+  - **Years view**: year cells between start year and hovered year are highlighted.
+  - Hovering backward (before the start date) works — preview shows the reversed range. Leaving the calendar clears the preview.
 - Range presets (e.g., "Last 7 days", "Last 30 days") are shown in a 2-column grid below the calendar in range mode only. The date picker dropdown has no max-height constraint so presets are visible without scrolling.
 
-- **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly"
+- **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly", "hover date creates a preview range with isDateInRange", "hover preview works when hovering before the start date (reversed)", "no preview when hoverDate is null (mouse left the calendar)", "month-level preview", "year-level preview"
 
 #### 8.3.5 Trailing Space After Date Selection
 

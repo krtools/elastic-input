@@ -32,6 +32,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
   const [viewMonth, setViewMonth] = React.useState(now.getMonth());
   const [rangeStart, setRangeStart] = React.useState<Date | null>(null);
   const [rangeEnd, setRangeEnd] = React.useState<Date | null>(null);
+  const [hoverDate, setHoverDate] = React.useState<Date | null>(null);
 
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(styleConfig);
@@ -87,18 +88,24 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
     if (!rangeStart || rangeEnd) {
       setRangeStart(date);
       setRangeEnd(null);
+      setHoverDate(null);
     } else {
       const [s, e] = rangeStart <= date ? [rangeStart, date] : [date, rangeStart];
       setRangeStart(s);
       setRangeEnd(e);
+      setHoverDate(null);
       onSelect(`[${formatDate(s)} TO ${formatDate(e)}]`);
     }
   };
+
+  // When start is picked but end isn't, use hoverDate as the preview end
+  const previewEnd = (rangeStart && !rangeEnd) ? hoverDate : rangeEnd;
 
   const switchMode = (newMode: 'single' | 'range') => {
     setMode(newMode);
     setRangeStart(null);
     setRangeEnd(null);
+    setHoverDate(null);
   };
 
   // --- Header label ---
@@ -124,8 +131,8 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
     const date = new Date(viewYear, viewMonth, d);
     const isToday = isSameDay(date, today);
     const isStart = rangeStart && isSameDay(date, rangeStart);
-    const isEnd = rangeEnd && isSameDay(date, rangeEnd);
-    const inRange = isDateInRange(date, rangeStart, rangeEnd);
+    const isEnd = previewEnd && isSameDay(date, previewEnd);
+    const inRange = isDateInRange(date, rangeStart, previewEnd);
     const isSelected = isStart || isEnd;
 
     const dayStyle = {
@@ -140,13 +147,9 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
         key={d}
         style={dayStyle}
         onClick={() => selectDay(d)}
-        onMouseEnter={e => {
-          if (!isSelected) (e.currentTarget as HTMLElement).style.backgroundColor = '#eef1f5';
-        }}
-        onMouseLeave={e => {
-          if (!isSelected) {
-            (e.currentTarget as HTMLElement).style.backgroundColor = inRange
-              ? 'rgba(9, 105, 218, 0.1)' : 'transparent';
+        onMouseEnter={() => {
+          if (mode === 'range' && rangeStart && !rangeEnd) {
+            setHoverDate(date);
           }
         }}
       >
@@ -184,7 +187,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
   };
 
   return (
-    <div style={styles.container} onMouseDown={e => e.preventDefault()}>
+    <div style={styles.container} onMouseDown={e => e.preventDefault()} onMouseLeave={() => setHoverDate(null)}>
       <div style={styles.rangeToggle}>
         {(['single', 'range'] as const).map(m => (
           <button
@@ -237,17 +240,35 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
 
       {viewLevel === 'months' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2px' }}>
-          {SHORT_MONTHS.map((name, i) => (
-            <button
-              key={name}
-              style={i === today.getMonth() && viewYear === today.getFullYear() ? gridCellCurrentStyle : gridCellStyle}
-              onClick={() => selectMonth(i)}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = '#eef1f5'}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
-            >
-              {name}
-            </button>
-          ))}
+          {SHORT_MONTHS.map((name, i) => {
+            const monthDate = new Date(viewYear, i, 1);
+            const monthInRange = isDateInRange(monthDate, rangeStart, previewEnd);
+            const monthIsEndpoint = rangeStart && isSameDay(
+              new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1), monthDate
+            ) || previewEnd && isSameDay(
+              new Date(previewEnd.getFullYear(), previewEnd.getMonth(), 1), monthDate
+            );
+            const isCurrent = i === today.getMonth() && viewYear === today.getFullYear();
+
+            return (
+              <button
+                key={name}
+                style={{
+                  ...(isCurrent ? gridCellCurrentStyle : gridCellStyle),
+                  ...(monthInRange ? styles.dayInRange : {}),
+                  ...(monthIsEndpoint ? styles.daySelected : {}),
+                }}
+                onClick={() => selectMonth(i)}
+                onMouseEnter={() => {
+                  if (mode === 'range' && rangeStart && !rangeEnd) {
+                    setHoverDate(monthDate);
+                  }
+                }}
+              >
+                {name}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -257,16 +278,28 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig }: DateR
             const year = getDecadeStart(viewYear) - 1 + i;
             const isOutOfRange = i === 0 || i === 11;
             const isCurrent = year === today.getFullYear();
+            const yearDate = new Date(year, 0, 1);
+            const yearInRange = rangeStart && previewEnd &&
+              year >= Math.min(rangeStart.getFullYear(), previewEnd.getFullYear()) &&
+              year <= Math.max(rangeStart.getFullYear(), previewEnd.getFullYear());
+            const yearIsEndpoint = (rangeStart && rangeStart.getFullYear() === year) ||
+              (previewEnd && previewEnd.getFullYear() === year);
+
             return (
               <button
                 key={year}
                 style={{
                   ...(isCurrent ? gridCellCurrentStyle : gridCellStyle),
                   ...(isOutOfRange ? styles.dayOtherMonth : {}),
+                  ...(yearInRange ? styles.dayInRange : {}),
+                  ...(yearIsEndpoint ? styles.daySelected : {}),
                 }}
                 onClick={() => selectYear(year)}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.backgroundColor = '#eef1f5'}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'}
+                onMouseEnter={() => {
+                  if (mode === 'range' && rangeStart && !rangeEnd) {
+                    setHoverDate(yearDate);
+                  }
+                }}
               >
                 {year}
               </button>

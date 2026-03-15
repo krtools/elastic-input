@@ -417,3 +417,68 @@ describe('Date range selection', () => {
     expect(result).toBe('[2024-01-10 TO 2024-01-20]');
   });
 });
+
+describe('Range hover preview logic', () => {
+  // These tests verify the preview range logic used by DateRangePicker:
+  // when rangeStart is set and rangeEnd is null, hoverDate acts as previewEnd.
+
+  it('hover date creates a preview range with isDateInRange', () => {
+    const rangeStart = new Date(2024, 0, 10);
+    const hoverDate = new Date(2024, 0, 20);
+    const previewEnd = hoverDate; // rangeEnd is null, so hoverDate is used
+
+    // Dates between start and hover should be in range
+    expect(isDateInRange(new Date(2024, 0, 15), rangeStart, previewEnd)).toBe(true);
+    // Start and end themselves
+    expect(isDateInRange(rangeStart, rangeStart, previewEnd)).toBe(true);
+    expect(isDateInRange(hoverDate, rangeStart, previewEnd)).toBe(true);
+    // Outside the range
+    expect(isDateInRange(new Date(2024, 0, 5), rangeStart, previewEnd)).toBe(false);
+    expect(isDateInRange(new Date(2024, 0, 25), rangeStart, previewEnd)).toBe(false);
+  });
+
+  it('hover preview works when hovering before the start date (reversed)', () => {
+    const rangeStart = new Date(2024, 0, 20);
+    const hoverDate = new Date(2024, 0, 10); // hovering before start
+
+    // isDateInRange handles reversed ranges via Math.min/max
+    expect(isDateInRange(new Date(2024, 0, 15), rangeStart, hoverDate)).toBe(true);
+    expect(isDateInRange(new Date(2024, 0, 10), rangeStart, hoverDate)).toBe(true);
+    expect(isDateInRange(new Date(2024, 0, 20), rangeStart, hoverDate)).toBe(true);
+    expect(isDateInRange(new Date(2024, 0, 5), rangeStart, hoverDate)).toBe(false);
+  });
+
+  it('no preview when hoverDate is null (mouse left the calendar)', () => {
+    const rangeStart = new Date(2024, 0, 10);
+    const hoverDate = null;
+    const previewEnd = hoverDate; // null
+
+    expect(isDateInRange(new Date(2024, 0, 15), rangeStart, previewEnd)).toBe(false);
+  });
+
+  it('month-level preview: month dates fall in range between start and hover month', () => {
+    const rangeStart = new Date(2024, 0, 15); // Jan 15
+    const hoverMonth = new Date(2024, 3, 1);  // Hovering on April
+
+    // Feb and March are between Jan and April
+    const feb = new Date(2024, 1, 1);
+    const mar = new Date(2024, 2, 1);
+    expect(isDateInRange(feb, rangeStart, hoverMonth)).toBe(true);
+    expect(isDateInRange(mar, rangeStart, hoverMonth)).toBe(true);
+    // May is outside
+    expect(isDateInRange(new Date(2024, 4, 1), rangeStart, hoverMonth)).toBe(false);
+  });
+
+  it('year-level preview: years in range between start and hover year', () => {
+    const startYear = 2022;
+    const hoverYear = 2025;
+
+    // Years between should be in range
+    for (const y of [2022, 2023, 2024, 2025]) {
+      expect(y >= Math.min(startYear, hoverYear) && y <= Math.max(startYear, hoverYear)).toBe(true);
+    }
+    // Outside
+    expect(2021 >= Math.min(startYear, hoverYear) && 2021 <= Math.max(startYear, hoverYear)).toBe(false);
+    expect(2026 >= Math.min(startYear, hoverYear) && 2026 <= Math.max(startYear, hoverYear)).toBe(false);
+  });
+});

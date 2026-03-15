@@ -575,7 +575,16 @@ When the user has a browser selection (e.g., double-click to select a word), the
 - Drag-select "active " (7–14, including trailing space) → replacement extends to 14
 - **Tests:** `ReplacementRange.test.ts` → "double-clicking a value and accepting replaces it correctly", "collapsed cursor (no selection) uses token range only", "double-clicking value in multi-field query replaces only that value", "selection extending beyond token uses broader range", "selecting entire field:value pair and replacing field works"
 
-### 5.4 Value Replacement Boundaries
+### 5.4 Multi-Token Selection Suppresses Dropdown
+
+When a selection spans multiple tokens (e.g. triple-click selecting `field:value`), the dropdown is suppressed because the cursor context is ambiguous. Single-token selections (e.g. double-click on a field name or value) proceed normally.
+
+- Triple-click `email:asdf` (selects 0–10, spanning FIELD_NAME + COLON + VALUE) → dropdown closed
+- Double-click `email` in `email:asdf` (selects 0–5, within FIELD_NAME) → field suggestions shown
+- Double-click `asdf` in `email:asdf` (selects 6–10, within VALUE) → value suggestions shown
+- **Tests:** `ReplacementRange.test.ts` → `getTokenIndexRange` suite (6 tests)
+
+### 5.5 Value Replacement Boundaries
 
 Replacing a partial value does not affect adjacent tokens.
 

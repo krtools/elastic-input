@@ -94,6 +94,32 @@ export function findTokenAtOffset(tokens: Token[], offset: number): number {
 }
 
 /**
+ * Find the token indices that a character range [start, end] spans.
+ * Returns [startIdx, endIdx]. Both are -1 if no token is found.
+ *
+ * At token boundaries (where one token ends and the next begins),
+ * startIdx resolves to the **later** token and endIdx to the **earlier**
+ * one, so a selection exactly covering a single token always returns
+ * matching indices.
+ */
+export function getTokenIndexRange(tokens: Token[], start: number, end: number): [number, number] {
+  let startIdx = -1;
+  let endIdx = -1;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    // Last match for start — resolves boundary to the later token
+    if (start >= t.start && start <= t.end) {
+      startIdx = i;
+    }
+    // First match for end — resolves boundary to the earlier token
+    if (endIdx === -1 && end >= t.start && end <= t.end) {
+      endIdx = i;
+    }
+  }
+  return [startIdx, endIdx];
+}
+
+/**
  * Find the previous non-whitespace token index.
  */
 export function findPrevNonWsToken(tokens: Token[], fromIndex: number): number {

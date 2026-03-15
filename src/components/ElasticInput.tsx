@@ -16,7 +16,7 @@ import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
-import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import {
   mergeColors,
   mergeStyles,
@@ -1177,8 +1177,20 @@ export function ElasticInput(props: ElasticInputProps) {
     const selRange = getSelectionCharRange(editorRef.current);
     setCursorOffset(selRange.start);
     setSelectionEnd(selRange.end);
+
+    // If selection spans multiple tokens (e.g. triple-click selecting "field:value"),
+    // suppress the dropdown — context is ambiguous.
+    // Single-token selections (e.g. double-click on field name) proceed normally.
+    if (selRange.start !== selRange.end) {
+      const [si, ei] = getTokenIndexRange(stateRef.current.tokens, selRange.start, selRange.end);
+      if (si !== ei) {
+        closeDropdown();
+        return;
+      }
+    }
+
     updateSuggestionsFromTokens(stateRef.current.tokens, selRange.start);
-  }, [updateSuggestionsFromTokens]);
+  }, [updateSuggestionsFromTokens, closeDropdown]);
 
   const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();

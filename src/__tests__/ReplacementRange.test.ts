@@ -3,7 +3,7 @@ import { Lexer } from '../lexer/Lexer';
 import { TokenType } from '../lexer/tokens';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig } from '../types';
-import { getReplacementRange } from '../utils/textUtils';
+import { getReplacementRange, getTokenIndexRange } from '../utils/textUtils';
 
 const FIELDS: FieldConfig[] = [
   { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
@@ -346,6 +346,49 @@ describe('Cursor at colon-value boundary', () => {
     expect(result.context.type).toBe('FIELD_VALUE');
     expect(result.context.partial).toBe('ERROR');
     expect(result.context.token).toBeDefined();
+  });
+});
+
+describe('getTokenIndexRange', () => {
+  it('collapsed cursor returns same index for both', () => {
+    // "status:active" — offset 3 is inside FIELD_NAME(0,6)
+    const tokens = new Lexer('status:active').tokenize();
+    const [si, ei] = getTokenIndexRange(tokens, 3, 3);
+    expect(si).toBe(ei);
+  });
+
+  it('double-click on field name returns same index for both', () => {
+    // "status:active" — double-click selects "status" (0-6)
+    const tokens = new Lexer('status:active').tokenize();
+    const [si, ei] = getTokenIndexRange(tokens, 0, 6);
+    expect(si).toBe(ei);
+  });
+
+  it('double-click on value returns same index for both', () => {
+    // "status:active" — double-click selects "active" (7-13)
+    const tokens = new Lexer('status:active').tokenize();
+    const [si, ei] = getTokenIndexRange(tokens, 7, 13);
+    expect(si).toBe(ei);
+  });
+
+  it('triple-click selects across multiple tokens', () => {
+    // "status:active" — triple-click selects all (0-13), spans FIELD_NAME → VALUE
+    const tokens = new Lexer('status:active').tokenize();
+    const [si, ei] = getTokenIndexRange(tokens, 0, 13);
+    expect(si).not.toBe(ei);
+  });
+
+  it('selection spanning field:value in compound query', () => {
+    // "a AND status:active" — triple-click selects all (0-19)
+    const tokens = new Lexer('a AND status:active').tokenize();
+    const [si, ei] = getTokenIndexRange(tokens, 0, 19);
+    expect(si).not.toBe(ei);
+  });
+
+  it('returns [-1, -1] for empty token list', () => {
+    const [si, ei] = getTokenIndexRange([], 0, 5);
+    expect(si).toBe(-1);
+    expect(ei).toBe(-1);
   });
 });
 

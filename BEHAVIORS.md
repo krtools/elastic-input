@@ -462,6 +462,14 @@ Shown in `HISTORY_REF` context (after `!`). Filtered by substring match. Complex
 - `!API|` → matches history entry "API errors" → suggestion text: `"level:ERROR AND service:api"` wrapped as `"(level:ERROR AND service:api)"`
 - **Tests:** `AutocompleteEngine.test.ts` → "suggests history for !", "filters history by partial (includes)", "wraps history with boolean ops in parens", "does not wrap simple history in parens"
 
+#### History Item Layout
+
+History suggestions use a vertical two-row layout, unlike other suggestion types which are single-line horizontal:
+
+- **Row 1**: The query text (or explicit label), wrapping up to 2 lines then truncated with `...` (CSS `-webkit-line-clamp: 2`). Long unspaced tokens wrap via `word-break: break-all`.
+- **Row 2**: Timestamp (if present) on the left, `history` type badge on the right.
+- When an explicit label is set (label differs from query), the `title` attribute on the item shows the full query text on hover.
+
 ### 4.6 `#` and `!` Hint Suggestions
 
 When saved searches or history entries are configured, hint suggestions appear to inform the user about `#` and `!` features. These hints:

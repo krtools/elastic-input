@@ -155,6 +155,48 @@ export function AutocompleteDropdown({
           );
         }
 
+        // History items — vertical layout with 2-line clamped query
+        if (suggestion.type === 'history') {
+          const rawQuery = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
+            ? suggestion.text.slice(1, -1)
+            : suggestion.text;
+          const hasExplicitLabel = suggestion.label !== rawQuery;
+
+          return (
+            <div
+              key={i}
+              style={{ ...itemStyle, flexDirection: 'column', alignItems: 'flex-start' }}
+              title={hasExplicitLabel ? suggestion.text : undefined}
+              onClick={() => onSelect(suggestion)}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
+              }}
+            >
+              <span style={{
+                ...getDropdownItemLabelStyle(isSelected),
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                whiteSpace: 'normal',
+                wordBreak: 'break-all',
+                width: '100%',
+              }}>
+                {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                {suggestion.description && (
+                  <span style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
+                )}
+                <span style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
+              </span>
+            </div>
+          );
+        }
+
         return (
           <div
             key={i}

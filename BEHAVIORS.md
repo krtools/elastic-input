@@ -757,7 +757,9 @@ The autocomplete dropdown and date picker are rendered via `ReactDOM.createPorta
 
 ### 8.2 Full-Width Dropdown Mode (`dropdownAlignToInput`)
 
-When the `dropdownAlignToInput` prop is `true`, the dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. Both the autocomplete dropdown and date picker use the container's `getBoundingClientRect()` for positioning. The `fixedWidth` override disables the default min/max width constraints.
+When the `dropdownAlignToInput` prop is `true`, the suggestion dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. The `fixedWidth` override disables the default min/max width constraints.
+
+Custom dropdowns like the date picker are **excluded** from full-width mode — they remain compact and caret-relative even when `dropdownAlignToInput` is true. This prevents rendered components from being stretched to the full input width.
 
 ### 8.3 Dropdown Mode (`dropdownMode`)
 
@@ -774,6 +776,10 @@ The `manualActivationContextRef` tracks which context type was activated. When `
 ### 8.4 Deferred Positioning
 
 To prevent a visible flash where the dropdown appears at a stale position before snapping to the correct one, positioning is deferred via `requestAnimationFrame`. The dropdown's suggestions and context are set first (with `showDropdown: false`), then after the DOM has painted, the position is calculated and the dropdown becomes visible.
+
+### 8.4.1 Reposition on Resize / Scroll
+
+When the dropdown or date picker is visible, the component listens for `window` resize and scroll events (with capture, to catch nested scrollable containers) and recalculates the position. Full-width dropdowns recompute from the container rect; caret-relative dropdowns (including date picker) recompute from the caret rect.
 
 ### 8.5 Date Picker
 

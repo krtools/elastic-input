@@ -281,13 +281,13 @@ export function ElasticInput(props: ElasticInputProps) {
   // stale-position flash and jitter. In caret-following mode we use rAF so the
   // caret rect is measured after the DOM has updated.
   const showDropdownAtPosition = React.useCallback((height: number, width: number, kind: 'dropdown' | 'datePicker' = 'dropdown') => {
-    if (dropdownAlignToInput) {
+    // Full-width mode only applies to the suggestion dropdown, not custom
+    // dropdowns like date pickers — those stay compact and caret-relative.
+    const useContainerAlign = dropdownAlignToInput && kind !== 'datePicker';
+
+    if (useContainerAlign) {
       // Container-relative: position is stable, set synchronously
-      if (kind === 'datePicker') {
-        setShowDatePicker(true);
-      } else {
-        setShowDropdown(true);
-      }
+      setShowDropdown(true);
       setDropdownPosition(computeDropdownPosition(height, width));
       return;
     }
@@ -298,7 +298,9 @@ export function ElasticInput(props: ElasticInputProps) {
       } else {
         setShowDropdown(true);
       }
-      setDropdownPosition(computeDropdownPosition(height, width));
+      const rect = getCaretRect();
+      const pos = rect ? getDropdownPosition(rect, height, width) : null;
+      setDropdownPosition(pos);
     });
   }, [dropdownAlignToInput, computeDropdownPosition]);
 
@@ -794,6 +796,36 @@ export function ElasticInput(props: ElasticInputProps) {
     manualActivationContextRef.current = null;
   }, [dropdownMode]);
 
+  // Reposition dropdown on window resize / scroll so it stays anchored
+  React.useEffect(() => {
+    const reposition = () => {
+      const s = stateRef.current;
+      if (!s.showDropdown && !s.showDatePicker) return;
+
+      if (s.showDropdown && dropdownAlignToInput && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + window.scrollY + 4,
+          left: rect.left + window.scrollX,
+        });
+      } else {
+        // Caret-relative (date picker, or non-full-width dropdown)
+        const rect = getCaretRect();
+        if (rect) {
+          const height = s.showDatePicker ? 350 : s.suggestions.length * 32;
+          setDropdownPosition(getDropdownPosition(rect, height, 300));
+        }
+      }
+    };
+
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  }, [dropdownAlignToInput]);
+
   // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
   const prevParenMatchRef = React.useRef<string | null>(null);
   const prevColorsRef = React.useRef(colors);
@@ -1244,7 +1276,7 @@ export function ElasticInput(props: ElasticInputProps) {
           colorConfig={colors}
           styleConfig={stylesProp}
           datePickerInit={datePickerInit}
-          fixedWidth={getDropdownFixedWidth()}
+          fixedWidth={undefined}
         />
       ) : null}
     </div>

@@ -504,7 +504,6 @@ describe('Hint suggestions in freeform fields', () => {
     const engine = getEngine();
     const input = 'name:something';
     const result = getSuggestions(engine, input);
-    const hint = result.suggestions[0];
 
     // The hint has empty text — accepting it via the normal path would delete
     // the value. Instead, the component adds a trailing space at cursor offset.
@@ -517,6 +516,25 @@ describe('Hint suggestions in freeform fields', () => {
 
     // After exiting, cursor is past the space — context should change
     const next = getSuggestions(engine, newValue, newCursorPos);
+    expect(next.context.type).not.toBe('FIELD_VALUE');
+  });
+
+  it('Enter on a hint should also add trailing space before submitting', () => {
+    // Both Tab and Enter on a non-interactive hint add a trailing space.
+    // Enter additionally triggers onSearch. The value passed to onSearch
+    // must include the trailing space so the submitted query is well-formed.
+    const engine = getEngine();
+    const input = 'name:thing';
+    const result = getSuggestions(engine, input);
+    expect(result.suggestions[0].type).toBe('hint');
+
+    const cursorOffset = input.length;
+    const newValue = input.slice(0, cursorOffset) + ' ' + input.slice(cursorOffset);
+
+    expect(newValue).toBe('name:thing ');
+
+    // After adding the space, context moves out of FIELD_VALUE
+    const next = getSuggestions(engine, newValue, cursorOffset + 1);
     expect(next.context.type).not.toBe('FIELD_VALUE');
   });
 });

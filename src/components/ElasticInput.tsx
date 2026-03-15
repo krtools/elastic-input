@@ -777,19 +777,18 @@ export function ElasticInput(props: ElasticInputProps) {
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
               e.preventDefault();
               closeDropdown();
-              if (e.key === 'Tab') {
-                // "Exit" the field value: append a trailing space so the
-                // cursor lands ready for the next term.
-                const text = currentValueRef.current;
-                const offset = s.cursorOffset;
-                if (offset <= text.length && text[offset] !== ' ') {
-                  const before = text.slice(0, offset);
-                  const after = text.slice(offset);
-                  applyNewValue(before + ' ' + after, offset + 1);
-                }
+              // "Exit" the field value: append a trailing space so the
+              // cursor lands ready for the next term.
+              const text = currentValueRef.current;
+              const offset = s.cursorOffset;
+              if (offset <= text.length && text[offset] !== ' ') {
+                const before = text.slice(0, offset);
+                const after = text.slice(offset);
+                const newValue = before + ' ' + after;
+                applyNewValue(newValue, offset + 1);
+                if (e.key === 'Enter' && onSearch) onSearch(newValue, s.ast);
               } else {
-                // Enter: submit
-                if (onSearch) onSearch(currentValueRef.current, s.ast);
+                if (e.key === 'Enter' && onSearch) onSearch(text, s.ast);
               }
               return;
             }

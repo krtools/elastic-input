@@ -15,6 +15,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'tags', label: 'Tags', type: 'string',
     suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
     description: 'Contact tags' },
+  { name: 'age', label: 'Age', type: 'number', description: 'Contact age (years since DOB)' },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)', asyncSearch: true },
 ];
 

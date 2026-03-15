@@ -88,6 +88,19 @@ export function DemoApp() {
     }
   }, []);
 
+  const renderFieldHint = React.useCallback((field: FieldConfig, partial: string) => {
+    if (field.name === 'age') {
+      return React.createElement('div', { style: { padding: '4px 0' } },
+        React.createElement('div', { style: { fontWeight: 700, fontSize: '14px', marginBottom: '4px' } }, 'Entering Ages'),
+        React.createElement('div', { style: { fontSize: '12px', lineHeight: 1.5, opacity: 0.85 } },
+          'Ages are date-of-birth queries where the value represents years since today. ',
+          'Enter a single age (e.g. 30) or a range like 21-26 to match contacts whose age falls within that span.',
+        ),
+      );
+    }
+    return null;
+  }, []);
+
   const switchTab = React.useCallback((id: TabId) => {
     setActiveTab(id);
     setLastQuery('');
@@ -210,6 +223,7 @@ export function DemoApp() {
                 dropdownAlignToInput={dropdownAlignToInput}
                 dropdownMode={dropdownMode}
                 validateValue={demoValidateValue}
+                renderFieldHint={renderFieldHint}
                 renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}
                 onTab={useOnTab ? handleTab : undefined}
                 inputRef={api => { inputApiRef.current = api; }}

@@ -171,11 +171,9 @@ describe('AutocompleteEngine', () => {
   });
 
   describe('field value suggestions (freeform)', () => {
-    it('shows hint for string field with no suggestions', () => {
+    it('shows no hint for string field with no suggestions', () => {
       const result = getSuggestions('name:');
-      expect(result.suggestions).toHaveLength(1);
-      expect(result.suggestions[0].type).toBe('hint');
-      expect(result.suggestions[0].label).toBe('Type to search...');
+      expect(result.suggestions).toHaveLength(0);
     });
 
     it('shows hint for number field', () => {
@@ -190,11 +188,9 @@ describe('AutocompleteEngine', () => {
       expect(result.suggestions[0].label).toBe('Enter an IP address');
     });
 
-    it('keeps hint visible while typing in string field', () => {
+    it('shows no hint while typing in string field', () => {
       const result = getSuggestions('name:john');
-      expect(result.suggestions).toHaveLength(1);
-      expect(result.suggestions[0].type).toBe('hint');
-      expect(result.suggestions[0].label).toBe('Type to search...');
+      expect(result.suggestions).toHaveLength(0);
     });
 
     it('keeps hint visible while typing in number field', () => {
@@ -589,11 +585,9 @@ describe('AutocompleteEngine', () => {
       expect(values).toHaveLength(0);
     });
 
-    it('non-async string field shows freeform hint', () => {
+    it('non-async string field shows no default hint', () => {
       const result = getAsyncSuggs('email:');
-      const hints = result.suggestions.filter(s => s.type === 'hint');
-      expect(hints.length).toBeGreaterThan(0);
-      expect(hints[0].label).toBe('Type to search...');
+      expect(result.suggestions).toHaveLength(0);
     });
 
     it('asyncSearch string field shows placeholder hint', () => {
@@ -603,11 +597,9 @@ describe('AutocompleteEngine', () => {
       expect(hints[0].label).toBe('Search companies...');
     });
 
-    it('asyncSearch field without placeholder shows default hint', () => {
+    it('asyncSearch string field without placeholder shows no default hint', () => {
       const result = getAsyncSuggs('brand:');
-      const hints = result.suggestions.filter(s => s.type === 'hint');
-      expect(hints.length).toBeGreaterThan(0);
-      expect(hints[0].label).toBe('Type to search...');
+      expect(result.suggestions).toHaveLength(0);
     });
   });
 

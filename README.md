@@ -146,7 +146,7 @@ interface FieldConfig {
 | `number` | Shows hint "Enter a number" | Must be numeric | Yes (`>`, `>=`, `<`, `<=`) |
 | `date` | Opens date picker with calendar | ISO dates, relative dates (`now-7d`) | Yes |
 | `ip` | Shows hint "Enter an IP address" | Valid IPv4, supports wildcards (`192.168.*`) | No |
-| `string` | Shows hint "Type to search..." | No validation (anything accepted) | No |
+| `string` | No default hint (use `placeholder` for custom) | No validation (anything accepted) | No |
 
 ## Imperative API
 

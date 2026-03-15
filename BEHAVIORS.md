@@ -426,10 +426,10 @@ Shown in `FIELD_VALUE` context. Behavior depends on field type:
 | `boolean` | Shows `true`, `false` filtered by partial |
 | `date` | Opens a date picker (no text suggestions) |
 | `number` | Shows hint: "Enter a number" (persists while typing) |
-| `string` | Shows hint: "Type to search..." (persists while typing) |
+| `string` | No default hint — dropdown stays closed. Use `placeholder` for a custom hint. |
 | `ip` | Shows hint: "Enter an IP address" (persists while typing) |
 
-For fields without static suggestions (string, number, ip), the hint **stays visible while the user types** rather than disappearing after the first keystroke. This provides persistent context about what the field expects.
+For fields with a default hint (number, ip), the hint **stays visible while the user types** rather than disappearing after the first keystroke. This provides persistent context about what the field expects. String fields show no hint by default — consumers can add one via `FieldConfig.placeholder`.
 
 The hint text is configurable per field via `FieldConfig.placeholder`:
 - Custom string: `placeholder: "Search companies..."` — shown instead of the default
@@ -440,7 +440,7 @@ When async results arrive (via `fetchSuggestions`), they replace the hint. When 
 
 For fully custom hint rendering (e.g. multiline rich content with instructions), the `renderFieldHint` prop accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
 
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows hint for string field with no suggestions", "shows hint for IP field", "keeps hint visible while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all enum values after colon", "filters enum values by prefix", "filters enum values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field with no suggestions", "shows hint for IP field", "shows no hint while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
 ### 4.3 Operator Suggestions
 
@@ -502,7 +502,7 @@ Within the same priority, items retain their relevance-based ordering.
 
 When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
 
-**Only fields with `asyncSearch: true`** in their `FieldConfig` trigger async fetching. Fields without this flag always show their sync hint (e.g. "Enter a number", "Type to search...") and never call `fetchSuggestions`. This prevents fields that have no async data source from flashing "Searching..." before falling back to a static hint.
+**Only fields with `asyncSearch: true`** in their `FieldConfig` trigger async fetching. Fields without this flag always show their sync hint if one exists (e.g. "Enter a number") and never call `fetchSuggestions`. This prevents fields that have no async data source from flashing "Searching..." before falling back to a static hint.
 
 #### 4.8.1 Async Lifecycle & Dropdown Content
 
@@ -596,7 +596,7 @@ Accepting a field suggestion (e.g., `status:`) immediately shows value suggestio
 - Type `is` → accept `is_vip:` → shows `[true, false]`
 - Type `pri` → accept `price:` → shows hint "Enter a number"
 - Type `cre` → accept `created:` → opens date picker
-- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows enum value suggestions", "selecting \"level:\" shows enum value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows string hint"
+- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows enum value suggestions", "selecting \"level:\" shows enum value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows no suggestions (string field, no default hint)"
 
 ### 6.2 Value → Operator
 
@@ -737,11 +737,11 @@ The dropdown's selected index determines which item is highlighted and which Ent
 
 - **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus).
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
-- **Non-interactive hint selected** (freeform fields like `name:something` where the only dropdown item is a hint such as "Type to search..."): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
+- **Non-interactive hint selected** (fields like `price:42` where the only dropdown item is a hint such as "Enter a number"): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
 - **ArrowUp past first item**: deselects all (returns to index -1).
 - **Loading state** ("Searching..." for async fields): no item is pre-selected.
 
-- **Tests:** `SuggestionChaining.test.ts` → "string field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
+- **Tests:** `SuggestionChaining.test.ts` → "number field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
 
 ---
 
@@ -1201,7 +1201,7 @@ Each `FieldConfig` can declare `aliases: string[]`. An alias is treated identica
 Each `FieldConfig` can set `asyncSearch: true` to indicate that the field's values are provided by the `fetchSuggestions` callback. This controls the initial dropdown behavior when entering a value for that field:
 
 - **`asyncSearch: true`**: Shows a loading spinner immediately on first entry. The `fetchSuggestions` callback is invoked. Subsequent keystrokes preserve previous results until new ones arrive.
-- **`asyncSearch: false` (default)**: Shows the sync hint (e.g. "Enter a number", "Type to search..."). The `fetchSuggestions` callback is **not** invoked for this field.
+- **`asyncSearch: false` (default)**: Shows the sync hint if one exists for the field type (e.g. "Enter a number" for number fields). String fields show no default hint. The `fetchSuggestions` callback is **not** invoked for this field.
 
 This prevents fields without an async data source (e.g. `email`, `price`) from flashing a loading spinner before falling back to a static hint.
 

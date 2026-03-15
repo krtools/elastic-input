@@ -219,7 +219,6 @@ export class AutocompleteEngine {
     if (field.placeholder !== false) {
       const defaultHints: Record<string, string> = {
         number: 'Enter a number',
-        string: 'Type to search...',
         ip: 'Enter an IP address',
       };
       const hintText = field.placeholder || defaultHints[field.type];

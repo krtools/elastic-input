@@ -146,7 +146,7 @@ describe('Suggestion chaining — field selection → value suggestions', () => 
     expect(nextResult.context.type).toBe('FIELD_VALUE');
   });
 
-  it('selecting "name:" shows string hint', () => {
+  it('selecting "name:" shows no suggestions (string field, no default hint)', () => {
     const engine = getEngine();
     const step1 = getSuggestions(engine, 'nam');
     const nameSugg = step1.suggestions.find(s => s.text === 'name:');
@@ -154,7 +154,7 @@ describe('Suggestion chaining — field selection → value suggestions', () => 
 
     const { nextResult } = acceptAndGetNext(engine, 'nam', nameSugg!);
     expect(nextResult.context.type).toBe('FIELD_VALUE');
-    expect(nextResult.suggestions[0].type).toBe('hint');
+    expect(nextResult.suggestions).toHaveLength(0);
   });
 });
 
@@ -487,23 +487,32 @@ describe('Tab vs Enter behavior for field value selection', () => {
 });
 
 describe('Hint suggestions in freeform fields', () => {
-  it('string field returns a hint suggestion with empty text', () => {
+  it('number field returns a hint suggestion with empty text', () => {
+    const engine = getEngine();
+    const result = getSuggestions(engine, 'price:42');
+    expect(result.context.type).toBe('FIELD_VALUE');
+    expect(result.context.fieldName).toBe('price');
+    // Freeform fields with a default hint produce a non-selectable hint
+    expect(result.suggestions.length).toBe(1);
+    expect(result.suggestions[0].type).toBe('hint');
+    expect(result.suggestions[0].text).toBe('');
+  });
+
+  it('string field returns no suggestions (no default hint)', () => {
     const engine = getEngine();
     const result = getSuggestions(engine, 'name:something');
     expect(result.context.type).toBe('FIELD_VALUE');
     expect(result.context.fieldName).toBe('name');
-    // Freeform fields produce a hint (non-selectable), not a real suggestion
-    expect(result.suggestions.length).toBe(1);
-    expect(result.suggestions[0].type).toBe('hint');
-    expect(result.suggestions[0].text).toBe('');
+    expect(result.suggestions).toHaveLength(0);
   });
 
   it('Tab on a hint should "exit" the field — trailing space confirms the value', () => {
     // Simulates the ElasticInput keydown handler behavior:
     // When Tab/Enter hits a non-interactive hint, close dropdown and add trailing space.
     const engine = getEngine();
-    const input = 'name:something';
+    const input = 'price:42';
     const result = getSuggestions(engine, input);
+    expect(result.suggestions[0].type).toBe('hint');
 
     // The hint has empty text — accepting it via the normal path would delete
     // the value. Instead, the component adds a trailing space at cursor offset.
@@ -511,8 +520,8 @@ describe('Hint suggestions in freeform fields', () => {
     const newValue = input.slice(0, cursorOffset) + ' ' + input.slice(cursorOffset);
     const newCursorPos = cursorOffset + 1;
 
-    expect(newValue).toBe('name:something ');
-    expect(newCursorPos).toBe(15);
+    expect(newValue).toBe('price:42 ');
+    expect(newCursorPos).toBe(9);
 
     // After exiting, cursor is past the space — context should change
     const next = getSuggestions(engine, newValue, newCursorPos);
@@ -524,14 +533,14 @@ describe('Hint suggestions in freeform fields', () => {
     // Enter additionally triggers onSearch. The value passed to onSearch
     // must include the trailing space so the submitted query is well-formed.
     const engine = getEngine();
-    const input = 'name:thing';
+    const input = 'price:99';
     const result = getSuggestions(engine, input);
     expect(result.suggestions[0].type).toBe('hint');
 
     const cursorOffset = input.length;
     const newValue = input.slice(0, cursorOffset) + ' ' + input.slice(cursorOffset);
 
-    expect(newValue).toBe('name:thing ');
+    expect(newValue).toBe('price:99 ');
 
     // After adding the space, context moves out of FIELD_VALUE
     const next = getSuggestions(engine, newValue, cursorOffset + 1);

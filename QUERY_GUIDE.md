@@ -31,6 +31,16 @@ name:John
 price:100
 ```
 
+If a value contains spaces, wrap it in double quotes — otherwise only the
+first word is treated as the field value:
+
+```
+name:"John Smith"
+```
+
+> **Watch out:** `name:John Smith` searches for `name:John` AND a separate
+> term `Smith`. The space ends the field value.
+
 Multiple terms are combined with AND automatically:
 
 ```
@@ -326,9 +336,11 @@ Each field has a type that determines what values are valid:
 
 | Mistake | Problem | Fix |
 |---------|---------|-----|
+| `name:John Smith` | Space ends the field value — searches `name:John` AND bare term `Smith` | `name:"John Smith"` |
 | `name:'John'` | Single quotes aren't phrase delimiters | `name:"John"` |
+| `created:(1/2/2025 TO 1/4/2025)` | Parentheses create a field group, not a range | `created:[1/2/2025 TO 1/4/2025]` |
+| `price:[1 - 10]` | Hyphen isn't the range separator | `price:[1 TO 10]` |
 | `a AND b OR c` | Ambiguous precedence | `(a AND b) OR c` |
-| `price:[1-10]` | Hyphen isn't range syntax | `price:[1 TO 10]` |
 | `is_vip:yes` | Boolean fields need true/false | `is_vip:true` |
 | `status:>active` | Comparisons only for numbers/dates | `status:active` |
 | `created:01-15-2024` | Wrong date format | `created:2024-01-15` |

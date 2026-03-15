@@ -13,6 +13,7 @@ if (typeof document !== 'undefined') {
   }
 }
 import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch } from '../types';
+import { CursorContext } from '../parser/Parser';
 import {
   mergeColors,
   mergeStyles,
@@ -35,6 +36,8 @@ interface AutocompleteDropdownProps {
   fixedWidth?: number;
   renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
+  renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
+  cursorContext?: CursorContext | null;
 }
 
 function highlightMatch(text: string, partial: string | undefined, isSelected: boolean): React.ReactNode {
@@ -71,6 +74,8 @@ export function AutocompleteDropdown({
   fixedWidth,
   renderHistoryItem,
   renderSavedSearchItem,
+  renderDropdownHeader,
+  cursorContext,
 }: AutocompleteDropdownProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -86,15 +91,22 @@ export function AutocompleteDropdown({
     };
   }, []);
 
-  // Scroll selected item into view
+  // Compute header content (must be stable across render + effect)
+  const headerContent = renderDropdownHeader && cursorContext
+    ? renderDropdownHeader(cursorContext)
+    : null;
+  const hasHeader = headerContent != null;
+
+  // Scroll selected item into view (offset by 1 if header is present)
   React.useEffect(() => {
     if (listRef.current) {
-      const item = listRef.current.children[selectedIndex] as HTMLElement;
+      const childIdx = hasHeader ? selectedIndex + 1 : selectedIndex;
+      const item = listRef.current.children[childIdx] as HTMLElement;
       if (item) {
         item.scrollIntoView({ block: 'nearest' });
       }
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, hasHeader]);
 
   if (!portalRef.current || !visible || suggestions.length === 0 || !position) {
     return null;
@@ -111,6 +123,17 @@ export function AutocompleteDropdown({
 
   const content = (
     <div style={dropdownStyle} ref={listRef} onMouseDown={e => e.preventDefault()}>
+      {hasHeader && (
+        <div style={{
+          padding: mergedStyles.dropdownItemPadding || '4px 10px',
+          fontSize: '11px',
+          color: mergedColors.placeholder,
+          borderBottom: `1px solid ${mergedColors.dropdownHover}`,
+          userSelect: 'none',
+        }}>
+          {headerContent}
+        </div>
+      )}
       {suggestions.map((suggestion, i) => {
         const isSelected = i === selectedIndex;
         const itemStyle = getDropdownItemStyle(isSelected, mergedColors, mergedStyles);

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
+import { CursorContext } from '../src/parser/Parser';
 import { ValidationError } from '../src/validation/Validator';
 import { ElasticInputAPI, FieldConfig } from '../src/types';
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
@@ -36,6 +37,7 @@ export function DemoApp() {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual'>('always');
+  const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -52,6 +54,17 @@ export function DemoApp() {
   const handleChange = React.useCallback((query: string, ast: ASTNode | null) => {
     setLastQuery(query);
     setLastAST(ast);
+  }, []);
+
+  const renderDropdownHeader = React.useCallback((ctx: CursorContext) => {
+    switch (ctx.type) {
+      case 'FIELD_NAME': return 'Filter by field';
+      case 'FIELD_VALUE': return ctx.fieldName ? `Values for ${ctx.fieldName}` : 'Enter a value';
+      case 'OPERATOR': return 'Operators & fields';
+      case 'SAVED_SEARCH': return 'Insert saved search';
+      case 'HISTORY_REF': return 'Insert query from history';
+      default: return null;
+    }
   }, []);
 
   const switchTab = React.useCallback((id: TabId) => {
@@ -86,6 +99,12 @@ export function DemoApp() {
             onClick={() => setDropdownAlignToInput(d => !d)}
           >
             {dropdownAlignToInput ? 'Caret Dropdown' : 'Full-Width Dropdown'}
+          </button>
+          <button
+            style={styles.themeToggle}
+            onClick={() => setShowDropdownHeaders(d => !d)}
+          >
+            {showDropdownHeaders ? 'Headers: On' : 'Headers: Off'}
           </button>
           <button
             style={styles.themeToggle}
@@ -129,6 +148,7 @@ export function DemoApp() {
                 dropdownAlignToInput={dropdownAlignToInput}
                 dropdownMode={dropdownMode}
                 validateValue={demoValidateValue}
+                renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}
                 inputRef={api => { inputApiRef.current = api; }}
               />
             </div>

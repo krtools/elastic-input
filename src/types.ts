@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { ASTNode } from './parser/ast';
+import { CursorContext } from './parser/Parser';
 import { ValidationError } from './validation/Validator';
 
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
@@ -307,6 +308,12 @@ export interface ElasticInputProps {
    * Receives the original `SavedSearch` and whether the item is currently selected.
    */
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
+  /**
+   * Custom renderer for a header above the suggestion list. Called with the current cursor
+   * context whenever the dropdown is shown. Return a React element for the header, or
+   * `null`/`undefined` to show no header.
+   */
+  renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   /**

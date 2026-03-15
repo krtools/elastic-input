@@ -536,7 +536,13 @@ The "Searching..." loading item is a non-selectable dropdown entry with an anima
 
 Async fetches are debounced by `suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
 
-### 4.9 Bare Quoted Phrases — No Suggestions
+### 4.9 Dropdown Header (`renderDropdownHeader`)
+
+An optional header can be rendered above the suggestion list via the `renderDropdownHeader` prop. The callback receives the current `CursorContext` and returns a `ReactNode`, `null`, or `undefined`. When the return value is nullish, no header is shown.
+
+The header is non-interactive (not selectable, not part of keyboard navigation). It's styled with smaller text, placeholder color, and a bottom border separating it from suggestions.
+
+### 4.10 Bare Quoted Phrases — No Suggestions
 
 When typing a bare quoted phrase (not after a colon), **no suggestions appear**. The quote character doesn't match any field name.
 
@@ -1181,6 +1187,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
+| `renderDropdownHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; receives cursor context |
 
 #### Async Field Loading
 

@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Lexer } from '../lexer/Lexer';
 import { Token } from '../lexer/tokens';
-import { Parser } from '../parser/Parser';
+import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
@@ -163,7 +163,7 @@ export function ElasticInput(props: ElasticInputProps) {
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
-    inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
+    inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
     onKeyDown: onKeyDownProp, validateValue,
   } = props;
 
@@ -244,6 +244,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [cursorOffset, setCursorOffset] = React.useState(0);
   const [selectionEnd, setSelectionEnd] = React.useState(0);
   const [autocompleteContext, setAutocompleteContext] = React.useState('');
+  const [cursorContext, setCursorContext] = React.useState<CursorContext | null>(null);
   const [datePickerInit, setDatePickerInit] = React.useState<DatePickerInit | null>(null);
 
   // Keep refs to latest state values needed in callbacks
@@ -380,6 +381,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
     const contextType = result.context.type;
+    setCursorContext(result.context);
 
     // Dropdown mode gating
     if (dropdownMode === 'never') {
@@ -1294,6 +1296,8 @@ export function ElasticInput(props: ElasticInputProps) {
         fixedWidth={getDropdownFixedWidth()}
         renderHistoryItem={renderHistoryItem}
         renderSavedSearchItem={renderSavedSearchItem}
+        renderDropdownHeader={renderDropdownHeader}
+        cursorContext={cursorContext}
       />
 
       {showDatePicker && dropdownPosition ? (

@@ -33,10 +33,45 @@ import { UndoStack } from '../utils/undoStack';
 // DatePickerPortal — small portal wrapper for the date picker
 // ---------------------------------------------------------------------------
 
-interface DatePickerInit {
+export interface DatePickerInit {
   mode: 'single' | 'range';
   start: Date | null;
   end: Date | null;
+}
+
+/**
+ * Compute the date picker initialization state from an autocomplete result.
+ * Returns { mode: 'range', start, end } when cursor is inside a range
+ * expression on a date field, or null for single-date (FIELD_VALUE) contexts.
+ */
+export function computeDatePickerInit(context: { type: string; token?: { value: string } }): DatePickerInit | null {
+  if (context.type === 'RANGE' && context.token) {
+    const raw = context.token.value;
+    const hasClosed = raw.endsWith(']') || raw.endsWith('}');
+    const inner = hasClosed ? raw.slice(1, -1) : raw.slice(1);
+    const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
+    if (toMatch) {
+      const lower = parseDate(toMatch[1].trim());
+      const upper = parseDate(toMatch[2].trim());
+      return { mode: 'range', start: lower, end: upper };
+    }
+  }
+  return null;
+}
+
+/**
+ * Determine whether the date picker needs to be unmounted and remounted.
+ * This is necessary when the mode changes (range ↔ single) because
+ * DateRangePicker uses useState for its mode, which only reads the
+ * initial value on first mount. Without a remount, stale mode persists.
+ */
+export function shouldRemountDatePicker(
+  prevInit: DatePickerInit | null,
+  newInit: DatePickerInit | null,
+): boolean {
+  const prevMode = prevInit?.mode ?? 'single';
+  const newMode = newInit?.mode ?? 'single';
+  return prevMode !== newMode;
 }
 
 interface DatePickerPortalProps {
@@ -156,6 +191,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
+  const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
 
   // Mutable refs for engine/validator so they stay current without re-renders
   const engineRef = React.useRef<AutocompleteEngine>(
@@ -265,19 +301,17 @@ export function ElasticInput(props: ElasticInputProps) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
       // Parse range bounds for pre-populating the date picker
-      let init: DatePickerInit | null = null;
-      if (result.context.type === 'RANGE' && result.context.token) {
-        const raw = result.context.token.value;
-        const hasClosed = raw.endsWith(']') || raw.endsWith('}');
-        const inner = hasClosed ? raw.slice(1, -1) : raw.slice(1);
-        const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
-        if (toMatch) {
-          const lower = parseDate(toMatch[1].trim());
-          const upper = parseDate(toMatch[2].trim());
-          init = { mode: 'range', start: lower, end: upper };
-        }
-      }
+      const init = computeDatePickerInit(result.context);
+      const prevInit = datePickerInitRef.current;
+      datePickerInitRef.current = init;
       setDatePickerInit(init);
+
+      // Force remount when mode changes (e.g. range → single after pasting a
+      // single date over a range expression). Without this, DateRangePicker
+      // stays mounted and useState ignores the new initialMode prop.
+      if (stateRef.current.showDatePicker && shouldRemountDatePicker(prevInit, init)) {
+        setShowDatePicker(false);
+      }
 
       setSuggestions([]);
       setShowDropdown(false);
@@ -431,6 +465,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDropdown(false);
     setShowDatePicker(false);
     setDatePickerInit(null);
+    datePickerInitRef.current = null;
     setSuggestions([]);
     setSelectedSuggestionIndex(-1);
     // Cancel any in-flight async work

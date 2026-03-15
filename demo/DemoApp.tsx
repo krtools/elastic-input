@@ -149,7 +149,7 @@ export function DemoApp() {
                 fontSize: '13px',
               }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', cursor: 'pointer', color: theme.text }}>
-                  <input type="checkbox" checked={useOnTab} onChange={e => setUseOnTab(e.currentTarget.checked)} />
+                  <input type="checkbox" checked={useOnTab} onChange={e => { const v = e.currentTarget.checked; setUseOnTab(v); }} />
                   Override Tab
                 </label>
                 <div style={{ height: '1px', backgroundColor: theme.border, margin: '4px 0' }} />
@@ -159,7 +159,7 @@ export function DemoApp() {
                       type="checkbox"
                       checked={tabActions[action]}
                       disabled={!useOnTab}
-                      onChange={e => setTabActions(prev => ({ ...prev, [action]: e.currentTarget.checked }))}
+                      onChange={e => { const v = e.currentTarget.checked; setTabActions(prev => ({ ...prev, [action]: v })); }}
                     />
                     {action.charAt(0).toUpperCase() + action.slice(1)}
                   </label>

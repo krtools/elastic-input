@@ -2,7 +2,7 @@ import * as React from 'react';
 import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
 import { ValidationError } from '../src/validation/Validator';
-import { FieldConfig } from '../src/types';
+import { ElasticInputAPI, FieldConfig } from '../src/types';
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
@@ -36,6 +36,7 @@ export function DemoApp() {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual'>('always');
+  const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
   const theme = isDark ? darkTheme : lightTheme;
   const colors = isDark ? DARK_COLORS : DEFAULT_COLORS;
@@ -127,6 +128,7 @@ export function DemoApp() {
                 maxSuggestions={8}
                 dropdownAlignToInput={dropdownAlignToInput}
                 dropdownMode={dropdownMode}
+                inputRef={api => { inputApiRef.current = api; }}
               />
             </div>
             <button
@@ -154,7 +156,13 @@ export function DemoApp() {
               Errors ({validationErrors.length})
             </div>
             {validationErrors.map((e, i) => (
-              <div key={i} style={{ color: e.severity === 'warning' ? '#d4a72c' : '#cf222e' }}>
+              <div
+                key={i}
+                style={{ color: e.severity === 'warning' ? '#d4a72c' : '#cf222e', cursor: 'pointer', borderRadius: '3px', padding: '1px 4px', margin: '0 -4px' }}
+                onClick={() => inputApiRef.current?.setSelection(e.start, e.end)}
+                onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.backgroundColor = theme.border; }}
+                onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; }}
+              >
                 {e.severity === 'warning' ? '\u26a0' : '\u2716'}{' '}
                 <span style={{ color: theme.textSecondary, fontFamily: 'monospace' }}>[{e.start}:{e.end}]</span>{' '}
                 {e.message}

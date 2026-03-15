@@ -209,6 +209,8 @@ export interface ElasticInputAPI {
   getAST: () => ASTNode | null;
   /** Returns the current validation errors (including syntax errors). */
   getValidationErrors: () => ValidationError[];
+  /** Selects a character range in the input. Focuses the input if not already focused. */
+  setSelection: (start: number, end: number) => void;
 }
 
 /**

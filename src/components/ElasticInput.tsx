@@ -756,6 +756,13 @@ export function ElasticInput(props: ElasticInputProps) {
         blur: () => editorRef.current?.blur(),
         getAST: () => stateRef.current.ast,
         getValidationErrors: () => stateRef.current.validationErrors,
+        setSelection: (start: number, end: number) => {
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          setSelectionCharRange(editorRef.current, start, end);
+          setCursorOffset(start);
+          setSelectionEnd(end);
+        },
       });
     }
   }, [inputRef, processInput]);

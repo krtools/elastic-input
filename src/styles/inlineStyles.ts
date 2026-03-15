@@ -207,6 +207,8 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
     daySelected: {
       backgroundColor: colors.dropdownSelected,
       color: '#ffffff',
+      fontWeight: 700,
+      borderRadius: '50%',
     },
     dayInRange: {
       backgroundColor: 'rgba(9, 105, 218, 0.1)',

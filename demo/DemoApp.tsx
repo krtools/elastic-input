@@ -3,7 +3,7 @@ import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
 import { CursorContext } from '../src/parser/Parser';
 import { ValidationError } from '../src/validation/Validator';
-import { ElasticInputAPI, FieldConfig } from '../src/types';
+import { ElasticInputAPI, FieldConfig, TabContext, TabActionResult } from '../src/types';
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
@@ -38,6 +38,10 @@ export function DemoApp() {
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual'>('always');
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
+  const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
+  const [useOnTab, setUseOnTab] = React.useState(false);
+  const [showTabMenu, setShowTabMenu] = React.useState(false);
+  const tabMenuRef = React.useRef<HTMLDivElement | null>(null);
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -55,6 +59,22 @@ export function DemoApp() {
     setLastQuery(query);
     setLastAST(ast);
   }, []);
+
+  // Close tab menu on outside click
+  React.useEffect(() => {
+    if (!showTabMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (tabMenuRef.current && !tabMenuRef.current.contains(e.target as Node)) {
+        setShowTabMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTabMenu]);
+
+  const handleTab = React.useCallback((ctx: TabContext): TabActionResult => {
+    return { accept: tabActions.accept, blur: tabActions.blur, submit: tabActions.submit };
+  }, [tabActions]);
 
   const renderDropdownHeader = React.useCallback((ctx: CursorContext) => {
     switch (ctx.type) {
@@ -106,6 +126,47 @@ export function DemoApp() {
           >
             {showDropdownHeaders ? 'Headers: On' : 'Headers: Off'}
           </button>
+          <div ref={tabMenuRef} style={{ position: 'relative' }}>
+            <button
+              style={{ ...styles.themeToggle, ...(useOnTab ? { borderColor: theme.accent, color: theme.accent } : {}) }}
+              onClick={() => setShowTabMenu(s => !s)}
+            >
+              Tab: {useOnTab ? [tabActions.accept && 'Accept', tabActions.blur && 'Blur', tabActions.submit && 'Submit'].filter(Boolean).join('+') || 'None' : 'Default'}
+            </button>
+            {showTabMenu && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: '4px',
+                backgroundColor: theme.surface,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '6px',
+                padding: '6px 0',
+                zIndex: 1000,
+                minWidth: '160px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                fontSize: '13px',
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', cursor: 'pointer', color: theme.text }}>
+                  <input type="checkbox" checked={useOnTab} onChange={e => setUseOnTab(e.target.checked)} />
+                  Override Tab
+                </label>
+                <div style={{ height: '1px', backgroundColor: theme.border, margin: '4px 0' }} />
+                {(['accept', 'blur', 'submit'] as const).map(action => (
+                  <label key={action} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 12px', cursor: useOnTab ? 'pointer' : 'default', color: useOnTab ? theme.text : theme.textSecondary, opacity: useOnTab ? 1 : 0.5 }}>
+                    <input
+                      type="checkbox"
+                      checked={tabActions[action]}
+                      disabled={!useOnTab}
+                      onChange={e => setTabActions(prev => ({ ...prev, [action]: e.target.checked }))}
+                    />
+                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             style={styles.themeToggle}
             onClick={() => setIsDark(d => !d)}
@@ -149,6 +210,7 @@ export function DemoApp() {
                 dropdownMode={dropdownMode}
                 validateValue={demoValidateValue}
                 renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}
+                onTab={useOnTab ? handleTab : undefined}
                 inputRef={api => { inputApiRef.current = api; }}
               />
             </div>

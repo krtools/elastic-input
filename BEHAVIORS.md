@@ -755,15 +755,19 @@ The autocomplete dropdown and date picker are rendered via `ReactDOM.createPorta
 - Dropdown appears below the caret by default, flips above if insufficient viewport space below
 - Clamped to viewport edges (no overflow left/right)
 
-### 8.2 Deferred Positioning
+### 8.2 Full-Width Dropdown Mode (`dropdownAlignToInput`)
+
+When the `dropdownAlignToInput` prop is `true`, the dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. Both the autocomplete dropdown and date picker use the container's `getBoundingClientRect()` for positioning. The `fixedWidth` override disables the default min/max width constraints.
+
+### 8.3 Deferred Positioning
 
 To prevent a visible flash where the dropdown appears at a stale position before snapping to the correct one, positioning is deferred via `requestAnimationFrame`. The dropdown's suggestions and context are set first (with `showDropdown: false`), then after the DOM has painted, the position is calculated and the dropdown becomes visible.
 
-### 8.3 Date Picker
+### 8.4 Date Picker
 
 The date picker appears when a date-type field's value is being entered. It supports single date and date range selection.
 
-#### 8.3.1 View Levels (Zoom Out)
+#### 8.4.1 View Levels (Zoom Out)
 
 Clicking the header label (month/year) zooms out to a higher-level view:
 
@@ -779,13 +783,13 @@ The left/right arrows navigate by month, year, or decade depending on the curren
 
 - **Tests:** `DatePicker.test.ts` → "days view shows month+year header", "months view shows year header", "years view shows decade range header", "zoom out from days goes to months", "zoom out from months goes to years", "cannot zoom out from years", "selecting a year zooms into months", "selecting a month zooms into days"
 
-#### 8.3.2 Years Grid
+#### 8.4.2 Years Grid
 
 The years view shows 12 cells: the 10 years of the current decade plus one year from the adjacent decades on each side (shown dimmed). For decade 2020–2029, the grid shows 2019, 2020–2029, 2030.
 
 - **Tests:** `DatePicker.test.ts` → "generates 12 years centered on the decade", "first and last years are out-of-range (adjacent decades)"
 
-#### 8.3.3 Navigation
+#### 8.4.3 Navigation
 
 | View Level | Prev/Next Step |
 |------------|---------------|
@@ -795,7 +799,7 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Tests:** `DatePicker.test.ts` → "prev/next at days level changes month", "prev/next at days level wraps year", "prev at days level wraps year backward", "prev/next at months level changes year", "prev/next at years level changes by decade"
 
-#### 8.3.4 Single / Range Mode
+#### 8.4.4 Single / Range Mode
 
 - **Single mode**: Clicking a day emits `YYYY-MM-DD`.
 - **Range mode**: First click sets range start, second click sets range end. Emits `[YYYY-MM-DD TO YYYY-MM-DD]`. Reversed selections are auto-corrected.
@@ -810,11 +814,11 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 - **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly", "hover date creates a preview range with isDateInRange", "hover preview works when hovering before the start date (reversed)", "no preview when hoverDate is null (mouse left the calendar)", "month-level preview", "year-level preview"
 
-#### 8.3.5 Replacement Range Capture
+#### 8.4.5 Replacement Range Capture
 
 When the date picker opens, the replacement range (start/end character offsets) is captured from the current context token and stored in `datePickerReplaceRef`. When the user selects a date, `handleDateSelect` uses this saved range instead of re-computing from the current cursor position. This prevents the bug where the cursor drifts (e.g., after clicking inside the picker) and the date gets inserted at the wrong position instead of replacing the existing value. For RANGE contexts the replacement covers the entire `[... TO ...]` expression; for FIELD_VALUE contexts it covers the value token; for empty contexts (no value after colon) it inserts at the cursor position. **Tests:** `DatePickerRangeTransition.test.ts` → "replacement range for date picker (bug #2)" suite
 
-#### 8.3.6 Trailing Space After Date Selection
+#### 8.4.6 Trailing Space After Date Selection
 
 When a date value is selected from the date picker and the cursor is at the end of the input (or only whitespace follows), a trailing space is appended after the inserted value. This enables seamless continuation of the query without manually pressing space.
 
@@ -952,7 +956,13 @@ Rounding syntax (`now/d`, `now-1d/d`) is accepted for date ranges. Unknown field
 
 Ranges inside `FieldGroup` nodes are validated against the group's field config.
 
-- **Tests:** `Validator.test.ts` → "Range validation" suite (accepts date ranges, flags invalid bounds, accepts number ranges, flags non-numeric bounds, accepts string field ranges, flags unknown field, flags boolean field range)
+#### Per-bound error offsets
+
+Validation errors on range bounds are positioned on the **specific bound** (lower or upper), not on the entire range expression. `RangeNode` includes `lowerStart`/`lowerEnd`/`upperStart`/`upperEnd` character offsets computed by the parser. For `price:[abc TO def]`, the error on `abc` highlights only characters 7-10, and `def` highlights 14-17.
+
+Custom `field.validate` callbacks receive an optional second argument `ValidationContext` with a `position` property: `'FIELD_VALUE'` for normal field:value, `'RANGE_START'` for the lower bound, or `'RANGE_END'` for the upper bound of a range expression.
+
+- **Tests:** `Validator.test.ts` → "Range validation" suite, "Per-bound range validation offsets" suite, "ValidationContext in custom validate callback" suite
 
 ### 9.13 Field-Scoped Group Validation
 
@@ -1064,6 +1074,10 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 
 - **Tests:** `parenMatch.test.ts` → 12 tests covering basic matching, nesting, priority, unmatched, and edge cases
 
+### 9.5.4 Theme Transition Re-highlighting
+
+When the `colors` prop changes (e.g. switching between light and dark themes), the inline-styled HTML in the contentEditable editor must be regenerated with the new color values. The paren matching effect tracks the previous `colors` reference and forces a `buildHighlightedHTML` re-render when it changes, bypassing the paren-match-key early-return optimization. Without this, the old color values remain baked into the HTML spans until the next text edit.
+
 ---
 
 ## 10. Configuration Options
@@ -1092,6 +1106,7 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 | `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
+| `dropdownAlignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

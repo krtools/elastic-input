@@ -27,6 +27,7 @@ export type {
   SuggestionItem,
   ColorConfig,
   StyleConfig,
+  ValidationContext,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

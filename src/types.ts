@@ -5,6 +5,12 @@ import { ValidationError } from './validation/Validator';
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
 export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'enum' | 'ip';
 
+/** Context passed to custom validation callbacks describing where the value appears in the query. */
+export interface ValidationContext {
+  /** Position of the value being validated. */
+  position: 'FIELD_VALUE' | 'RANGE_START' | 'RANGE_END';
+}
+
 /** Configuration for a searchable field. Defines the field's name, type, and validation behavior. */
 export interface FieldConfig {
   /** Field name used in queries (e.g. `status` in `status:active`). */
@@ -19,8 +25,8 @@ export interface FieldConfig {
   suggestions?: string[];
   /** Allowed comparison operators. Defaults to `>`, `>=`, `<`, `<=` for number/date fields. */
   operators?: string[];
-  /** Custom validation function. Return an error message string, or `null` if valid. */
-  validate?: (value: string) => string | null;
+  /** Custom validation function. Return an error message string, or `null` if valid. Receives optional context describing whether the value is a field value, range start, or range end. */
+  validate?: (value: string, context?: ValidationContext) => string | null;
   /** Description shown alongside the field in autocomplete suggestions. */
   description?: string;
   /** Custom placeholder hint shown in the dropdown while typing a value for this field (e.g. "Search by company name..."). Overrides the default type-based hint. Set to `false` to suppress the hint entirely. */
@@ -253,6 +259,8 @@ export interface ElasticInputProps {
   inputRef?: (api: ElasticInputAPI) => void;
   /** Enable multiline input with Shift+Enter for line breaks. @default true */
   multiline?: boolean;
+  /** When true, the dropdown spans the full width of the input and is affixed to its bottom edge, instead of following the caret. @default false */
+  dropdownAlignToInput?: boolean;
   /**
    * Custom renderer for field value hints in the dropdown. Called when the cursor is in a
    * field value position. Return a React element for rich content, or `null`/`undefined` to

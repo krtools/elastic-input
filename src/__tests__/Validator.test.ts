@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
 import { Validator } from '../validation/Validator';
-import { FieldConfig } from '../types';
+import { FieldConfig, ValidationContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
   { name: 'status', type: 'enum', suggestions: ['active', 'inactive'] },
@@ -478,5 +478,116 @@ describe('Ambiguous precedence warnings', () => {
       const errors = validateAliased('unknown:(a b)');
       expect(errors.length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('Per-bound range validation offsets', () => {
+  it('positions error on invalid range start, not entire range', () => {
+    //                   0123456789012345678901234567
+    const input =      'created:[invalid TO now]';
+    const errors = validate(input);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Range start');
+    // "invalid" is at positions 9-16
+    expect(errors[0].start).toBe(9);
+    expect(errors[0].end).toBe(16);
+  });
+
+  it('positions error on invalid range end, not entire range', () => {
+    //                   01234567890123456789012345
+    const input =      'created:[now TO invalid]';
+    const errors = validate(input);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].message).toContain('Range end');
+    // "invalid" is at positions 16-23
+    expect(errors[0].start).toBe(16);
+    expect(errors[0].end).toBe(23);
+  });
+
+  it('positions errors on both invalid bounds independently', () => {
+    //                   0123456789012345678901234567890123
+    const input =      'price:[abc TO def]';
+    const errors = validate(input);
+    expect(errors).toHaveLength(2);
+    // "abc" at 7-10
+    expect(errors[0].start).toBe(7);
+    expect(errors[0].end).toBe(10);
+    // "def" at 14-17
+    expect(errors[1].start).toBe(14);
+    expect(errors[1].end).toBe(17);
+  });
+
+  it('handles quoted bounds offsets correctly', () => {
+    //                   0123456789012345678901234567890123456789
+    const input =      'created:["invalid" TO now]';
+    const errors = validate(input);
+    expect(errors).toHaveLength(1);
+    // Quoted "invalid" spans 9-18 including quotes (9 chars)
+    expect(errors[0].start).toBe(9);
+    expect(errors[0].end).toBe(18);
+  });
+
+  it('positions error on range bounds with extra whitespace', () => {
+    //                   0123456789012345678901234567890
+    const input =      'created:[  invalid  TO  now  ]';
+    const errors = validate(input);
+    expect(errors).toHaveLength(1);
+    // "invalid" with trimming: starts at 11, ends at 18
+    expect(errors[0].start).toBe(11);
+    expect(errors[0].end).toBe(18);
+  });
+});
+
+describe('ValidationContext in custom validate callback', () => {
+  it('passes FIELD_VALUE context for field:value', () => {
+    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
+    const fields: FieldConfig[] = [{ name: 'rating', type: 'number', validate: validateFn }];
+    const tokens = new Lexer('rating:5').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(fields).validate(ast);
+    expect(validateFn).toHaveBeenCalledWith('5', { position: 'FIELD_VALUE' });
+  });
+
+  it('passes RANGE_START and RANGE_END context for range bounds', () => {
+    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
+    const fields: FieldConfig[] = [{ name: 'price', type: 'number', validate: validateFn }];
+    const tokens = new Lexer('price:[10 TO 100]').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(fields).validate(ast);
+    expect(validateFn).toHaveBeenCalledTimes(2);
+    expect(validateFn).toHaveBeenCalledWith('10', { position: 'RANGE_START' });
+    expect(validateFn).toHaveBeenCalledWith('100', { position: 'RANGE_END' });
+  });
+
+  it('skips wildcard bounds but validates non-wildcard bound', () => {
+    const validateFn = vi.fn((_value: string, _ctx?: ValidationContext): string | null => null);
+    const fields: FieldConfig[] = [{ name: 'price', type: 'number', validate: validateFn }];
+    const tokens = new Lexer('price:[* TO 100]').tokenize();
+    const ast = new Parser(tokens).parse();
+    new Validator(fields).validate(ast);
+    expect(validateFn).toHaveBeenCalledTimes(1);
+    expect(validateFn).toHaveBeenCalledWith('100', { position: 'RANGE_END' });
+  });
+
+  it('custom validator can return error on specific range bound', () => {
+    const fields: FieldConfig[] = [{
+      name: 'score', type: 'number',
+      validate: (value, ctx) => {
+        const n = Number(value);
+        if (ctx?.position === 'RANGE_START' && n < 0) return 'Range start must be >= 0';
+        if (ctx?.position === 'RANGE_END' && n > 100) return 'Range end must be <= 100';
+        return null;
+      },
+    }];
+    const tokens = new Lexer('score:[-5 TO 200]').tokenize();
+    const ast = new Parser(tokens).parse();
+    const errors = new Validator(fields).validate(ast);
+    expect(errors).toHaveLength(2);
+    expect(errors[0].message).toBe('Range start must be >= 0');
+    expect(errors[0].start).toBe(7); // "-5"
+    expect(errors[0].end).toBe(9);
+    expect(errors[1].message).toBe('Range end must be <= 100');
+    expect(errors[1].start).toBe(13); // "200"
+    expect(errors[1].end).toBe(16);
   });
 });

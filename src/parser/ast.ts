@@ -98,6 +98,14 @@ export interface RangeNode {
   upperInclusive: boolean;
   lowerQuoted: boolean;
   upperQuoted: boolean;
+  /** Character offset of the lower bound value (inclusive). */
+  lowerStart: number;
+  /** Character offset of the lower bound value (exclusive). */
+  lowerEnd: number;
+  /** Character offset of the upper bound value (inclusive). */
+  upperStart: number;
+  /** Character offset of the upper bound value (exclusive). */
+  upperEnd: number;
   start: number;
   end: number;
 }

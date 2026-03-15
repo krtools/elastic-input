@@ -1,5 +1,5 @@
 import { ASTNode, RangeNode } from '../parser/ast';
-import { FieldConfig } from '../types';
+import { FieldConfig, ValidationContext } from '../types';
 import { validateNumber } from './numberValidator';
 import { validateDate } from './dateValidator';
 
@@ -155,7 +155,7 @@ export class Validator {
 
         // Custom validator
         if (!error && field.validate) {
-          error = field.validate(node.value);
+          error = field.validate(node.value, { position: 'FIELD_VALUE' });
         }
 
         if (error) {
@@ -296,7 +296,7 @@ export class Validator {
     }
 
     if (!error && field.validate) {
-      error = field.validate(value);
+      error = field.validate(value, { position: 'FIELD_VALUE' });
     }
 
     if (error) {
@@ -311,9 +311,9 @@ export class Validator {
 
   /** Validate range bounds against a field config. */
   private validateRangeBounds(field: FieldConfig, node: RangeNode, errors: ValidationError[]): void {
-    const bounds: Array<{ value: string; label: string }> = [];
-    if (node.lower !== '*') bounds.push({ value: node.lower, label: 'Range start' });
-    if (node.upper !== '*') bounds.push({ value: node.upper, label: 'Range end' });
+    const bounds: Array<{ value: string; label: string; start: number; end: number; context: ValidationContext }> = [];
+    if (node.lower !== '*') bounds.push({ value: node.lower, label: 'Range start', start: node.lowerStart, end: node.lowerEnd, context: { position: 'RANGE_START' } });
+    if (node.upper !== '*') bounds.push({ value: node.upper, label: 'Range end', start: node.upperStart, end: node.upperEnd, context: { position: 'RANGE_END' } });
 
     for (const bound of bounds) {
       let error: string | null = null;
@@ -331,11 +331,16 @@ export class Validator {
           break;
       }
 
+      // Custom validator with range context
+      if (!error && field.validate) {
+        error = field.validate(bound.value, bound.context);
+      }
+
       if (error) {
         errors.push({
           message: error,
-          start: node.start,
-          end: node.end,
+          start: bound.start,
+          end: bound.end,
           field: field.name,
         });
       }

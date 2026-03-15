@@ -31,6 +31,8 @@ interface AutocompleteDropdownProps {
   colors?: ColorConfig;
   styles?: StyleConfig;
   visible: boolean;
+  /** When set, the dropdown uses this fixed width instead of min/max width constraints. */
+  fixedWidth?: number;
   renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
 }
@@ -66,6 +68,7 @@ export function AutocompleteDropdown({
   colors,
   styles,
   visible,
+  fixedWidth,
   renderHistoryItem,
   renderSavedSearchItem,
 }: AutocompleteDropdownProps) {
@@ -99,10 +102,11 @@ export function AutocompleteDropdown({
 
   const mergedColors = mergeColors(colors);
   const mergedStyles = mergeStyles(styles);
-  const dropdownStyle = {
+  const dropdownStyle: React.CSSProperties = {
     ...getDropdownStyle(mergedColors, mergedStyles),
     top: `${position.top}px`,
     left: `${position.left}px`,
+    ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 
   const content = (

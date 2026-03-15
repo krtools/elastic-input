@@ -93,9 +93,10 @@ interface DatePickerPortalProps {
   colorConfig?: ColorConfig;
   styleConfig?: StyleConfig;
   datePickerInit?: DatePickerInit | null;
+  fixedWidth?: number;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -121,6 +122,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     left: `${position.left}px`,
     maxHeight: 'none',
     overflowY: 'visible',
+    ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 
   return ReactDOM.createPortal(
@@ -160,7 +162,7 @@ export function ElasticInput(props: ElasticInputProps) {
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesProp, placeholder, className, style,
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
-    multiline: multilineProp,
+    multiline: multilineProp, dropdownAlignToInput,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem,
   } = props;
 
@@ -243,6 +245,26 @@ export function ElasticInput(props: ElasticInputProps) {
   };
 
   // --- Helpers ---
+
+  // Helper: compute dropdown position. When dropdownAlignToInput is true,
+  // position relative to the container instead of the caret.
+  const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): { top: number; left: number } | null => {
+    if (dropdownAlignToInput && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      return {
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+      };
+    }
+    const rect = getCaretRect();
+    return rect ? getDropdownPosition(rect, dropdownHeight, dropdownWidth) : null;
+  }, [dropdownAlignToInput]);
+
+  // Lazily read container width for full-width dropdown mode
+  const getDropdownFixedWidth = React.useCallback((): number | undefined => {
+    if (!dropdownAlignToInput || !containerRef.current) return undefined;
+    return containerRef.current.getBoundingClientRect().width;
+  }, [dropdownAlignToInput]);
 
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     const lexer = new Lexer(text);
@@ -344,9 +366,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setShowDropdown(false);
       setAutocompleteContext(contextType);
       requestAnimationFrame(() => {
-        const rect = getCaretRect();
         setShowDatePicker(true);
-        setDropdownPosition(rect ? getDropdownPosition(rect, 350, 300) : null);
+        setDropdownPosition(computeDropdownPosition(350, 300));
       });
       return;
     }
@@ -372,9 +393,8 @@ export function ElasticInput(props: ElasticInputProps) {
         setSelectedSuggestionIndex(result.context.partial ? 0 : -1);
         setAutocompleteContext(contextType);
         requestAnimationFrame(() => {
-          const rect = getCaretRect();
           setShowDropdown(true);
-          setDropdownPosition(rect ? getDropdownPosition(rect, newSuggestions.length * 32, 300) : null);
+          setDropdownPosition(computeDropdownPosition(newSuggestions.length * 32, 300));
         });
       } else {
         setShowDropdown(false);
@@ -405,9 +425,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setSelectedSuggestionIndex(-1);
       setAutocompleteContext(contextType);
       requestAnimationFrame(() => {
-        const rect = getCaretRect();
         setShowDropdown(true);
-        setDropdownPosition(rect ? getDropdownPosition(rect, 32, 300) : null);
+        setDropdownPosition(computeDropdownPosition(32, 300));
       });
     }
 
@@ -452,9 +471,8 @@ export function ElasticInput(props: ElasticInputProps) {
             setSuggestions(mapped);
             setSelectedSuggestionIndex(partial ? 0 : -1);
             requestAnimationFrame(() => {
-              const rect = getCaretRect();
               setShowDropdown(true);
-              setDropdownPosition(rect ? getDropdownPosition(rect, mapped.length * 32, 300) : null);
+              setDropdownPosition(computeDropdownPosition(mapped.length * 32, 300));
             });
           } else {
             // No async results — fall back to the sync hint (e.g. "Search companies...")
@@ -467,9 +485,8 @@ export function ElasticInput(props: ElasticInputProps) {
               setSuggestions(hintSuggestions);
               setSelectedSuggestionIndex(syncResult.context.partial ? 0 : -1);
               requestAnimationFrame(() => {
-                const rect = getCaretRect();
                 setShowDropdown(true);
-                setDropdownPosition(rect ? getDropdownPosition(rect, hintSuggestions.length * 32, 300) : null);
+                setDropdownPosition(computeDropdownPosition(hintSuggestions.length * 32, 300));
               });
             } else {
               setShowDropdown(false);
@@ -486,7 +503,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint]);
+  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition]);
 
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);
@@ -691,8 +708,9 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, []);
 
-  // Re-render highlighted HTML when cursor moves (for paren matching)
+  // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
   const prevParenMatchRef = React.useRef<string | null>(null);
+  const prevColorsRef = React.useRef(colors);
   React.useEffect(() => {
     if (!editorRef.current) return;
     const currentTokens = stateRef.current.tokens;
@@ -705,10 +723,14 @@ export function ElasticInput(props: ElasticInputProps) {
     // When blurred, clear paren highlighting
     const effectiveCursor = isFocused ? cursorOffset : -1;
 
+    // Force re-highlight when colors change (e.g. theme switch)
+    const colorsChanged = colors !== prevColorsRef.current;
+    prevColorsRef.current = colors;
+
     // Compute new match and compare to previous to avoid unnecessary DOM updates
     const match = findMatchingParen(currentTokens, effectiveCursor);
     const matchKey = match ? `${match.openStart},${match.closeStart}` : null;
-    if (matchKey === prevParenMatchRef.current) return;
+    if (matchKey === prevParenMatchRef.current && !colorsChanged) return;
     prevParenMatchRef.current = matchKey;
 
     const savedOffset = getCaretCharOffset(editorRef.current);
@@ -1054,6 +1076,7 @@ export function ElasticInput(props: ElasticInputProps) {
         colors={colors}
         styles={stylesProp}
         visible={showDropdown}
+        fixedWidth={getDropdownFixedWidth()}
         renderHistoryItem={renderHistoryItem}
         renderSavedSearchItem={renderSavedSearchItem}
       />
@@ -1066,6 +1089,7 @@ export function ElasticInput(props: ElasticInputProps) {
           colorConfig={colors}
           styleConfig={stylesProp}
           datePickerInit={datePickerInit}
+          fixedWidth={getDropdownFixedWidth()}
         />
       ) : null}
     </div>

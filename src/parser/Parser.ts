@@ -258,16 +258,18 @@ export class Parser {
     return node;
   }
 
-  private parseRangeBound(text: string): { value: string; quoted: boolean } {
+  private parseRangeBound(text: string, baseOffset: number): { value: string; quoted: boolean; valueStart: number; valueEnd: number } {
+    // Find the trimmed content's position within the raw text
+    const leadingWs = text.length - text.trimStart().length;
     const trimmed = text.trim();
     if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2) {
-      return { value: trimmed.slice(1, -1), quoted: true };
+      return { value: trimmed.slice(1, -1), quoted: true, valueStart: baseOffset + leadingWs, valueEnd: baseOffset + leadingWs + trimmed.length };
     }
     if (trimmed.startsWith('"')) {
       // Unclosed quote
-      return { value: trimmed.slice(1), quoted: true };
+      return { value: trimmed.slice(1), quoted: true, valueStart: baseOffset + leadingWs, valueEnd: baseOffset + leadingWs + trimmed.length };
     }
-    return { value: trimmed, quoted: false };
+    return { value: trimmed, quoted: false, valueStart: baseOffset + leadingWs, valueEnd: baseOffset + leadingWs + trimmed.length };
   }
 
   private parseRange(token: Token): RangeNode {
@@ -296,6 +298,9 @@ export class Parser {
     // Split on TO (case-insensitive, whitespace-bounded)
     const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
 
+    // Inner content starts after the opening bracket
+    const innerStart = token.start + 1;
+
     if (!toMatch) {
       this.errors.push({
         type: 'Error',
@@ -305,7 +310,7 @@ export class Parser {
         end: token.end,
       });
       // Best-effort: treat entire inner content as lower bound
-      const bound = this.parseRangeBound(inner);
+      const bound = this.parseRangeBound(inner, innerStart);
       return {
         type: 'Range',
         lower: bound.value,
@@ -314,13 +319,19 @@ export class Parser {
         upperInclusive: hasClosed ? upperInclusive : true,
         lowerQuoted: bound.quoted,
         upperQuoted: false,
+        lowerStart: bound.valueStart,
+        lowerEnd: bound.valueEnd,
+        upperStart: token.end,
+        upperEnd: token.end,
         start: token.start,
         end: token.end,
       };
     }
 
-    const lowerBound = this.parseRangeBound(toMatch[1]);
-    const upperBound = this.parseRangeBound(toMatch[2]);
+    const lowerBound = this.parseRangeBound(toMatch[1], innerStart);
+    // Upper bound starts after the lower capture + the TO separator
+    const upperBaseOffset = innerStart + toMatch[1].length + (inner.length - toMatch[1].length - toMatch[2].length);
+    const upperBound = this.parseRangeBound(toMatch[2], upperBaseOffset);
 
     return {
       type: 'Range',
@@ -330,6 +341,10 @@ export class Parser {
       upperInclusive: hasClosed ? upperInclusive : true,
       lowerQuoted: lowerBound.quoted,
       upperQuoted: upperBound.quoted,
+      lowerStart: lowerBound.valueStart,
+      lowerEnd: lowerBound.valueEnd,
+      upperStart: upperBound.valueStart,
+      upperEnd: upperBound.valueEnd,
       start: token.start,
       end: token.end,
     };

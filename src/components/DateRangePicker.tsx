@@ -17,6 +17,7 @@ interface DateRangePickerProps {
   initialMode?: 'single' | 'range';
   initialStart?: Date | null;
   initialEnd?: Date | null;
+  presets?: { label: string; value: string }[];
 }
 
 type ViewLevel = 'days' | 'months' | 'years';
@@ -27,7 +28,7 @@ function getDecadeStart(year: number): number {
   return Math.floor(year / 10) * 10;
 }
 
-export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd }: DateRangePickerProps) {
+export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd, presets: presetsProp }: DateRangePickerProps) {
   const now = new Date();
   // In range mode, navigate to the end date's month so the user sees "now"
   // rather than a distant start date (e.g. [now-365d TO now] → show March 2026).
@@ -188,7 +189,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
   };
 
   // --- Range presets ---
-  const presets: { label: string; value: string }[] = [
+  const DEFAULT_PRESETS: { label: string; value: string }[] = [
     { label: 'Today', value: '[now/d TO now]' },
     { label: 'Yesterday', value: '[now-1d/d TO now/d]' },
     { label: 'Last 7 days', value: '[now-7d TO now]' },
@@ -196,6 +197,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     { label: 'Last 90 days', value: '[now-90d TO now]' },
     { label: 'Last 1 year', value: '[now-365d TO now]' },
   ];
+  const presets = presetsProp ?? DEFAULT_PRESETS;
 
   const presetGridStyle: React.CSSProperties = {
     display: 'grid',

@@ -335,6 +335,8 @@ export interface ElasticInputProps {
    * `null`/`undefined` to show no header.
    */
   renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
+  /** Custom presets for the date range picker. When provided, completely replaces the built-in presets (Today, Last 7 days, etc.). Pass `[]` to hide presets entirely. Only shown in range mode. */
+  datePresets?: { label: string; value: string }[];
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   /** Called when the input gains focus. */

@@ -94,9 +94,10 @@ interface DatePickerPortalProps {
   styleConfig?: StyleConfig;
   datePickerInit?: DatePickerInit | null;
   fixedWidth?: number;
+  datePresets?: { label: string; value: string }[];
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -134,6 +135,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         initialMode={datePickerInit?.mode}
         initialStart={datePickerInit?.start}
         initialEnd={datePickerInit?.end}
+        presets={datePresets}
       />
     </div>,
     portalRef.current
@@ -164,6 +166,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
+    datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp, validateValue,
   } = props;
 
@@ -1379,6 +1382,7 @@ export function ElasticInput(props: ElasticInputProps) {
           styleConfig={stylesProp}
           datePickerInit={datePickerInit}
           fixedWidth={undefined}
+          datePresets={datePresetsProp}
         />
       ) : null}
     </div>

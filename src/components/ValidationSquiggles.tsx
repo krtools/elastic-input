@@ -125,6 +125,11 @@ function getSquigglyRects(
 const TOOLTIP_HEIGHT_ESTIMATE = 28;
 const TOOLTIP_GAP = 4;
 
+function squigglyBgForColor(hexColor: string) {
+  const encoded = hexColor.replace('#', '%23');
+  return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q2 0 4 2 Q6 4 8 2' stroke='${encoded}' fill='none' stroke-width='0.8'/%3E%3C/svg%3E")`;
+}
+
 export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef }: ValidationSquigglesProps) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const [mousePos, setMousePos] = React.useState<{ x: number; clientY: number }>({ x: 0, clientY: 0 });
@@ -173,60 +178,6 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     return () => controller.abort();
   }, [containerRef, editorRef]);
 
-  if (rects.length === 0) return null;
-
-  const mergedColors = mergeColors(colors);
-  const mergedStyles = mergeStyles(styles);
-
-  function squigglyBgForColor(hexColor: string) {
-    const encoded = hexColor.replace('#', '%23');
-    return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q2 0 4 2 Q6 4 8 2' stroke='${encoded}' fill='none' stroke-width='0.8'/%3E%3C/svg%3E")`;
-  }
-
-  // Compute tooltip position relative to editor, near the hovered squiggly
-  const getTooltipStyle = (r: SquigglyRect, squigglyColor: string): React.CSSProperties => {
-    const waveBottom = r.top + r.height + 2; // bottom of squiggly wave
-    const lineTop = r.top; // top of the text line
-
-    // Decide vertical placement: below the wave, or above the line
-    // Use clientY to check if "below" would exit the viewport
-    const spaceBelow = window.innerHeight - mousePos.clientY;
-    const needsFlip = spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
-
-    let top: number;
-    if (needsFlip) {
-      // Place above the text line
-      top = lineTop - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP;
-    } else {
-      // Place below the squiggly wave
-      top = waveBottom + TOOLTIP_GAP;
-    }
-
-    // Horizontal: near mouse X, will be clamped by maxWidth + overflow
-    let left = mousePos.x;
-
-    return {
-      position: 'absolute',
-      top: `${top}px`,
-      left: `${left}px`,
-      zIndex: mergedStyles.dropdownZIndex,
-      backgroundColor: mergedColors.background,
-      color: squigglyColor,
-      border: `1px solid ${squigglyColor}`,
-      borderRadius: '4px',
-      padding: '4px 8px',
-      fontSize: '12px',
-      fontFamily: mergedStyles.fontFamily,
-      lineHeight: '1.4',
-      whiteSpace: 'nowrap',
-      pointerEvents: 'none',
-      userSelect: 'none',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-      // Prevent right overflow: shift left if needed via transform
-      maxWidth: '90vw',
-    };
-  };
-
   // Clamp tooltip horizontally after render
   React.useEffect(() => {
     const el = tooltipRef.current;
@@ -239,6 +190,11 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       el.style.transform = '';
     }
   });
+
+  if (rects.length === 0) return null;
+
+  const mergedColors = mergeColors(colors);
+  const mergedStyles = mergeStyles(styles);
 
   const hoveredRect = hoveredIndex != null ? rects[hoveredIndex] : null;
 
@@ -272,10 +228,35 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       {hoveredRect != null && (() => {
         const isWarning = hoveredRect.error.severity === 'warning';
         const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
+        const waveBottom = hoveredRect.top + hoveredRect.height + 2;
+        const lineTop = hoveredRect.top;
+        const spaceBelow = window.innerHeight - mousePos.clientY;
+        const needsFlip = spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
+        const top = needsFlip
+          ? lineTop - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP
+          : waveBottom + TOOLTIP_GAP;
         return (
           <div
             ref={tooltipRef}
-            style={getTooltipStyle(hoveredRect, squigglyColor)}
+            style={{
+              position: 'absolute',
+              top: `${top}px`,
+              left: `${mousePos.x}px`,
+              zIndex: mergedStyles.dropdownZIndex,
+              backgroundColor: mergedColors.background,
+              color: squigglyColor,
+              border: `1px solid ${squigglyColor}`,
+              borderRadius: '4px',
+              padding: '4px 8px',
+              fontSize: '12px',
+              fontFamily: mergedStyles.fontFamily,
+              lineHeight: '1.4',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+              userSelect: 'none',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              maxWidth: '90vw',
+            }}
           >
             {hoveredRect.error.message}
           </div>

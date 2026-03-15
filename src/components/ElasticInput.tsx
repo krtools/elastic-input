@@ -44,7 +44,7 @@ export interface DatePickerInit {
  * Returns { mode: 'range', start, end } when cursor is inside a range
  * expression on a date field, or null for single-date (FIELD_VALUE) contexts.
  */
-export function computeDatePickerInit(context: { type: string; token?: { value: string } }): DatePickerInit | null {
+export function computeDatePickerInit(context: { type: string; partial?: string; token?: { value: string } }): DatePickerInit | null {
   if (context.type === 'RANGE' && context.token) {
     const raw = context.token.value;
     const hasClosed = raw.endsWith(']') || raw.endsWith('}');
@@ -56,14 +56,20 @@ export function computeDatePickerInit(context: { type: string; token?: { value: 
       return { mode: 'range', start: lower, end: upper };
     }
   }
+  if (context.type === 'FIELD_VALUE' && context.partial) {
+    const date = parseDate(context.partial);
+    if (date) {
+      return { mode: 'single', start: date, end: null };
+    }
+  }
   return null;
 }
 
 /**
  * Determine whether the date picker needs to be unmounted and remounted.
- * This is necessary when the mode changes (range ↔ single) because
- * DateRangePicker uses useState for its mode, which only reads the
- * initial value on first mount. Without a remount, stale mode persists.
+ * This is necessary when initial state changes because DateRangePicker
+ * uses useState which only reads the initial value on first mount.
+ * Returns true when mode or selected dates differ.
  */
 export function shouldRemountDatePicker(
   prevInit: DatePickerInit | null,
@@ -71,7 +77,13 @@ export function shouldRemountDatePicker(
 ): boolean {
   const prevMode = prevInit?.mode ?? 'single';
   const newMode = newInit?.mode ?? 'single';
-  return prevMode !== newMode;
+  if (prevMode !== newMode) return true;
+  const prevStart = prevInit?.start?.getTime() ?? 0;
+  const newStart = newInit?.start?.getTime() ?? 0;
+  if (prevStart !== newStart) return true;
+  const prevEnd = prevInit?.end?.getTime() ?? 0;
+  const newEnd = newInit?.end?.getTime() ?? 0;
+  return prevEnd !== newEnd;
 }
 
 interface DatePickerPortalProps {

@@ -31,14 +31,22 @@ describe('Date picker range → single transition', () => {
       expect(init!.end!.getUTCMonth()).toBe(11);
     });
 
-    it('returns null for FIELD_VALUE context (single date mode)', () => {
-      const result = getResult('created:2024-01-01');
+    it('returns single init with parsed date for FIELD_VALUE with date value', () => {
+      const result = getResult('created:2024-01-15');
+      const init = computeDatePickerInit(result.context);
+      expect(init).not.toBeNull();
+      expect(init!.mode).toBe('single');
+      expect(init!.start).toBeInstanceOf(Date);
+      expect(init!.end).toBeNull();
+    });
+
+    it('returns null for FIELD_VALUE after colon (no value yet)', () => {
+      const result = getResult('created:');
       expect(computeDatePickerInit(result.context)).toBeNull();
     });
 
-    it('returns null for FIELD_VALUE context after colon (no value yet)', () => {
-      const result = getResult('created:');
-      expect(computeDatePickerInit(result.context)).toBeNull();
+    it('returns null for FIELD_VALUE with non-date partial', () => {
+      expect(computeDatePickerInit({ type: 'FIELD_VALUE', partial: 'abc' })).toBeNull();
     });
 
     it('returns null for RANGE context without TO keyword', () => {
@@ -47,39 +55,40 @@ describe('Date picker range → single transition', () => {
   });
 
   describe('shouldRemountDatePicker', () => {
-    // When the picker is already showing and a new date-picker result arrives,
-    // the picker must remount (unmount + mount) if the init changes, so that
-    // DateRangePicker picks up fresh initialMode/initialStart/initialEnd via
-    // useState. Without remounting, useState ignores changed initial values.
-
-    it('returns true when transitioning from range init to null (range → single)', () => {
+    it('returns true when transitioning from range to null (range → empty single)', () => {
       const prevInit = { mode: 'range' as const, start: new Date(), end: new Date() };
-      const newInit = null;
-      expect(shouldRemountDatePicker(prevInit, newInit)).toBe(true);
+      expect(shouldRemountDatePicker(prevInit, null)).toBe(true);
     });
 
-    it('returns true when transitioning from null to range init (single → range)', () => {
-      const prevInit = null;
+    it('returns true when transitioning from null to range (empty single → range)', () => {
       const newInit = { mode: 'range' as const, start: new Date(), end: new Date() };
+      expect(shouldRemountDatePicker(null, newInit)).toBe(true);
+    });
+
+    it('returns true when transitioning from null to single with date', () => {
+      const newInit = { mode: 'single' as const, start: new Date(2024, 0, 15), end: null };
+      expect(shouldRemountDatePicker(null, newInit)).toBe(true);
+    });
+
+    it('returns true when single date changes', () => {
+      const prevInit = { mode: 'single' as const, start: new Date(2024, 0, 1), end: null };
+      const newInit = { mode: 'single' as const, start: new Date(2024, 5, 15), end: null };
       expect(shouldRemountDatePicker(prevInit, newInit)).toBe(true);
     });
 
-    it('returns false when both are null (single → single)', () => {
+    it('returns false when both are null (empty single → empty single)', () => {
       expect(shouldRemountDatePicker(null, null)).toBe(false);
     });
 
-    it('returns false when both are range with same mode (range → range)', () => {
-      const prevInit = { mode: 'range' as const, start: new Date(2024, 0, 1), end: new Date(2024, 11, 31) };
-      const newInit = { mode: 'range' as const, start: new Date(2024, 0, 1), end: new Date(2024, 5, 15) };
+    it('returns false when single date is unchanged', () => {
+      const date = new Date(2024, 0, 15);
+      const prevInit = { mode: 'single' as const, start: date, end: null };
+      const newInit = { mode: 'single' as const, start: new Date(date.getTime()), end: null };
       expect(shouldRemountDatePicker(prevInit, newInit)).toBe(false);
     });
   });
 
   describe('full paste-over-range scenario', () => {
-    // Simulates: cursor inside created:[2024-01-01 TO 2024-12-31]
-    //          → user pastes single date → created:2024-01-01
-    // The picker must transition from range mode to single mode.
-
     it('step 1: cursor inside range → RANGE context, range init', () => {
       const result = getResult('created:[2024-01-01 TO 2024-12-31]', 15);
       expect(result.context.type).toBe('RANGE');
@@ -88,12 +97,13 @@ describe('Date picker range → single transition', () => {
       expect(init?.mode).toBe('range');
     });
 
-    it('step 2: after paste → FIELD_VALUE context, null init', () => {
+    it('step 2: after paste → FIELD_VALUE context, single init with date', () => {
       const result = getResult('created:2024-01-01');
       expect(result.context.type).toBe('FIELD_VALUE');
       expect(result.showDatePicker).toBe(true);
       const init = computeDatePickerInit(result.context);
-      expect(init).toBeNull();
+      expect(init?.mode).toBe('single');
+      expect(init?.start).toBeInstanceOf(Date);
     });
 
     it('step 1→2 transition requires picker remount', () => {
@@ -103,12 +113,34 @@ describe('Date picker range → single transition', () => {
       const prevInit = computeDatePickerInit(rangeResult.context);
       const newInit = computeDatePickerInit(singleResult.context);
 
-      // Both trigger the date picker...
       expect(rangeResult.showDatePicker).toBe(true);
       expect(singleResult.showDatePicker).toBe(true);
-
-      // ...but the transition requires remount so useState picks up new init
       expect(shouldRemountDatePicker(prevInit, newInit)).toBe(true);
+    });
+  });
+
+  describe('single date highlight on reopen', () => {
+    it('clicking existing date value produces single init with that date', () => {
+      const result = getResult('created:2024-06-15');
+      const init = computeDatePickerInit(result.context);
+      expect(init).not.toBeNull();
+      expect(init!.mode).toBe('single');
+      expect(init!.start).toBeInstanceOf(Date);
+      // Picker will mount with initialStart set, so rangeStart useState
+      // picks it up → isSelected is true for that day → daySelected style applies
+    });
+
+    it('opening picker after colon with no value gives null init (no highlight)', () => {
+      const result = getResult('created:');
+      const init = computeDatePickerInit(result.context);
+      expect(init).toBeNull();
+    });
+
+    it('reopening picker on same date does not require remount', () => {
+      const result = getResult('created:2024-06-15');
+      const init = computeDatePickerInit(result.context);
+      // Simulating: picker was already open with same date, user clicks again
+      expect(shouldRemountDatePicker(init, init)).toBe(false);
     });
   });
 });

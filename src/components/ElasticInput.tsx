@@ -1023,8 +1023,6 @@ export function ElasticInput(props: ElasticInputProps) {
           currentValueRef.current, selRange.start, selRange.end,
           e.key, WRAP_PAIRS[e.key],
         );
-        currentValueRef.current = newValue;
-
         // Snapshot pre-surround selection on the current undo entry so undo restores it
         const undo = undoStackRef.current;
         const cur = undo.current();
@@ -1032,6 +1030,8 @@ export function ElasticInput(props: ElasticInputProps) {
           cur.selStart = selRange.start;
           cur.cursorPos = selRange.end;
         }
+
+        currentValueRef.current = newValue;
 
         // Record post-surround entry with the inner selection
         if (typingGroupTimerRef.current) {

@@ -409,6 +409,24 @@ const validator = new Validator(fields);
 const errors = validator.validate(ast);
 ```
 
+## Standalone Syntax Highlighting
+
+The syntax highlighter is a pure function — no React or DOM required. Use it to render highlighted queries anywhere (read-only displays, logs, documentation):
+
+```typescript
+import { Lexer, buildHighlightedHTML, DEFAULT_COLORS } from 'elastic-input';
+
+const tokens = new Lexer('status:active AND price:>100').tokenize();
+const html = buildHighlightedHTML(tokens, DEFAULT_COLORS);
+// Returns an HTML string with inline styles — set innerHTML on any element
+```
+
+Pass `HighlightOptions` for matched-paren highlighting:
+
+```typescript
+buildHighlightedHTML(tokens, DEFAULT_COLORS, { cursorOffset: 5 });
+```
+
 ## Requirements
 
 ### Runtime (Browser)

@@ -121,4 +121,36 @@ describe('UndoStack', () => {
     expect(stack.redo()!.value).toBe('hel');
     expect(stack.redo()).toBeNull();
   });
+
+  it('preserves selStart on entries for selection-aware undo', () => {
+    const stack = new UndoStack();
+    stack.push({ value: 'a foo b', cursorPos: 5 });
+    // Simulate user selecting "foo" then surrouding → snapshot selection on current entry
+    const cur = stack.current()!;
+    cur.selStart = 2;
+    cur.cursorPos = 5;
+    // Push post-surround state with inner selection
+    stack.push({ value: 'a (foo) b', cursorPos: 6, selStart: 3 });
+
+    // Undo should restore pre-surround entry with selection info
+    const entry = stack.undo()!;
+    expect(entry.value).toBe('a foo b');
+    expect(entry.selStart).toBe(2);
+    expect(entry.cursorPos).toBe(5);
+
+    // Redo should restore post-surround entry with inner selection
+    const redo = stack.redo()!;
+    expect(redo.value).toBe('a (foo) b');
+    expect(redo.selStart).toBe(3);
+    expect(redo.cursorPos).toBe(6);
+  });
+
+  it('entries without selStart behave as collapsed cursor', () => {
+    const stack = new UndoStack();
+    stack.push({ value: 'hello', cursorPos: 5 });
+    stack.push({ value: 'hello world', cursorPos: 11 });
+    const entry = stack.undo()!;
+    expect(entry.selStart).toBeUndefined();
+    expect(entry.cursorPos).toBe(5);
+  });
 });

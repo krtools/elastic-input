@@ -945,7 +945,7 @@ export function ElasticInput(props: ElasticInputProps) {
     handleInput();
   }, [handleInput]);
 
-  const restoreUndoEntry = React.useCallback((entry: { value: string; cursorPos: number } | null) => {
+  const restoreUndoEntry = React.useCallback((entry: { value: string; cursorPos: number; selStart?: number } | null) => {
     if (!entry) return;
     isUndoRedoRef.current = true;
     currentValueRef.current = entry.value;
@@ -957,17 +957,22 @@ export function ElasticInput(props: ElasticInputProps) {
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
+    const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos });
       editorRef.current.innerHTML = html;
-      setCaretCharOffset(editorRef.current, entry.cursorPos);
+      if (hasSelection) {
+        setSelectionCharRange(editorRef.current, entry.selStart!, entry.cursorPos);
+      } else {
+        setCaretCharOffset(editorRef.current, entry.cursorPos);
+      }
     }
 
     setTokens(newTokens);
     setAst(newAst);
     setValidationErrors(newErrors);
     setIsEmpty(entry.value.length === 0);
-    setCursorOffset(entry.cursorPos);
+    setCursorOffset(hasSelection ? entry.selStart! : entry.cursorPos);
     setSelectionEnd(entry.cursorPos);
     closeDropdown();
 
@@ -1020,12 +1025,20 @@ export function ElasticInput(props: ElasticInputProps) {
         );
         currentValueRef.current = newValue;
 
-        // Record as undo entry
+        // Snapshot pre-surround selection on the current undo entry so undo restores it
+        const undo = undoStackRef.current;
+        const cur = undo.current();
+        if (cur && cur.value === currentValueRef.current) {
+          cur.selStart = selRange.start;
+          cur.cursorPos = selRange.end;
+        }
+
+        // Record post-surround entry with the inner selection
         if (typingGroupTimerRef.current) {
           clearTimeout(typingGroupTimerRef.current);
           typingGroupTimerRef.current = null;
         }
-        undoStackRef.current.push({ value: newValue, cursorPos: newSelEnd });
+        undo.push({ value: newValue, cursorPos: newSelEnd, selStart: newSelStart });
 
         const lexer = new Lexer(newValue);
         const newTokens = lexer.tokenize();

@@ -1,6 +1,8 @@
 export interface UndoEntry {
   value: string;
   cursorPos: number;
+  /** When present and !== cursorPos, represents a selection range [selStart, cursorPos]. */
+  selStart?: number;
 }
 
 export class UndoStack {

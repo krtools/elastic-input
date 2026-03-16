@@ -737,9 +737,11 @@ When text is selected and the user types an opening bracket or quote character, 
 
 After wrapping, the original selection is preserved inside the new brackets/quotes (VS Code behavior). The selection spans from after the opening character to before the closing character, so the user can immediately see what was wrapped and continue editing.
 
+**Undo restores the pre-surround selection.** Pressing Ctrl+Z after a surround operation restores both the original text and the text selection that was active before wrapping. Redo restores the wrapped text with the inner selection. This is achieved by storing optional selection ranges (`selStart`) on undo entries.
+
 When no text is selected, the bracket/quote character is inserted normally.
 
-- **Tests:** `wrapSelection.test.ts` → 18 tests covering all pair types, positions (start/middle/end/entire), single character, selection preservation (`newSelStart`/`newSelEnd`), and ambiguity resolution scenarios
+- **Tests:** `wrapSelection.test.ts` → 18 tests covering all pair types, positions (start/middle/end/entire), single character, selection preservation (`newSelStart`/`newSelEnd`), and ambiguity resolution scenarios; `undoStack.test.ts` → `preserves selStart on entries for selection-aware undo`
 
 ### 7.6 Escape — Close Dropdown
 

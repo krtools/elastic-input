@@ -50,6 +50,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **squiggly** | The wavy underline indicating a validation error or warning |
 | **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `RANGE`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
 | **caret** / **cursor** | The text insertion point in the input |
+| **surround** | Auto-wrapping a text selection with matching delimiters when the user types `(`, `[`, or `"` — e.g. selecting `foo` and pressing `(` produces `(foo)` |
 
 ## Pipeline Stages
 

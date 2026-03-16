@@ -48,7 +48,12 @@ describe('getCursorContext', () => {
     });
 
     it('returns FIELD_NAME at cursor before orphan colon at start of input', () => {
-      expect(getContext(':blah', 0)).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+      const ctx = getContext(':blah', 0);
+      expect(ctx).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+      // Token should be the colon so replacement range covers it (avoids double colon)
+      expect(ctx.token).toBeDefined();
+      expect(ctx.token!.start).toBe(0);
+      expect(ctx.token!.end).toBe(1);
     });
 
     it('returns FIELD_NAME at cursor before orphan colon after LPAREN', () => {

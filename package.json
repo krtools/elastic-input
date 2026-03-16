@@ -11,7 +11,7 @@
     "dev": "vite --config vite.demo.config.js",
     "build": "vite build",
     "build:demo": "vite build --config vite.demo.config.js",
-    "deploy": "npm run build:demo && gh-pages -d dist-demo",
+    "deploy:pages": "npm run build:demo && gh-pages -d dist-demo",
     "test": "vitest run",
     "test:watch": "vitest"
   },

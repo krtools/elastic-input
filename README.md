@@ -4,6 +4,8 @@ A syntax-aware smart autocomplete input for building structured queries. Support
 
 Built with React functional components and hooks (compatible with React 16.8+), zero runtime dependencies beyond React/ReactDOM, and fully inline-styled (no CSS imports required).
 
+Vibe-coded as a proof of concept with Claude Code
+
 ## Features
 
 - **Syntax highlighting** — field names, values, operators, quoted strings, and special tokens are color-coded in real time

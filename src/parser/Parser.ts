@@ -737,7 +737,8 @@ export class Parser {
           if (tokens[i].type === TokenType.WHITESPACE) continue;
           if (tokens[i].type === TokenType.VALUE ||
               tokens[i].type === TokenType.QUOTED_VALUE ||
-              tokens[i].type === TokenType.WILDCARD) {
+              tokens[i].type === TokenType.WILDCARD ||
+              tokens[i].type === TokenType.RANGE) {
             const partial = tokens[i].type === TokenType.QUOTED_VALUE
               ? tokens[i].value.slice(1, tokens[i].value.endsWith('"') || tokens[i].value.endsWith("'") ? -1 : undefined)
               : tokens[i].value;

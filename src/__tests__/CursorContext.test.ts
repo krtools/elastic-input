@@ -315,6 +315,16 @@ describe('getCursorContext', () => {
       expect(ctx.token!.value).toBe('[2024-01-01 TO 2024-12-31]');
     });
 
+    it('returns FIELD_VALUE with range token when cursor is at colon end before range', () => {
+      // Cursor at position 8 = end of colon, start of range bracket
+      const ctx = getContext('created:[2024-01-01 TO 2024-12-31]', 8);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('created');
+      expect(ctx.token).toBeDefined();
+      expect(ctx.token!.type).toBe('RANGE');
+      expect(ctx.token!.value).toBe('[2024-01-01 TO 2024-12-31]');
+    });
+
     it('has empty fieldName for standalone range', () => {
       const ctx = getContext('[abc TO def]', 5);
       expect(ctx.type).toBe('RANGE');

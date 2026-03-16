@@ -338,6 +338,17 @@ describe('Cursor at colon-value boundary', () => {
     expect(result.context.partial).toBe('');
   });
 
+  it('cursor at colon end with following range returns FIELD_VALUE with range token', () => {
+    // "created:[2024-01-01 TO 2024-12-31]" — offset 8 is colon end / range start
+    const result = getSuggestions('created:[2024-01-01 TO 2024-12-31]', 8);
+    expect(result.context.type).toBe('FIELD_VALUE');
+    expect(result.context.fieldName).toBe('created');
+    expect(result.context.token).toBeDefined();
+    expect(result.context.token!.type).toBe('RANGE');
+    expect(result.context.token!.start).toBe(8);
+    expect(result.context.token!.end).toBe(34);
+  });
+
   it('cursor at colon end in compound query picks up following value', () => {
     // "level:ERROR AND x" — offset at level's colon end
     const tokens = new Lexer('level:ERROR AND x').tokenize();

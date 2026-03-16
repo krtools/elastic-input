@@ -5,6 +5,10 @@
 // Core component
 export { ElasticInput } from './components/ElasticInput';
 
+// Standalone syntax highlighting (pure function — no React/DOM required)
+export { buildHighlightedHTML } from './components/HighlightedContent';
+export type { HighlightOptions } from './components/HighlightedContent';
+
 // Internal building blocks (for advanced usage / custom integrations)
 export { Lexer } from './lexer/Lexer';
 export { Parser } from './parser/Parser';

@@ -17,14 +17,6 @@ Built with React functional components and hooks (compatible with React 16.8+), 
 - **Fully configurable** — colors, structural styles, fonts, and layout are all customizable via props
 - **Dark mode ready** — ships with `DARK_COLORS` and `DARK_STYLES` presets
 
-## Installation
-
-```bash
-npm install elastic-input
-# or
-yarn add elastic-input
-```
-
 ## Quick Start
 
 ```tsx

@@ -142,4 +142,9 @@ export const SAMPLE_HISTORY: HistoryEntry[] = [
   { query: 'level:ERROR AND service:api-gateway', timestamp: Date.now() - 7200000, label: 'API gateway errors' },
   { query: 'category:electronics AND price:<100', timestamp: Date.now() - 86400000, label: 'Cheap electronics' },
   { query: 'name:John* OR name:Jane*', timestamp: Date.now() - 172800000, label: 'J names' },
+  { query: '(status:lead OR status:prospect) AND company:Acme*', timestamp: Date.now() - 259200000, label: 'Acme leads/prospects' },
+  { query: '-(is_vip:true AND status:churned)', timestamp: Date.now() - 345600000, label: 'Exclude churned VIPs' },
+  { query: '(tags:enterprise OR deal_value:>10000)^2', timestamp: Date.now() - 432000000, label: 'Boosted enterprise/high-value' },
+  { query: '"quick brown fox"', timestamp: Date.now() - 518400000, label: 'Exact phrase search' },
+  { query: 'status:inactive', timestamp: Date.now() - 604800000, label: 'Inactive contacts' },
 ];

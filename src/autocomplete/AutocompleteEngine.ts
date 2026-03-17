@@ -1,4 +1,5 @@
 import { Token } from '../lexer/tokens';
+import { Lexer } from '../lexer/Lexer';
 import { Parser, CursorContext } from '../parser/Parser';
 import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem } from '../types';
 import { Suggestion } from './suggestionTypes';
@@ -311,10 +312,18 @@ export class AutocompleteEngine {
       })
       .slice(0, this.maxSuggestions)
       .map(h => {
-        // Wrap in parens if it contains boolean operators
+        // Wrap in parens only if the top-level AST node is a BooleanExpr
+        // (explicit AND/OR or implicit adjacency). Already-grouped expressions
+        // like -(a AND b) or (a OR b)^2 don't need extra wrapping.
         let replacementText = h.query;
-        if (/\b(AND|OR)\b/i.test(h.query)) {
-          replacementText = '(' + h.query + ')';
+        try {
+          const tokens = new Lexer(h.query).tokenize();
+          const ast = new Parser(tokens).parse();
+          if (ast && ast.type === 'BooleanExpr') {
+            replacementText = '(' + h.query + ')';
+          }
+        } catch {
+          // Parse failure — leave as-is
         }
         return {
           text: replacementText,

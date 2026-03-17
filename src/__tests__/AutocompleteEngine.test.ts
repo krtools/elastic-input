@@ -318,13 +318,76 @@ describe('AutocompleteEngine', () => {
       expect(labels).not.toContain('Active expensive');
     });
 
-    it('wraps history with boolean ops in parens', () => {
+    it('wraps history with top-level boolean ops in parens', () => {
       const texts = suggestionTexts('!');
       const activeExpensive = texts.find(t => t.includes('status:active'));
       expect(activeExpensive).toBe('(status:active AND price:>5000)');
     });
 
-    it('does not wrap simple history in parens', () => {
+    it('wraps history with implicit boolean (adjacency) in parens', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: 'name:john name:jane', label: 'Johns and Janes' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('(name:john name:jane)');
+    });
+
+    it('does not wrap history already grouped in parens', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: '(status:lead OR status:prospect)', label: 'Leads' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('(status:lead OR status:prospect)');
+    });
+
+    it('does not wrap negated group history', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: '-(is_vip:true AND status:churned)', label: 'Exclude churned VIPs' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('-(is_vip:true AND status:churned)');
+    });
+
+    it('does not wrap boosted group history', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: '(tags:enterprise OR deal_value:>10000)^2', label: 'Boosted' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('(tags:enterprise OR deal_value:>10000)^2');
+    });
+
+    it('does not wrap single filter value history', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: 'status:inactive', label: 'Inactive' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('status:inactive');
+    });
+
+    it('does not wrap quoted string history', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: '"quick brown fox"', label: 'Phrase' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('"quick brown fox"');
+    });
+
+    it('wraps history with top-level AND even when subexpressions have parens', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [
+        { query: '(status:lead OR status:prospect) AND name:Acme*', label: 'Acme leads' },
+      ]);
+      const tokens = new Lexer('!').tokenize();
+      const result = engine.getSuggestions(tokens, 1);
+      expect(result.suggestions[0].text).toBe('((status:lead OR status:prospect) AND name:Acme*)');
+    });
+
+    it('does not wrap simple bare term history', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: 'simple-query', label: 'simple' },
       ]);

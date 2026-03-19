@@ -210,7 +210,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const isComposingRef = React.useRef(false);
   const undoStackRef = React.useRef(new UndoStack());
   const typingGroupTimerRef = React.useRef<any>(null);
-  const isUndoRedoRef = React.useRef(false);
+
 
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -902,13 +902,13 @@ export function ElasticInput(props: ElasticInputProps) {
     if (isComposingRef.current) return;
     if (!editorRef.current) return;
     expandSelRef.current = null; // typing resets expand selection
-    // Skip undo recording if this input was triggered by undo/redo
-    if (isUndoRedoRef.current) {
-      isUndoRedoRef.current = false;
-      return;
-    }
 
     let text = getPlainText(editorRef.current);
+
+    // Skip if the DOM text hasn't changed from what we last processed.
+    // This handles spurious input events from programmatic DOM updates
+    // (e.g. innerHTML changes during undo/redo or suggestion acceptance).
+    if (text === currentValueRef.current) return;
     let cursorPos = getCaretCharOffset(editorRef.current);
 
     // Normalize typographic characters (smart quotes, em dashes, etc.)
@@ -953,7 +953,6 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const restoreUndoEntry = React.useCallback((entry: { value: string; cursorPos: number; selStart?: number } | null) => {
     if (!entry) return;
-    isUndoRedoRef.current = true;
     currentValueRef.current = entry.value;
 
     const lexer = new Lexer(entry.value);

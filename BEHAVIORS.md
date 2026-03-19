@@ -939,6 +939,8 @@ The squigglies are absolutely positioned relative to the input container, with p
 
 DOM measurements for squiggly positions are **debounced** (150ms) to avoid layout thrashing during rapid input. A maximum of 30 errors are measured per cycle to cap the cost of large queries with many validation errors. When errors clear entirely (e.g., deleting all text), squigglies are removed immediately without waiting for the debounce.
 
+Programmatic DOM changes (undo/redo, suggestion acceptance, surround wrapping) update `currentValueRef` before modifying `innerHTML`. The `handleInput` callback uses a text-comparison guard (`text === currentValueRef.current`) to skip spurious `input` events from these programmatic changes while still processing genuine user edits (e.g., select-all + Delete). This replaces the previous `isUndoRedoRef` flag approach which could leave the flag stuck when `innerHTML` changes didn't fire `input` events, causing subsequent user edits to be silently dropped.
+
 ### 9.2 Hover Tooltips
 
 Hovering over a squiggly underline displays a styled tooltip with the error/warning message. The tooltip:

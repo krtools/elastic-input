@@ -371,6 +371,13 @@ export interface ElasticInputProps {
    */
   smartSelectAll?: boolean;
   /**
+   * When enabled, Alt+Shift+Right progressively expands the selection
+   * through the AST hierarchy (token → node → parent → root), and
+   * Alt+Shift+Left shrinks it back.
+   * @default false
+   */
+  expandSelection?: boolean;
+  /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error
    * severity), a `{ message, severity }` object, or `null` if valid.

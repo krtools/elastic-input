@@ -18,6 +18,7 @@ import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelec
 import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
+import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import {
   mergeColors,
   mergeStyles,
@@ -169,7 +170,7 @@ export function ElasticInput(props: ElasticInputProps) {
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
     datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
-    smartSelectAll, validateValue,
+    smartSelectAll, expandSelection, validateValue,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -219,6 +220,8 @@ export function ElasticInput(props: ElasticInputProps) {
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
   // was activated via Ctrl+Space. Reset when context changes.
   const manualActivationContextRef = React.useRef<string | null>(null);
+  // Expand/shrink selection state: the cached hierarchy and current level index
+  const expandSelRef = React.useRef<{ ranges: SelectionRange[]; level: number } | null>(null);
   // Stable ref to the latest updateSuggestionsFromTokens so processInput (defined
   // earlier) always calls the current version without a stale closure.
   const updateSuggestionsRef = React.useRef<(toks: Token[], offset: number) => void>(() => {});
@@ -898,6 +901,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const handleInput = React.useCallback(() => {
     if (isComposingRef.current) return;
     if (!editorRef.current) return;
+    expandSelRef.current = null; // typing resets expand selection
     // Skip undo recording if this input was triggered by undo/redo
     if (isUndoRedoRef.current) {
       isUndoRedoRef.current = false;
@@ -1098,6 +1102,45 @@ export function ElasticInput(props: ElasticInputProps) {
       // Otherwise fall through to browser default select-all
     }
 
+    // Alt+Shift+Right/Left: expand/shrink selection through AST hierarchy
+    if (expandSelection && e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && editorRef.current) {
+      const isExpand = e.key === 'ArrowRight';
+      let state = expandSelRef.current;
+
+      if (!state) {
+        // Build expansion hierarchy from current cursor position
+        const selRange = getSelectionCharRange(editorRef.current);
+        const ranges = getExpansionRanges(s.ast, s.tokens, selRange.start);
+        if (ranges.length === 0) return; // nothing to expand to
+        state = { ranges, level: -1 };
+        expandSelRef.current = state;
+      }
+
+      const newLevel = isExpand
+        ? Math.min(state.level + 1, state.ranges.length - 1)
+        : Math.max(state.level - 1, -1);
+
+      if (newLevel === state.level) return; // already at boundary
+      state.level = newLevel;
+
+      if (newLevel < 0) {
+        // Shrunk past first level — collapse to caret
+        const selRange = getSelectionCharRange(editorRef.current);
+        setCaretCharOffset(editorRef.current, selRange.start);
+        expandSelRef.current = null;
+      } else {
+        e.preventDefault();
+        const range = state.ranges[newLevel];
+        setSelectionCharRange(editorRef.current, range.start, range.end);
+        setCursorOffset(range.start);
+        setSelectionEnd(range.end);
+      }
+      return;
+    }
+
+    // Any other key resets the expand/shrink selection state
+    expandSelRef.current = null;
+
     // Ctrl+Space: activate/restore dropdown
     if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -1238,7 +1281,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

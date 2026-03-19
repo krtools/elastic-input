@@ -809,6 +809,25 @@ The smart select logic lives in `src/utils/smartSelect.ts` — expand the `SMART
 
 - **Tests:** `smartSelect.test.ts` → 20 tests covering bare terms, field values, quoted values, wildcards, second-press fallthrough, non-eligible tokens, and partial selection expansion
 
+### 7.12 Alt+Shift+Arrow — Expand / Shrink Selection
+
+When the `expandSelection` prop is enabled (default: `false`):
+
+- **Alt+Shift+Right** progressively expands the selection through the AST hierarchy. Each press widens the selection to the next enclosing node. Example for cursor in `active` of `(status:active OR name:john) AND tags:enterprise`:
+  1. `active` (VALUE token)
+  2. `status:active` (FieldValue AST node)
+  3. `status:active OR name:john` (BooleanExpr inside group)
+  4. `(status:active OR name:john)` (Group, including parens)
+  5. Entire query (root BooleanExpr)
+
+- **Alt+Shift+Left** shrinks the selection back down the hierarchy. Shrinking past the innermost level collapses back to a caret.
+
+- **Any other key** resets the expansion state. Typing, cursor movement, and other keyboard shortcuts all clear the stack so the next expand starts fresh from the current position.
+
+The expansion hierarchy is built by `getExpansionRanges()` in `src/utils/expandSelection.ts`. It collects all AST nodes containing the cursor, deduplicates identical ranges, and sorts by span size.
+
+- **Tests:** `expandSelection.test.ts` → 14 tests covering bare terms, field values, boolean expressions, groups, negation, field groups, whitespace, operator positions, and deduplication
+
 ---
 
 ## 8. Dropdown Positioning
@@ -1239,6 +1258,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
+| `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

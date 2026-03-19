@@ -17,6 +17,7 @@ import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
+import { getSmartSelectRange } from '../utils/smartSelect';
 import {
   mergeColors,
   mergeStyles,
@@ -167,7 +168,8 @@ export function ElasticInput(props: ElasticInputProps) {
     multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
     datePresets: datePresetsProp,
-    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp, validateValue,
+    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
+    smartSelectAll, validateValue,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -1082,6 +1084,20 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Ctrl+A: smart select — first press selects token, second selects all
+    if (e.key === 'a' && (e.ctrlKey || e.metaKey) && smartSelectAll && editorRef.current) {
+      const selRange = getSelectionCharRange(editorRef.current);
+      const tokenRange = getSmartSelectRange(s.tokens, selRange.start, selRange.end);
+      if (tokenRange) {
+        e.preventDefault();
+        setSelectionCharRange(editorRef.current, tokenRange.start, tokenRange.end);
+        setCursorOffset(tokenRange.start);
+        setSelectionEnd(tokenRange.end);
+        return;
+      }
+      // Otherwise fall through to browser default select-all
+    }
+
     // Ctrl+Space: activate/restore dropdown
     if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -1222,7 +1238,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

@@ -226,6 +226,7 @@ export function DemoApp() {
                 renderFieldHint={renderFieldHint}
                 renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}
                 onTab={useOnTab ? handleTab : undefined}
+                smartSelectAll
                 inputRef={api => { inputApiRef.current = api; }}
               />
             </div>

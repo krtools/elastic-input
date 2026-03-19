@@ -365,6 +365,12 @@ export interface ElasticInputProps {
    */
   onTab?: (context: TabContext) => TabActionResult;
   /**
+   * When enabled, the first Ctrl+A selects the bare term or field value
+   * under the cursor. A second Ctrl+A selects the entire query.
+   * @default false
+   */
+  smartSelectAll?: boolean;
+  /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error
    * severity), a `{ message, severity }` object, or `null` if valid.

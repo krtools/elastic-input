@@ -795,6 +795,20 @@ The dropdown's selected index determines which item is highlighted and which Ent
 
 - **Tests:** `SuggestionChaining.test.ts` → "number field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
 
+### 7.11 Ctrl+A — Smart Select All
+
+When the `smartSelectAll` prop is enabled (default: `false`):
+
+1. **First Ctrl+A**: if the cursor is inside a bare term, field value, quoted value, or wildcard token, selects that token.
+2. **Second Ctrl+A**: the selection already matches the token, so it falls through to normal browser select-all.
+3. **Cursor not in an eligible token** (whitespace, operator, field name, range, etc.): falls through to normal select-all immediately.
+
+A partial selection within an eligible token also expands to the full token on first press.
+
+The smart select logic lives in `src/utils/smartSelect.ts` — expand the `SMART_SELECT_TYPES` set to include additional token types.
+
+- **Tests:** `smartSelect.test.ts` → 20 tests covering bare terms, field values, quoted values, wildcards, second-press fallthrough, non-eligible tokens, and partial selection expansion
+
 ---
 
 ## 8. Dropdown Positioning
@@ -1224,6 +1238,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `onFocus` | `() => void` | — | Called when the input gains focus |
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
+| `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

@@ -16,6 +16,10 @@ export { Validator } from './validation/Validator';
 export { AutocompleteEngine } from './autocomplete/AutocompleteEngine';
 export type { AutocompleteOptions } from './autocomplete/AutocompleteEngine';
 
+// Standalone utilities (pure functions — no React/DOM required, tree-shakeable)
+export { extractValues } from './utils/extractValues';
+export type { ExtractedValue, ExtractedValueKind } from './utils/extractValues';
+
 // Color and style presets
 export { DEFAULT_COLORS, DARK_COLORS, DEFAULT_STYLES, DARK_STYLES } from './constants';
 

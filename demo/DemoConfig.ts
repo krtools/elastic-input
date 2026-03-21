@@ -55,6 +55,11 @@ export function demoValidateValue(ctx: ValidateValueContext): ValidateReturn {
     return { message: 'Leading wildcard — query may be slow and could be queued', severity: 'warning' };
   }
 
+  // Wildcard values bypass all further validation
+  if (!ctx.quoted && (ctx.value.includes('*') || ctx.value.includes('?'))) {
+    return null;
+  }
+
   // Email-specific warnings
   if (ctx.fieldName === 'email') {
     if (!ctx.value.includes('*') && !ctx.value.includes('?') && !ctx.value.includes('@')) {

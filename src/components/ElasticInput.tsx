@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Lexer } from '../lexer/Lexer';
-import { Token } from '../lexer/tokens';
+import { Token, TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
@@ -170,7 +170,7 @@ export function ElasticInput(props: ElasticInputProps) {
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
     datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
-    smartSelectAll, expandSelection, validateValue, dropdownTrigger,
+    smartSelectAll, expandSelection, validateValue, dropdownTrigger, wildcardWrap,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
@@ -1043,16 +1043,35 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     }
 
-    // Bracket/quote wrapping: when text is selected and user types an opening
-    // bracket or quote, wrap the selection instead of replacing it (VS Code style).
-    // Preserves the original selection around the wrapped text.
-    if (WRAP_PAIRS[e.key] && editorRef.current) {
+    // Bracket/quote/wildcard wrapping: when text is selected and user types an opening
+    // bracket, quote, or * wrap the selection instead of replacing it (VS Code style).
+    // Wildcard wrapping (*) only applies to single VALUE/WILDCARD tokens.
+    {
+      let openChar: string | null = null;
+      let closeChar: string | null = null;
+      if (WRAP_PAIRS[e.key]) {
+        openChar = e.key;
+        closeChar = WRAP_PAIRS[e.key];
+      } else if (wildcardWrap && e.key === '*' && editorRef.current) {
+        const selRange = getSelectionCharRange(editorRef.current);
+        if (selRange.start !== selRange.end) {
+          const [si, ei] = getTokenIndexRange(s.tokens, selRange.start, selRange.end);
+          if (si >= 0 && si === ei) {
+            const tok = s.tokens[si];
+            if (tok.type === TokenType.VALUE || tok.type === TokenType.WILDCARD) {
+              openChar = '*';
+              closeChar = '*';
+            }
+          }
+        }
+      }
+    if (openChar && closeChar && editorRef.current) {
       const selRange = getSelectionCharRange(editorRef.current);
       if (selRange.start !== selRange.end) {
         e.preventDefault();
         const { newValue, newSelStart, newSelEnd } = wrapSelection(
           currentValueRef.current, selRange.start, selRange.end,
-          e.key, WRAP_PAIRS[e.key],
+          openChar, closeChar,
         );
         // Snapshot pre-surround selection on the current undo entry so undo restores it
         const undo = undoStackRef.current;
@@ -1094,6 +1113,7 @@ export function ElasticInput(props: ElasticInputProps) {
         if (onValidationChange) onValidationChange(newErrors);
         return;
       }
+    }
     }
 
     // Undo: Ctrl+Z

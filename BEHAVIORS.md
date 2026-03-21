@@ -734,8 +734,11 @@ When text is selected and the user types an opening bracket or quote character, 
 | `[` | `[…]` | Select `world` in `hello world` → `hello [world]` |
 | `"` | `"…"` | Select `hello world` → `"hello world"` |
 | `'` | `'…'` | Select `bar` in `foo bar` → `foo 'bar'` |
+| `*` | `*…*` | Select `test` in `status:test` → `status:*test*` *(requires `wildcardWrap` prop; single value token only)* |
 
 After wrapping, the original selection is preserved inside the new brackets/quotes (VS Code behavior). The selection spans from after the opening character to before the closing character, so the user can immediately see what was wrapped and continue editing.
+
+**Wildcard wrap restriction:** The `*` wrap character (enabled by the `wildcardWrap` prop) only activates when the selection spans exactly one token of type `VALUE` or `WILDCARD`. Multi-token selections, phrases, parenthesized groups, and field names are not eligible — pressing `*` with such a selection inserts normally. This prevents creating syntactically broken queries like `*status:active*`.
 
 **Undo restores the pre-surround selection.** Pressing Ctrl+Z after a surround operation restores both the original text and the text selection that was active before wrapping. Redo restores the wrapped text with the inner selection. This is achieved by storing optional selection ranges (`selStart`) on undo entries.
 
@@ -1278,6 +1281,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
+| `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |

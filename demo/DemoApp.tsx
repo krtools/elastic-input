@@ -106,6 +106,7 @@ export function DemoApp() {
   const [multiline, setMultiline] = React.useState(true);
   const [smartSelectAll, setSmartSelectAll] = React.useState(true);
   const [expandSelection, setExpandSelection] = React.useState(true);
+  const [wildcardWrap, setWildcardWrap] = React.useState(true);
 
   // Hint options
   const [showSavedSearchHint, setShowSavedSearchHint] = React.useState(true);
@@ -254,6 +255,7 @@ export function DemoApp() {
                   multiline={multiline}
                   smartSelectAll={smartSelectAll}
                   expandSelection={expandSelection}
+                  wildcardWrap={wildcardWrap}
                   showSavedSearchHint={showSavedSearchHint}
                   showHistoryHint={showHistoryHint}
                   inputRef={api => { inputApiRef.current = api; }}
@@ -401,6 +403,7 @@ export function DemoApp() {
               <OptionToggle label="Multiline" checked={multiline} onChange={setMultiline} theme={theme} />
               <OptionToggle label="Smart Ctrl+A" checked={smartSelectAll} onChange={setSmartSelectAll} theme={theme} />
               <OptionToggle label="Expand selection" checked={expandSelection} onChange={setExpandSelection} theme={theme} />
+              <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />
             </OptionGroup>
 
             <OptionGroup label="Hints" theme={theme}>

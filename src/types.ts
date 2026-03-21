@@ -398,6 +398,14 @@ export interface ElasticInputProps {
    */
   expandSelection?: boolean;
   /**
+   * When enabled, pressing `*` with a single value token selected wraps it
+   * in wildcards (e.g. `foo` becomes `*foo*`). Only applies to VALUE and
+   * WILDCARD tokens — quoted phrases, field names, and multi-token selections
+   * are not wrapped.
+   * @default false
+   */
+  wildcardWrap?: boolean;
+  /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error
    * severity), a `{ message, severity }` object, or `null` if valid.

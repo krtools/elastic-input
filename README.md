@@ -111,15 +111,14 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `placeholder` | `string` | `"Search..."` | Placeholder text |
 | `className` | `string` | — | CSS class for the outer container |
 | `style` | `CSSProperties` | — | Inline styles for the outer container |
-| `suggestDebounceMs` | `number` | `200` | Debounce delay for `fetchSuggestions` |
-| `maxSuggestions` | `number` | `10` | Maximum suggestions shown in dropdown |
-| `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
-| `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
+| `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (mode, triggers, renderers) |
+| `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap) |
 | `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
 | `onFocus` | `() => void` | — | Called when the input gains focus |
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context) => TabActionResult` | — | Override Tab key behavior (accept/blur/submit) |
+| `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
 
 ## Field Configuration
 
@@ -278,7 +277,7 @@ Provide dynamic suggestions for field values:
       type: fieldName,
     }));
   }}
-  suggestDebounceMs={300}
+  dropdown={{ suggestDebounceMs: 300 }}
 />
 ```
 

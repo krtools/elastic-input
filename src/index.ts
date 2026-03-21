@@ -40,7 +40,8 @@ export type {
   ValidateReturn,
   TabContext,
   TabActionResult,
-  DropdownTriggerConfig,
+  DropdownConfig,
+  FeaturesConfig,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

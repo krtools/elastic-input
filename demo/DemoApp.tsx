@@ -243,21 +243,27 @@ export function DemoApp() {
                   savedSearches={SAMPLE_SAVED_SEARCHES}
                   searchHistory={SAMPLE_HISTORY}
                   fetchSuggestions={mockFetchSuggestions}
-                  maxSuggestions={maxSuggestions}
-                  suggestDebounceMs={suggestDebounceMs}
-                  dropdownAlignToInput={dropdownAlignToInput}
-                  dropdownMode={dropdownMode}
-                  dropdownTrigger={{ showOperators, onNavigation: navTrigger, navigationDelay: navDelay }}
+                  dropdown={{
+                    mode: dropdownMode,
+                    alignToInput: dropdownAlignToInput,
+                    maxSuggestions,
+                    suggestDebounceMs,
+                    showSavedSearchHint,
+                    showHistoryHint,
+                    showOperators,
+                    onNavigation: navTrigger,
+                    navigationDelay: navDelay,
+                    renderFieldHint,
+                    renderHeader: showDropdownHeaders ? renderDropdownHeader : undefined,
+                  }}
+                  features={{
+                    multiline,
+                    smartSelectAll,
+                    expandSelection,
+                    wildcardWrap,
+                  }}
                   validateValue={demoValidateValue}
-                  renderFieldHint={renderFieldHint}
-                  renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}
                   onTab={useOnTab ? handleTab : undefined}
-                  multiline={multiline}
-                  smartSelectAll={smartSelectAll}
-                  expandSelection={expandSelection}
-                  wildcardWrap={wildcardWrap}
-                  showSavedSearchHint={showSavedSearchHint}
-                  showHistoryHint={showHistoryHint}
                   inputRef={api => { inputApiRef.current = api; }}
                 />
               </div>

@@ -165,20 +165,32 @@ export function ElasticInput(props: ElasticInputProps) {
     fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesProp, placeholder, className, style,
-    suggestDebounceMs, maxSuggestions, showSavedSearchHint, showHistoryHint,
-    multiline: multilineProp, dropdownAlignToInput, dropdownMode: dropdownModeProp,
-    inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
-    datePresets: datePresetsProp,
+    dropdown: dropdownConfig, features: featuresConfig,
+    inputRef, datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
-    smartSelectAll, expandSelection, validateValue, dropdownTrigger, wildcardWrap,
+    validateValue,
   } = props;
 
-  const dropdownMode = dropdownModeProp ?? 'always';
-  const showOperators = dropdownTrigger?.showOperators !== false;
-  const triggerOnNavigation = dropdownTrigger?.onNavigation !== false;
-  const navigationDelay = dropdownTrigger?.navigationDelay ?? 0;
+  // Dropdown config
+  const dropdownMode = dropdownConfig?.mode ?? 'always';
+  const dropdownAlignToInput = dropdownConfig?.alignToInput ?? false;
+  const maxSuggestions = dropdownConfig?.maxSuggestions;
+  const suggestDebounceMs = dropdownConfig?.suggestDebounceMs;
+  const showSavedSearchHint = dropdownConfig?.showSavedSearchHint;
+  const showHistoryHint = dropdownConfig?.showHistoryHint;
+  const showOperators = dropdownConfig?.showOperators !== false;
+  const triggerOnNavigation = dropdownConfig?.onNavigation !== false;
+  const navigationDelay = dropdownConfig?.navigationDelay ?? 0;
+  const renderFieldHint = dropdownConfig?.renderFieldHint;
+  const renderHistoryItem = dropdownConfig?.renderHistoryItem;
+  const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
+  const renderDropdownHeader = dropdownConfig?.renderHeader;
 
-  const multiline = multilineProp !== false; // default true
+  // Features config
+  const multiline = featuresConfig?.multiline !== false; // default true
+  const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
+  const expandSelection = featuresConfig?.expandSelection ?? false;
+  const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
 
   // Resolve async fields into state — start with [] while loading
   const initialFields = Array.isArray(fieldsProp) ? fieldsProp : [];

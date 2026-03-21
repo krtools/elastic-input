@@ -207,12 +207,23 @@ export interface StyleConfig {
 }
 
 /**
- * Fine-grained controls for when the autocomplete dropdown appears and what it shows.
- * These settings refine behavior within `dropdownMode: 'always'` — they do not override
- * `dropdownMode: 'never'` or `'manual'`, and Ctrl+Space manual activation always works
- * regardless of these settings.
+ * Configuration for the autocomplete dropdown: when it appears, what it shows, and
+ * how suggestion items are rendered. All properties are optional with sensible defaults.
  */
-export interface DropdownTriggerConfig {
+export interface DropdownConfig {
+  /** Controls when the dropdown appears. `'always'` (default) shows it as you type.
+   *  `'never'` disables it entirely. `'manual'` requires Ctrl+Space. @default 'always' */
+  mode?: 'always' | 'never' | 'manual';
+  /** When true, the dropdown spans the full input width instead of following the caret. @default false */
+  alignToInput?: boolean;
+  /** Maximum number of suggestions shown. @default 10 */
+  maxSuggestions?: number;
+  /** Debounce delay in ms for async `fetchSuggestions` calls. @default 200 */
+  suggestDebounceMs?: number;
+  /** Show the `#saved-search` hint in the dropdown. @default true */
+  showSavedSearchHint?: boolean;
+  /** Show the `!history` hint in the dropdown. @default true */
+  showHistoryHint?: boolean;
   /** Show boolean operator suggestions (AND, OR, NOT). @default true */
   showOperators?: boolean;
   /** Show dropdown on navigation events (click, arrow keys, focus). When false,
@@ -222,6 +233,32 @@ export interface DropdownTriggerConfig {
    *  immediate. If the user types before the delay elapses, the timer is cancelled.
    *  Ignored when `onNavigation` is false. @default 0 */
   navigationDelay?: number;
+  /** Custom renderer for field value hints. Return a React element for rich content,
+   *  or null/undefined for the default hint. */
+  renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;
+  /** Custom renderer for history suggestion items. Return a React element to replace
+   *  the default layout, or null/undefined for the default. */
+  renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
+  /** Custom renderer for saved search suggestion items. Return a React element to replace
+   *  the default layout, or null/undefined for the default. */
+  renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
+  /** Custom renderer for a header above the suggestion list. Return a React element,
+   *  or null/undefined for no header. */
+  renderHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
+}
+
+/**
+ * Feature toggles for optional editing behaviors. All default to false except `multiline`.
+ */
+export interface FeaturesConfig {
+  /** Enable multiline input with Shift+Enter for line breaks. @default true */
+  multiline?: boolean;
+  /** First Ctrl+A selects current token, second selects all. @default false */
+  smartSelectAll?: boolean;
+  /** Alt+Shift+Arrow expands/shrinks selection through the AST. @default false */
+  expandSelection?: boolean;
+  /** Pressing `*` with a single value token selected wraps it in wildcards. @default false */
+  wildcardWrap?: boolean;
 }
 
 /**
@@ -312,49 +349,12 @@ export interface ElasticInputProps {
   className?: string;
   /** Inline styles applied to the outer container `<div>`. */
   style?: React.CSSProperties;
-  /** Debounce delay in ms for async `fetchSuggestions` calls. @default 200 */
-  suggestDebounceMs?: number;
-  /** Maximum number of suggestions shown in the dropdown. @default 10 */
-  maxSuggestions?: number;
-  /** Whether to show the `#saved-search` hint in the dropdown. @default true */
-  showSavedSearchHint?: boolean;
-  /** Whether to show the `!history` hint in the dropdown. @default true */
-  showHistoryHint?: boolean;
+  /** Dropdown behavior, rendering, and appearance configuration. */
+  dropdown?: DropdownConfig;
+  /** Feature toggles for optional editing behaviors. */
+  features?: FeaturesConfig;
   /** Callback that receives the imperative API handle for programmatic control. */
   inputRef?: (api: ElasticInputAPI) => void;
-  /** Enable multiline input with Shift+Enter for line breaks. @default true */
-  multiline?: boolean;
-  /** When true, the dropdown spans the full width of the input and is affixed to its bottom edge, instead of following the caret. @default false */
-  dropdownAlignToInput?: boolean;
-  /** Controls when the autocomplete dropdown appears. `'always'` shows it automatically as you type (default). `'never'` disables the dropdown entirely. `'manual'` requires Ctrl+Space to activate for the current context — once the context changes the dropdown is dismissed and must be re-activated. @default 'always' */
-  dropdownMode?: 'always' | 'never' | 'manual';
-  /** Fine-grained control over dropdown appearance timing and content. Refines behavior within `dropdownMode: 'always'`. */
-  dropdownTrigger?: DropdownTriggerConfig;
-  /**
-   * Custom renderer for field value hints in the dropdown. Called when the cursor is in a
-   * field value position. Return a React element for rich content, or `null`/`undefined` to
-   * use the default hint (e.g. "Enter a number"). Receives the resolved `FieldConfig` and
-   * the current partial value text.
-   */
-  renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;
-  /**
-   * Custom renderer for history suggestion items in the dropdown. Return a React element
-   * to replace the default two-line layout, or `null`/`undefined` to keep the default.
-   * Receives the original `HistoryEntry` and whether the item is currently selected.
-   */
-  renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
-  /**
-   * Custom renderer for saved search suggestion items in the dropdown. Return a React element
-   * to replace the default layout, or `null`/`undefined` to keep the default.
-   * Receives the original `SavedSearch` and whether the item is currently selected.
-   */
-  renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
-  /**
-   * Custom renderer for a header above the suggestion list. Called with the current cursor
-   * context whenever the dropdown is shown. Return a React element for the header, or
-   * `null`/`undefined` to show no header.
-   */
-  renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
   /** Custom presets for the date range picker. When provided, completely replaces the built-in presets (Today, Last 7 days, etc.). Pass `[]` to hide presets entirely. Only shown in range mode. */
   datePresets?: { label: string; value: string }[];
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
@@ -384,27 +384,6 @@ export interface ElasticInputProps {
    * ```
    */
   onTab?: (context: TabContext) => TabActionResult;
-  /**
-   * When enabled, the first Ctrl+A selects the bare term or field value
-   * under the cursor. A second Ctrl+A selects the entire query.
-   * @default false
-   */
-  smartSelectAll?: boolean;
-  /**
-   * When enabled, Alt+Shift+Right progressively expands the selection
-   * through the AST hierarchy (token → node → parent → root), and
-   * Alt+Shift+Left shrinks it back.
-   * @default false
-   */
-  expandSelection?: boolean;
-  /**
-   * When enabled, pressing `*` with a single value token selected wraps it
-   * in wildcards (e.g. `foo` becomes `*foo*`). Only applies to VALUE and
-   * WILDCARD tokens — quoted phrases, field names, and multi-token selections
-   * are not wrapped.
-   * @default false
-   */
-  wildcardWrap?: boolean;
   /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error

@@ -440,7 +440,7 @@ The hint text is configurable per field via `FieldConfig.placeholder`:
 
 When async results arrive (via `fetchSuggestions`), they replace the hint. When async results are empty, the hint is restored as a fallback.
 
-For fully custom hint rendering (e.g. multiline rich content with instructions), the `renderFieldHint` prop accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
+For fully custom hint rendering (e.g. multiline rich content with instructions), the `dropdown.renderFieldHint` option accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
 
 - **Tests:** `AutocompleteEngine.test.ts` → "suggests all values after colon for field with suggestions", "filters values by prefix", "filters values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field with no suggestions", "shows hint for IP field", "shows no hint while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
@@ -480,7 +480,7 @@ When saved searches or history entries are configured, hint suggestions appear t
 - Only appear when the partial is **empty** (start of a new expression)
 - Disappear as soon as the user starts typing
 - Do not appear in `FIELD_VALUE` context
-- Are configurable via `showSavedSearchHint` (default: `true`) and `showHistoryHint` (default: `true`)
+- Are configurable via `dropdown.showSavedSearchHint` (default: `true`) and `dropdown.showHistoryHint` (default: `true`)
 - Do not appear when no saved searches or history entries exist
 - **Clickable:** Clicking the `#saved-search` or `!history` hint inserts the trigger character (`#` or `!`) into the input, focuses it, and immediately shows the corresponding saved search or history suggestions
 
@@ -536,7 +536,7 @@ The "Searching..." loading item is a non-selectable dropdown entry with an anima
 
 #### 4.8.4 Debouncing
 
-Async fetches are debounced by `suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
+Async fetches are debounced by `dropdown.suggestDebounceMs` (default: 200ms) to avoid excessive API calls during rapid typing.
 
 #### 4.8.5 Error Handling
 
@@ -545,9 +545,9 @@ When `fetchSuggestions` throws or rejects, the dropdown shows an error message i
 - Stale errors (from aborted requests) are discarded, same as stale results.
 - Typing again triggers a new fetch attempt — no manual retry needed.
 
-### 4.9 Dropdown Header (`renderDropdownHeader`)
+### 4.9 Dropdown Header (`dropdown.renderHeader`)
 
-An optional header can be rendered above the suggestion list via the `renderDropdownHeader` prop. The callback receives the current `CursorContext` and returns a `ReactNode`, `null`, or `undefined`. When the return value is nullish, no header is shown.
+An optional header can be rendered above the suggestion list via the `dropdown.renderHeader` option. The callback receives the current `CursorContext` and returns a `ReactNode`, `null`, or `undefined`. When the return value is nullish, no header is shown.
 
 The header is non-interactive (not selectable, not part of keyboard navigation). It's styled with smaller text, placeholder color, and a bottom border separating it from suggestions.
 
@@ -734,11 +734,11 @@ When text is selected and the user types an opening bracket or quote character, 
 | `[` | `[…]` | Select `world` in `hello world` → `hello [world]` |
 | `"` | `"…"` | Select `hello world` → `"hello world"` |
 | `'` | `'…'` | Select `bar` in `foo bar` → `foo 'bar'` |
-| `*` | `*…*` | Select `test` in `status:test` → `status:*test*` *(requires `wildcardWrap` prop; single value token only)* |
+| `*` | `*…*` | Select `test` in `status:test` → `status:*test*` *(requires `features.wildcardWrap`; single value token only)* |
 
 After wrapping, the original selection is preserved inside the new brackets/quotes (VS Code behavior). The selection spans from after the opening character to before the closing character, so the user can immediately see what was wrapped and continue editing.
 
-**Wildcard wrap restriction:** The `*` wrap character (enabled by the `wildcardWrap` prop) only activates when the selection spans exactly one token of type `VALUE` or `WILDCARD`. Multi-token selections, phrases, parenthesized groups, and field names are not eligible — pressing `*` with such a selection inserts normally. This prevents creating syntactically broken queries like `*status:active*`.
+**Wildcard wrap restriction:** The `*` wrap character (enabled by `features.wildcardWrap`) only activates when the selection spans exactly one token of type `VALUE` or `WILDCARD`. Multi-token selections, phrases, parenthesized groups, and field names are not eligible — pressing `*` with such a selection inserts normally. This prevents creating syntactically broken queries like `*status:active*`.
 
 **Undo restores the pre-surround selection.** Pressing Ctrl+Z after a surround operation restores both the original text and the text selection that was active before wrapping. Redo restores the wrapped text with the inner selection. This is achieved by storing optional selection ranges (`selStart`) on undo entries.
 
@@ -771,13 +771,13 @@ Normalization runs on both paste and regular input events. The original text is 
 
 ### 7.8 Shift+Enter — Insert Newline (Multiline Mode)
 
-When the `multiline` prop is enabled (default: `true`), Shift+Enter inserts a line break into the query instead of submitting. This allows users to write multi-line queries for readability.
+When `features.multiline` is enabled (default: `true`), Shift+Enter inserts a line break into the query instead of submitting. This allows users to write multi-line queries for readability.
 
 - Shift+Enter inserts a `<br>` via `document.execCommand('insertLineBreak')`
 - The newline is treated as whitespace by the lexer — it does not change query semantics
 - Ctrl+Enter always submits regardless of multiline mode
 - Plain Enter still submits (or accepts a suggestion if the dropdown is open)
-- When `multiline` is `false`, Shift+Enter has no special behavior (falls through to default Enter handling)
+- When `features.multiline` is `false`, Shift+Enter has no special behavior (falls through to default Enter handling)
 
 - **Tests:** `multiline.test.ts` → "parses multiline queries correctly", "validates multiline queries same as single-line"
 
@@ -800,7 +800,7 @@ The dropdown's selected index determines which item is highlighted and which Ent
 
 ### 7.11 Ctrl+A — Smart Select All
 
-When the `smartSelectAll` prop is enabled (default: `false`):
+When `features.smartSelectAll` is enabled (default: `false`):
 
 1. **First Ctrl+A**: if the cursor is inside a bare term, field value, quoted value, or wildcard token, selects that token.
 2. **Second Ctrl+A**: the selection already matches the token, so it falls through to normal browser select-all.
@@ -814,7 +814,7 @@ The smart select logic lives in `src/utils/smartSelect.ts` — expand the `SMART
 
 ### 7.12 Alt+Shift+Arrow — Expand / Shrink Selection
 
-When the `expandSelection` prop is enabled (default: `false`):
+When `features.expandSelection` is enabled (default: `false`):
 
 - **Alt+Shift+Right** progressively expands the selection through the AST hierarchy. Each press widens the selection to the next enclosing node. Example for cursor in `active` of `(status:active OR name:john) AND tags:enterprise`:
   1. `active` (VALUE token)
@@ -843,13 +843,13 @@ The autocomplete dropdown and date picker are rendered via `ReactDOM.createPorta
 - Dropdown appears below the caret by default, flips above if insufficient viewport space below
 - Clamped to viewport edges (no overflow left/right)
 
-### 8.2 Full-Width Dropdown Mode (`dropdownAlignToInput`)
+### 8.2 Full-Width Dropdown Mode (`dropdown.alignToInput`)
 
-When the `dropdownAlignToInput` prop is `true`, the suggestion dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. The `fixedWidth` override disables the default min/max width constraints.
+When `dropdown.alignToInput` is `true`, the suggestion dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. The `fixedWidth` override disables the default min/max width constraints.
 
-Custom dropdowns like the date picker are **excluded** from full-width mode — they remain compact and caret-relative even when `dropdownAlignToInput` is true. This prevents rendered components from being stretched to the full input width.
+Custom dropdowns like the date picker are **excluded** from full-width mode — they remain compact and caret-relative even when `dropdown.alignToInput` is true. This prevents rendered components from being stretched to the full input width.
 
-### 8.3 Dropdown Mode (`dropdownMode`)
+### 8.3 Dropdown Mode (`dropdown.mode`)
 
 Controls when the autocomplete dropdown appears:
 
@@ -861,19 +861,19 @@ Controls when the autocomplete dropdown appears:
 
 The `manualActivationContextRef` tracks which context type was activated. When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
 
-### 8.3.1 Dropdown Trigger Config (`dropdownTrigger`)
+### 8.3.1 Dropdown Trigger Options
 
-Fine-grained controls for dropdown appearance timing and content, applied within `dropdownMode: 'always'`. These settings have no effect when `dropdownMode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings.
+Fine-grained controls for dropdown appearance timing and content, applied within `dropdown.mode: 'always'`. These settings have no effect when `dropdown.mode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings.
 
-#### `showOperators` (default: `true`)
+#### `dropdown.showOperators` (default: `true`)
 
 When `false`, boolean operator suggestions (AND, OR, NOT) are filtered from the dropdown. Fields and other suggestions in operator context are still shown — only the operator items themselves are removed. Filtering happens in `updateSuggestionsFromTokens` right after `getSuggestions()` returns, before any downstream processing.
 
-#### `onNavigation` (default: `true`)
+#### `dropdown.onNavigation` (default: `true`)
 
 When `false`, navigation events (click, arrow keys, Home/End, focus) do not trigger the dropdown. The dropdown only appears in response to typing (input events and paste). Ctrl+Space always works regardless. The `triggerSuggestionsFromNavigation` wrapper gates `handleKeyUp`, `handleFocus`, and `handleClick`; the typing path (`processInput` via `updateSuggestionsRef`) bypasses it entirely.
 
-#### `navigationDelay` (default: `0`)
+#### `dropdown.navigationDelay` (default: `0`)
 
 Delay in milliseconds before the dropdown appears on navigation events. Typing always shows immediately with no delay. If the user types before the delay elapses, the `navDelayTimerRef` timer is cancelled in `handleInput` and the dropdown shows immediately from the typing event. Ignored when `onNavigation` is `false`. The timer is also cleaned up in `closeDropdown` and on component unmount.
 
@@ -1266,26 +1266,42 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `placeholder` | `string` | — | Placeholder text |
 | `className` | `string` | — | CSS class for outer container |
 | `style` | `CSSProperties` | — | Inline styles for outer container |
-| `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
-| `maxSuggestions` | `number` | `10` | Max suggestions shown |
-| `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
-| `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
 | `inputRef` | `(api) => void` | — | Provides imperative API handle |
-| `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
-| `dropdownAlignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom |
-| `dropdownMode` | `'always' \| 'never' \| 'manual'` | `'always'` | Controls when the dropdown appears: always, never, or on Ctrl+Space |
-| `dropdownTrigger` | `DropdownTriggerConfig` | `{}` | Fine-grained dropdown controls: `showOperators` (bool), `onNavigation` (bool), `navigationDelay` (ms). See §8.3.1 |
+| `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior, rendering, and content; see sub-properties below |
+| `features` | `FeaturesConfig` | `{}` | Feature toggles for optional editing behaviors; see sub-properties below |
 | `onKeyDown` | `(e: React.KeyboardEvent) => void` | — | Called before internal keyboard handling; `preventDefault()` skips internal handling |
 | `onFocus` | `() => void` | — | Called when the input gains focus |
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
-| `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
-| `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
-| `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
+| `datePresets` | `{ label, value }[]` | built-in | Custom date range picker presets; `[]` hides presets |
+| `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
+
+#### `DropdownConfig` Sub-Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `mode` | `'always' \| 'never' \| 'manual'` | `'always'` | When the dropdown appears; see §8.3 |
+| `alignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom; see §8.2 |
+| `maxSuggestions` | `number` | `10` | Max suggestions shown |
+| `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
+| `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
+| `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
+| `showOperators` | `boolean` | `true` | Show AND/OR/NOT suggestions; see §8.3.1 |
+| `onNavigation` | `boolean` | `true` | Show dropdown on click/arrow/focus; see §8.3.1 |
+| `navigationDelay` | `number` | `0` | Delay (ms) before dropdown on navigation; see §8.3.1 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
-| `renderDropdownHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; receives cursor context |
+| `renderHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; see §4.9 |
+
+#### `FeaturesConfig` Sub-Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks; see §7.10 |
+| `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
+| `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
+| `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
 
 #### Async Field Loading
 

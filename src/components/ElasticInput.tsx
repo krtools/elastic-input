@@ -170,10 +170,13 @@ export function ElasticInput(props: ElasticInputProps) {
     inputRef, renderFieldHint, renderHistoryItem, renderSavedSearchItem, renderDropdownHeader,
     datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
-    smartSelectAll, expandSelection, validateValue,
+    smartSelectAll, expandSelection, validateValue, dropdownTrigger,
   } = props;
 
   const dropdownMode = dropdownModeProp ?? 'always';
+  const showOperators = dropdownTrigger?.showOperators !== false;
+  const triggerOnNavigation = dropdownTrigger?.onNavigation !== false;
+  const navigationDelay = dropdownTrigger?.navigationDelay ?? 0;
 
   const multiline = multilineProp !== false; // default true
 
@@ -214,6 +217,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const navDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
@@ -388,6 +392,9 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
+    if (!showOperators) {
+      result.suggestions = result.suggestions.filter(s => s.type !== 'operator');
+    }
     const contextType = result.context.type;
     setCursorContext(result.context);
 
@@ -596,10 +603,25 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode]);
+  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode, showOperators]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
+
+  // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
+  // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
+  const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number) => {
+    if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
+    if (!triggerOnNavigation) return;
+    if (navigationDelay > 0) {
+      navDelayTimerRef.current = setTimeout(() => {
+        navDelayTimerRef.current = null;
+        updateSuggestionsFromTokens(toks, offset);
+      }, navigationDelay);
+    } else {
+      updateSuggestionsFromTokens(toks, offset);
+    }
+  }, [triggerOnNavigation, navigationDelay, updateSuggestionsFromTokens]);
 
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);
@@ -613,6 +635,7 @@ export function ElasticInput(props: ElasticInputProps) {
     asyncActiveRef.current = false;
     abortControllerRef.current?.abort();
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+    if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
     // Reset manual activation so next Ctrl+Space re-activates
     manualActivationContextRef.current = null;
   }, []);
@@ -820,6 +843,7 @@ export function ElasticInput(props: ElasticInputProps) {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+      if (navDelayTimerRef.current) clearTimeout(navDelayTimerRef.current);
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -902,6 +926,8 @@ export function ElasticInput(props: ElasticInputProps) {
     if (isComposingRef.current) return;
     if (!editorRef.current) return;
     expandSelRef.current = null; // typing resets expand selection
+    // Cancel any pending navigation delay — typing shows dropdown immediately
+    if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
 
     let text = getPlainText(editorRef.current);
 
@@ -1289,9 +1315,9 @@ export function ElasticInput(props: ElasticInputProps) {
       const selRange = getSelectionCharRange(editorRef.current);
       setCursorOffset(selRange.start);
       setSelectionEnd(selRange.end);
-      updateSuggestionsFromTokens(stateRef.current.tokens, selRange.start);
+      triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start);
     }
-  }, [updateSuggestionsFromTokens]);
+  }, [triggerSuggestionsFromNavigation]);
 
   const handleFocus = React.useCallback(() => {
     setIsFocused(true);
@@ -1302,13 +1328,13 @@ export function ElasticInput(props: ElasticInputProps) {
         const toks = stateRef.current.tokens;
         if (toks.length > 0) {
           const offset = getCaretCharOffset(editorRef.current);
-          updateSuggestionsFromTokens(toks, offset);
+          triggerSuggestionsFromNavigation(toks, offset);
         } else {
-          updateSuggestionsFromTokens([], 0);
+          triggerSuggestionsFromNavigation([], 0);
         }
       }
     });
-  }, [handleInput, updateSuggestionsFromTokens, onFocusProp]);
+  }, [handleInput, triggerSuggestionsFromNavigation, onFocusProp]);
 
   const handleBlur = React.useCallback(() => {
     setIsFocused(false);
@@ -1336,8 +1362,8 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     }
 
-    updateSuggestionsFromTokens(stateRef.current.tokens, selRange.start);
-  }, [updateSuggestionsFromTokens, closeDropdown]);
+    triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start);
+  }, [triggerSuggestionsFromNavigation, closeDropdown]);
 
   const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
     e.preventDefault();

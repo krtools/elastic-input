@@ -858,6 +858,22 @@ Controls when the autocomplete dropdown appears:
 
 The `manualActivationContextRef` tracks which context type was activated. When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
 
+### 8.3.1 Dropdown Trigger Config (`dropdownTrigger`)
+
+Fine-grained controls for dropdown appearance timing and content, applied within `dropdownMode: 'always'`. These settings have no effect when `dropdownMode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings.
+
+#### `showOperators` (default: `true`)
+
+When `false`, boolean operator suggestions (AND, OR, NOT) are filtered from the dropdown. Fields and other suggestions in operator context are still shown — only the operator items themselves are removed. Filtering happens in `updateSuggestionsFromTokens` right after `getSuggestions()` returns, before any downstream processing.
+
+#### `onNavigation` (default: `true`)
+
+When `false`, navigation events (click, arrow keys, Home/End, focus) do not trigger the dropdown. The dropdown only appears in response to typing (input events and paste). Ctrl+Space always works regardless. The `triggerSuggestionsFromNavigation` wrapper gates `handleKeyUp`, `handleFocus`, and `handleClick`; the typing path (`processInput` via `updateSuggestionsRef`) bypasses it entirely.
+
+#### `navigationDelay` (default: `0`)
+
+Delay in milliseconds before the dropdown appears on navigation events. Typing always shows immediately with no delay. If the user types before the delay elapses, the `navDelayTimerRef` timer is cancelled in `handleInput` and the dropdown shows immediately from the typing event. Ignored when `onNavigation` is `false`. The timer is also cleaned up in `closeDropdown` and on component unmount.
+
 ### 8.4 Deferred Positioning
 
 To prevent a visible flash where the dropdown appears at a stale position before snapping to the correct one, positioning is deferred via `requestAnimationFrame`. The dropdown's suggestions and context are set first (with `showDropdown: false`), then after the DOM has painted, the position is calculated and the dropdown becomes visible.
@@ -1255,6 +1271,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks |
 | `dropdownAlignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom |
 | `dropdownMode` | `'always' \| 'never' \| 'manual'` | `'always'` | Controls when the dropdown appears: always, never, or on Ctrl+Space |
+| `dropdownTrigger` | `DropdownTriggerConfig` | `{}` | Fine-grained dropdown controls: `showOperators` (bool), `onNavigation` (bool), `navigationDelay` (ms). See §8.3.1 |
 | `onKeyDown` | `(e: React.KeyboardEvent) => void` | — | Called before internal keyboard handling; `preventDefault()` skips internal handling |
 | `onFocus` | `() => void` | — | Called when the input gains focus |
 | `onBlur` | `() => void` | — | Called when the input loses focus |

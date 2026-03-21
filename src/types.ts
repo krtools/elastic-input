@@ -207,6 +207,24 @@ export interface StyleConfig {
 }
 
 /**
+ * Fine-grained controls for when the autocomplete dropdown appears and what it shows.
+ * These settings refine behavior within `dropdownMode: 'always'` — they do not override
+ * `dropdownMode: 'never'` or `'manual'`, and Ctrl+Space manual activation always works
+ * regardless of these settings.
+ */
+export interface DropdownTriggerConfig {
+  /** Show boolean operator suggestions (AND, OR, NOT). @default true */
+  showOperators?: boolean;
+  /** Show dropdown on navigation events (click, arrow keys, focus). When false,
+   *  the dropdown only appears in response to typing. @default true */
+  onNavigation?: boolean;
+  /** Delay in ms before the dropdown appears on navigation events. Typing is always
+   *  immediate. If the user types before the delay elapses, the timer is cancelled.
+   *  Ignored when `onNavigation` is false. @default 0 */
+  navigationDelay?: number;
+}
+
+/**
  * Imperative API handle for the ElasticInput component.
  * Obtained via the `inputRef` callback prop.
  */
@@ -310,6 +328,8 @@ export interface ElasticInputProps {
   dropdownAlignToInput?: boolean;
   /** Controls when the autocomplete dropdown appears. `'always'` shows it automatically as you type (default). `'never'` disables the dropdown entirely. `'manual'` requires Ctrl+Space to activate for the current context — once the context changes the dropdown is dismissed and must be re-activated. @default 'always' */
   dropdownMode?: 'always' | 'never' | 'manual';
+  /** Fine-grained control over dropdown appearance timing and content. Refines behavior within `dropdownMode: 'always'`. */
+  dropdownTrigger?: DropdownTriggerConfig;
   /**
    * Custom renderer for field value hints in the dropdown. Called when the cursor is in a
    * field value position. Return a React element for rich content, or `null`/`undefined` to

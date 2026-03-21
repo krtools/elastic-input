@@ -41,6 +41,9 @@ export function DemoApp() {
   const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
   const [useOnTab, setUseOnTab] = React.useState(false);
   const [showTabMenu, setShowTabMenu] = React.useState(false);
+  const [showOperators, setShowOperators] = React.useState(true);
+  const [navTrigger, setNavTrigger] = React.useState(true);
+  const [navDelay, setNavDelay] = React.useState(0);
   const tabMenuRef = React.useRef<HTMLDivElement | null>(null);
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
@@ -140,6 +143,27 @@ export function DemoApp() {
           >
             {showDropdownHeaders ? 'Headers: On' : 'Headers: Off'}
           </button>
+          <button
+            style={{ ...styles.themeToggle, ...(!showOperators ? { borderColor: theme.accent, color: theme.accent } : {}) }}
+            onClick={() => setShowOperators(v => !v)}
+          >
+            {showOperators ? 'Operators: On' : 'Operators: Off'}
+          </button>
+          <button
+            style={{ ...styles.themeToggle, ...(!navTrigger ? { borderColor: theme.accent, color: theme.accent } : {}) }}
+            onClick={() => setNavTrigger(v => !v)}
+          >
+            {navTrigger ? 'Nav Trigger: On' : 'Nav Trigger: Off'}
+          </button>
+          <select
+            style={{ ...styles.themeToggle, cursor: 'pointer' }}
+            value={navDelay}
+            onChange={e => setNavDelay(Number(e.target.value))}
+          >
+            <option value={0}>Nav Delay: 0ms</option>
+            <option value={200}>Nav Delay: 200ms</option>
+            <option value={500}>Nav Delay: 500ms</option>
+          </select>
           <div ref={tabMenuRef} style={{ position: 'relative' }}>
             <button
               style={{ ...styles.themeToggle, ...(useOnTab ? { borderColor: theme.accent, color: theme.accent } : {}) }}
@@ -222,6 +246,7 @@ export function DemoApp() {
                 maxSuggestions={8}
                 dropdownAlignToInput={dropdownAlignToInput}
                 dropdownMode={dropdownMode}
+                dropdownTrigger={{ showOperators, onNavigation: navTrigger, navigationDelay: navDelay }}
                 validateValue={demoValidateValue}
                 renderFieldHint={renderFieldHint}
                 renderDropdownHeader={showDropdownHeaders ? renderDropdownHeader : undefined}

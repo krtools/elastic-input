@@ -359,4 +359,59 @@ describe('getCursorContext', () => {
       expect(ctx16.type).toBe('RANGE');
     });
   });
+
+  describe('field group context', () => {
+    it('suggests field values after OR inside field group', () => {
+      // status:(active OR |)
+      const ctx = getContext('status:(active OR )', 18);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+    });
+
+    it('suggests field values with partial after OR inside field group', () => {
+      // status:(active OR in|)
+      const ctx = getContext('status:(active OR in)', 20);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('in');
+    });
+
+    it('suggests field values after AND inside field group', () => {
+      // tags:(enterprise AND |)  — offset 21 is after the space, before )
+      const ctx = getContext('tags:(enterprise AND )', 21);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('tags');
+      expect(ctx.partial).toBe('');
+    });
+
+    it('suggests field values right after LPAREN in field group', () => {
+      // status:(|active)
+      const ctx = getContext('status:(active)', 8);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+    });
+
+    it('does not confuse plain group with field group', () => {
+      // (active OR |)
+      const ctx = getContext('(active OR )', 11);
+      expect(ctx.type).toBe('FIELD_NAME');
+      expect(ctx.fieldName).toBeUndefined();
+    });
+
+    it('handles nested parens — inner group is plain, not field group', () => {
+      // status:((a OR b) AND |)  — cursor is inside a nested field group
+      const ctx = getContext('status:((a OR b) AND )', 21);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+    });
+
+    it('suggests field values for partial in first position of field group', () => {
+      // status:(ac|)
+      const ctx = getContext('status:(ac)', 10);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('ac');
+    });
+  });
 });

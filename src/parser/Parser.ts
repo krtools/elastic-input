@@ -713,6 +713,35 @@ export class Parser {
       }
     }
 
+    // Helper: scan backwards from a token index to find an enclosing field group.
+    // Looks for the pattern FIELD_NAME COLON LPAREN by tracking unmatched LPAREN depth.
+    // Returns the field name if found, empty string otherwise.
+    const findEnclosingFieldGroup = (fromIndex: number): string => {
+      let depth = 0;
+      for (let i = fromIndex; i >= 0; i--) {
+        const t = tokens[i];
+        if (t.type === TokenType.WHITESPACE) continue;
+        if (t.type === TokenType.RPAREN) { depth++; continue; }
+        if (t.type === TokenType.LPAREN) {
+          if (depth > 0) { depth--; continue; }
+          // Found the matching LPAREN — check for FIELD_NAME COLON before it
+          for (let j = i - 1; j >= 0; j--) {
+            if (tokens[j].type === TokenType.WHITESPACE) continue;
+            if (tokens[j].type === TokenType.COLON) {
+              for (let k = j - 1; k >= 0; k--) {
+                if (tokens[k].type === TokenType.WHITESPACE) continue;
+                if (tokens[k].type === TokenType.FIELD_NAME) return tokens[k].value;
+                break;
+              }
+            }
+            break;
+          }
+          return '';
+        }
+      }
+      return '';
+    };
+
     // Cursor is on or right after a colon — suggest field values
     if (currentToken?.type === TokenType.COLON) {
       // Find the field name before the colon
@@ -842,8 +871,12 @@ export class Parser {
       return { type: 'FIELD_NAME', partial: currentToken.value, token: currentToken };
     }
 
-    // Currently typing a field name
+    // Currently typing a field name — or a value inside a field group
     if (currentToken?.type === TokenType.FIELD_NAME || currentToken?.type === TokenType.VALUE) {
+      const groupField = findEnclosingFieldGroup(tokens.indexOf(currentToken));
+      if (groupField) {
+        return { type: 'FIELD_VALUE', partial: currentToken.value, fieldName: groupField, token: currentToken };
+      }
       return {
         type: 'FIELD_NAME',
         partial: currentToken.value,
@@ -862,6 +895,10 @@ export class Parser {
       prevNonWsToken.type === TokenType.OR ||
       prevNonWsToken.type === TokenType.NOT
     )) {
+      const groupField = findEnclosingFieldGroup(tokens.indexOf(prevNonWsToken));
+      if (groupField) {
+        return { type: 'FIELD_VALUE', partial: '', fieldName: groupField, token: undefined };
+      }
       return { type: 'FIELD_NAME', partial: '', token: undefined };
     }
 
@@ -873,6 +910,22 @@ export class Parser {
     // Inside or right after LPAREN — start of a new sub-expression
     if (currentToken?.type === TokenType.LPAREN ||
         prevNonWsToken?.type === TokenType.LPAREN) {
+      const lparenToken = (currentToken?.type === TokenType.LPAREN ? currentToken : prevNonWsToken)!;
+      const lparenIdx = tokens.indexOf(lparenToken);
+      // Check if this LPAREN is part of field:(...)
+      for (let i = lparenIdx - 1; i >= 0; i--) {
+        if (tokens[i].type === TokenType.WHITESPACE) continue;
+        if (tokens[i].type === TokenType.COLON) {
+          for (let j = i - 1; j >= 0; j--) {
+            if (tokens[j].type === TokenType.WHITESPACE) continue;
+            if (tokens[j].type === TokenType.FIELD_NAME) {
+              return { type: 'FIELD_VALUE', partial: '', fieldName: tokens[j].value, token: undefined };
+            }
+            break;
+          }
+        }
+        break;
+      }
       return { type: 'FIELD_NAME', partial: '', token: undefined };
     }
 

@@ -347,7 +347,8 @@ Returned when the cursor is after a colon (or comparison operator) belonging to 
 - `price:>|` → `FIELD_VALUE`, fieldName=`"price"`, partial=`""`
 - Works inside parens: `(status:act|)` → `FIELD_VALUE`
 - Works after prefix op: `-status:act|` → `FIELD_VALUE`
-- **Tests:** `CursorContext.test.ts` → "returns FIELD_VALUE right after colon", "returns FIELD_VALUE while typing value", "returns FIELD_VALUE after comparison operator", "returns FIELD_VALUE for field:value inside parens", "returns FIELD_VALUE for field:partial inside parens"
+- Works inside field groups: `status:(active OR |)` → `FIELD_VALUE`, fieldName=`"status"`. The `findEnclosingFieldGroup` helper scans backwards from the cursor to find an unmatched LPAREN preceded by `FIELD_NAME COLON`, tracking paren depth to skip nested groups. This propagates the field name into positions after AND/OR/NOT, after LPAREN, and for bare values inside the group.
+- **Tests:** `CursorContext.test.ts` → "returns FIELD_VALUE right after colon", "returns FIELD_VALUE while typing value", "returns FIELD_VALUE after comparison operator", "returns FIELD_VALUE for field:value inside parens", "returns FIELD_VALUE for field:partial inside parens", "field group context" suite (7 tests)
 
 ### 3.5 Colon-Value Boundary
 

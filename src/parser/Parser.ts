@@ -875,10 +875,7 @@ export class Parser {
     if (currentToken?.type === TokenType.FIELD_NAME || currentToken?.type === TokenType.VALUE) {
       const groupField = findEnclosingFieldGroup(tokens.indexOf(currentToken));
       if (groupField) {
-        // A lone +/- inside a field group is a prefix operator, not a value partial
-        const partial = (currentToken.value === '-' || currentToken.value === '+') ? '' : currentToken.value;
-        const token = partial ? currentToken : undefined;
-        return { type: 'FIELD_VALUE', partial, fieldName: groupField, token };
+        return { type: 'FIELD_VALUE', partial: currentToken.value, fieldName: groupField, token: currentToken };
       }
       return {
         type: 'FIELD_NAME',

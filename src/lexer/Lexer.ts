@@ -145,10 +145,12 @@ export class Lexer {
       return;
     }
 
-    // Unary prefix operators: - or + before a term
-    if ((ch === '-' || ch === '+') && this.pos + 1 < this.input.length) {
+    // Unary prefix operators: - or + before a term (or at end of input / before closing paren)
+    if (ch === '-' || ch === '+') {
       const next = this.peekAt(1);
-      if (next && (this.isAlpha(next) || next === '"' || next === '(' || next === '#' || next === '!' || next === '[' || next === '{')) {
+      const isTermStart = next && (this.isAlpha(next) || next === '"' || next === '(' || next === '#' || next === '!' || next === '[' || next === '{');
+      const isTrailing = !next || next === ')' || next === ' ' || next === '\t' || next === '\n' || next === '\r';
+      if (isTermStart || isTrailing) {
         this.tokens.push({
           type: TokenType.PREFIX_OP,
           value: ch,

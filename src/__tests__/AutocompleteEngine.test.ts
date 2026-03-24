@@ -26,9 +26,11 @@ const HISTORY: HistoryEntry[] = [
   { query: 'level:ERROR AND service:api', label: 'API errors', timestamp: Date.now() },
 ];
 
+const ALL_FEATURES = { savedSearches: true, historySearch: true } as const;
+
 function getSuggestions(input: string, cursorOffset?: number) {
-  const engine = new AutocompleteEngine(FIELDS, SAVED_SEARCHES, HISTORY, 10);
-  const tokens = new Lexer(input).tokenize();
+  const engine = new AutocompleteEngine(FIELDS, SAVED_SEARCHES, HISTORY, 10, { showSavedSearchHint: true, showHistoryHint: true });
+  const tokens = new Lexer(input, ALL_FEATURES).tokenize();
   return engine.getSuggestions(tokens, cursorOffset ?? input.length);
 }
 
@@ -328,7 +330,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: 'name:john name:jane', label: 'Johns and Janes' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('(name:john name:jane)');
     });
@@ -337,7 +339,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: '(status:lead OR status:prospect)', label: 'Leads' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('(status:lead OR status:prospect)');
     });
@@ -346,7 +348,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: '-(is_vip:true AND status:churned)', label: 'Exclude churned VIPs' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('-(is_vip:true AND status:churned)');
     });
@@ -355,7 +357,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: '(tags:enterprise OR deal_value:>10000)^2', label: 'Boosted' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('(tags:enterprise OR deal_value:>10000)^2');
     });
@@ -364,7 +366,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: 'status:inactive', label: 'Inactive' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('status:inactive');
     });
@@ -373,7 +375,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: '"quick brown fox"', label: 'Phrase' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('"quick brown fox"');
     });
@@ -382,7 +384,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: '(status:lead OR status:prospect) AND name:Acme*', label: 'Acme leads' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('((status:lead OR status:prospect) AND name:Acme*)');
     });
@@ -391,7 +393,7 @@ describe('AutocompleteEngine', () => {
       const engine = new AutocompleteEngine(FIELDS, [], [
         { query: 'simple-query', label: 'simple' },
       ]);
-      const tokens = new Lexer('!').tokenize();
+      const tokens = new Lexer('!', ALL_FEATURES).tokenize();
       const result = engine.getSuggestions(tokens, 1);
       expect(result.suggestions[0].text).toBe('simple-query');
     });
@@ -515,6 +517,7 @@ describe('AutocompleteEngine', () => {
     it('does not show #hint when showSavedSearchHint is false', () => {
       const engine = new AutocompleteEngine(FIELDS, SAVED_SEARCHES, HISTORY, 10, {
         showSavedSearchHint: false,
+        showHistoryHint: true,
       });
       const tokens = new Lexer('').tokenize();
       const result = engine.getSuggestions(tokens, 0);
@@ -525,6 +528,7 @@ describe('AutocompleteEngine', () => {
 
     it('does not show !hint when showHistoryHint is false', () => {
       const engine = new AutocompleteEngine(FIELDS, SAVED_SEARCHES, HISTORY, 10, {
+        showSavedSearchHint: true,
         showHistoryHint: false,
       });
       const tokens = new Lexer('').tokenize();

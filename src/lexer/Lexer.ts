@@ -5,17 +5,26 @@ enum LexerState {
   EXPECT_VALUE,
 }
 
+export interface LexerOptions {
+  /** Recognize `#name` as SAVED_SEARCH tokens. @default false */
+  savedSearches?: boolean;
+  /** Recognize `!query` as HISTORY_REF tokens. @default false */
+  historySearch?: boolean;
+}
+
 export class Lexer {
   private input: string;
   private pos: number;
   private state: LexerState;
   private tokens: Token[];
+  private options: LexerOptions;
 
-  constructor(input: string) {
+  constructor(input: string, options?: LexerOptions) {
     this.input = input;
     this.pos = 0;
     this.state = LexerState.EXPECT_TERM;
     this.tokens = [];
+    this.options = options || {};
   }
 
   tokenize(): Token[] {
@@ -135,12 +144,12 @@ export class Lexer {
       return;
     }
 
-    if (ch === '#') {
+    if (ch === '#' && this.options.savedSearches) {
       this.readSavedSearch();
       return;
     }
 
-    if (ch === '!') {
+    if (ch === '!' && this.options.historySearch) {
       this.readHistoryRef();
       return;
     }

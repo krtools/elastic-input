@@ -176,8 +176,10 @@ export function ElasticInput(props: ElasticInputProps) {
   const dropdownAlignToInput = dropdownConfig?.alignToInput ?? false;
   const maxSuggestions = dropdownConfig?.maxSuggestions;
   const suggestDebounceMs = dropdownConfig?.suggestDebounceMs;
-  const showSavedSearchHint = dropdownConfig?.showSavedSearchHint;
-  const showHistoryHint = dropdownConfig?.showHistoryHint;
+  const enableSavedSearches = featuresConfig?.savedSearches ?? false;
+  const enableHistorySearch = featuresConfig?.historySearch ?? false;
+  const showSavedSearchHint = dropdownConfig?.showSavedSearchHint ?? enableSavedSearches;
+  const showHistoryHint = dropdownConfig?.showHistoryHint ?? enableHistorySearch;
   const showOperators = dropdownConfig?.showOperators !== false;
   const triggerOnNavigation = dropdownMode !== 'input' && dropdownConfig?.onNavigation !== false;
   const navigationDelay = dropdownConfig?.navigationDelay ?? 0;
@@ -191,6 +193,10 @@ export function ElasticInput(props: ElasticInputProps) {
   const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
+  const lexerOptions = React.useMemo(() => ({
+    savedSearches: enableSavedSearches,
+    historySearch: enableHistorySearch,
+  }), [enableSavedSearches, enableHistorySearch]);
 
   // Resolve async fields into state — start with [] while loading
   const initialFields = Array.isArray(fieldsProp) ? fieldsProp : [];
@@ -343,7 +349,7 @@ export function ElasticInput(props: ElasticInputProps) {
   }, [colors]);
 
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
-    const lexer = new Lexer(text);
+    const lexer = new Lexer(text, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
@@ -673,7 +679,7 @@ export function ElasticInput(props: ElasticInputProps) {
     }
     undoStackRef.current.push({ value: newValue, cursorPos: newCursorPos });
 
-    const lexer = new Lexer(newValue);
+    const lexer = new Lexer(newValue, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
@@ -1011,7 +1017,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (!entry) return;
     currentValueRef.current = entry.value;
 
-    const lexer = new Lexer(entry.value);
+    const lexer = new Lexer(entry.value, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
@@ -1120,7 +1126,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
         undo.push({ value: newValue, cursorPos: newSelEnd, selStart: newSelStart });
 
-        const lexer = new Lexer(newValue);
+        const lexer = new Lexer(newValue, lexerOptions);
         const newTokens = lexer.tokenize();
         const parser = new Parser(newTokens);
         const newAst = parser.parse();

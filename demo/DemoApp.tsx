@@ -192,7 +192,7 @@ export function DemoApp() {
   const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
-  const [showOperators, setShowOperators] = React.useState(true);
+  const [showOperators, setShowOperators] = React.useState(false);
   const [navTrigger, setNavTrigger] = React.useState(true);
   const [navDelay, setNavDelay] = React.useState(0);
 
@@ -201,6 +201,8 @@ export function DemoApp() {
   const [smartSelectAll, setSmartSelectAll] = React.useState(true);
   const [expandSelection, setExpandSelection] = React.useState(true);
   const [wildcardWrap, setWildcardWrap] = React.useState(true);
+  const [savedSearchesEnabled, setSavedSearchesEnabled] = React.useState(true);
+  const [historySearchEnabled, setHistorySearchEnabled] = React.useState(true);
 
   // Hint options
   const [showSavedSearchHint, setShowSavedSearchHint] = React.useState(true);
@@ -355,6 +357,8 @@ export function DemoApp() {
                     smartSelectAll,
                     expandSelection,
                     wildcardWrap,
+                    savedSearches: savedSearchesEnabled,
+                    historySearch: historySearchEnabled,
                   }}
                   validateValue={demoValidateValue}
                   onTab={useOnTab ? handleTab : undefined}
@@ -519,6 +523,8 @@ export function DemoApp() {
               <OptionToggle label="Smart Ctrl+A" checked={smartSelectAll} onChange={setSmartSelectAll} theme={theme} />
               <OptionToggle label="Expand selection" checked={expandSelection} onChange={setExpandSelection} theme={theme} />
               <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />
+              <OptionToggle label="#saved-search syntax" checked={savedSearchesEnabled} onChange={setSavedSearchesEnabled} theme={theme} />
+              <OptionToggle label="!history syntax" checked={historySearchEnabled} onChange={setHistorySearchEnabled} theme={theme} />
             </OptionGroup>
 
             <OptionGroup label="Hints" theme={theme}>

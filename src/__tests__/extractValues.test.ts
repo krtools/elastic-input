@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { Lexer } from '../lexer/Lexer';
+import { Lexer, LexerOptions } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
 import { extractValues, ExtractedValue } from '../utils/extractValues';
 
-function extract(input: string): ExtractedValue[] {
-  const tokens = new Lexer(input).tokenize();
+const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
+
+function extract(input: string, lexerOpts?: LexerOptions): ExtractedValue[] {
+  const tokens = new Lexer(input, lexerOpts).tokenize();
   const ast = new Parser(tokens).parse();
   return extractValues(ast);
 }
@@ -101,9 +103,16 @@ describe('extractValues', () => {
     expect(vals[0]).toMatchObject({ kind: 'field_value', value: 'closed', fieldName: 'status' });
   });
 
-  it('ignores saved searches and history refs', () => {
-    const vals = extract('#saved !3');
+  it('ignores saved searches and history refs when enabled', () => {
+    const vals = extract('#saved !3', ALL_FEATURES);
     expect(vals).toHaveLength(0);
+  });
+
+  it('treats # and ! as regular terms when features disabled (default)', () => {
+    const vals = extract('#saved !3');
+    expect(vals).toHaveLength(2);
+    expect(vals[0]).toMatchObject({ kind: 'term', value: '#saved' });
+    expect(vals[1]).toMatchObject({ kind: 'term', value: '!3' });
   });
 
   it('excludes boost and fuzzy markers from values', () => {

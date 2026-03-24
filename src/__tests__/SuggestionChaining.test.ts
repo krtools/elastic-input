@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { Lexer } from '../lexer/Lexer';
+import { Lexer, LexerOptions } from '../lexer/Lexer';
 import { Parser, CursorContext } from '../parser/Parser';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig } from '../types';
 import { Suggestion } from '../autocomplete/suggestionTypes';
+
+const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
 
 /**
  * Tests that verify suggestions chain correctly — after accepting one suggestion,
@@ -28,8 +30,8 @@ function getEngine() {
   return new AutocompleteEngine(FIELDS, [], [], 10);
 }
 
-function getSuggestions(engine: AutocompleteEngine, input: string, cursorOffset?: number) {
-  const tokens = new Lexer(input).tokenize();
+function getSuggestions(engine: AutocompleteEngine, input: string, cursorOffset?: number, lexerOpts?: LexerOptions) {
+  const tokens = new Lexer(input, lexerOpts).tokenize();
   return engine.getSuggestions(tokens, cursorOffset ?? input.length);
 }
 
@@ -64,7 +66,8 @@ function acceptWithKey(
   currentInput: string,
   suggestion: Suggestion,
   contextType: string,
-  key: 'Tab' | 'Enter'
+  key: 'Tab' | 'Enter',
+  lexerOpts?: LexerOptions
 ) {
   const before = currentInput.slice(0, suggestion.replaceStart);
   const after = currentInput.slice(suggestion.replaceEnd);
@@ -73,7 +76,7 @@ function acceptWithKey(
   const newValue = before + suggestion.text + trailingSpace + after;
   const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
   const shouldSubmit = key === 'Enter' && contextType === 'FIELD_VALUE';
-  const newTokens = new Lexer(newValue).tokenize();
+  const newTokens = new Lexer(newValue, lexerOpts).tokenize();
   const nextResult = engine.getSuggestions(newTokens, newCursorPos);
   return { newValue, newCursorPos, nextResult, shouldSubmit };
 }
@@ -414,12 +417,12 @@ describe('Tab vs Enter behavior for field value selection', () => {
       [{ id: '1', name: 'vip-active', query: 'status:active AND is_vip:true' }],
       [], 10
     );
-    const result = getSuggestions(engine, '#vip');
+    const result = getSuggestions(engine, '#vip', undefined, ALL_FEATURES);
     expect(result.context.type).toBe('SAVED_SEARCH');
     const sugg = result.suggestions.find(s => s.text === '#vip-active')!;
     expect(sugg).toBeDefined();
 
-    const { newValue } = acceptWithKey(engine, '#vip', sugg, result.context.type, 'Tab');
+    const { newValue } = acceptWithKey(engine, '#vip', sugg, result.context.type, 'Tab', ALL_FEATURES);
     expect(newValue).toBe('#vip-active ');
   });
 
@@ -429,12 +432,12 @@ describe('Tab vs Enter behavior for field value selection', () => {
       [{ query: 'level:ERROR', label: 'Errors', timestamp: Date.now() }],
       10
     );
-    const result = getSuggestions(engine, '!Err');
+    const result = getSuggestions(engine, '!Err', undefined, ALL_FEATURES);
     expect(result.context.type).toBe('HISTORY_REF');
     const sugg = result.suggestions.find(s => s.text === 'level:ERROR')!;
     expect(sugg).toBeDefined();
 
-    const { newValue } = acceptWithKey(engine, '!Err', sugg, result.context.type, 'Tab');
+    const { newValue } = acceptWithKey(engine, '!Err', sugg, result.context.type, 'Tab', ALL_FEATURES);
     expect(newValue).toBe('level:ERROR ');
   });
 
@@ -444,10 +447,10 @@ describe('Tab vs Enter behavior for field value selection', () => {
       [{ id: '1', name: 'vip-active', query: 'status:active AND is_vip:true' }],
       [], 10
     );
-    const result = getSuggestions(engine, '#vip');
+    const result = getSuggestions(engine, '#vip', undefined, ALL_FEATURES);
     const sugg = result.suggestions.find(s => s.text === '#vip-active')!;
 
-    const { shouldSubmit } = acceptWithKey(engine, '#vip', sugg, result.context.type, 'Enter');
+    const { shouldSubmit } = acceptWithKey(engine, '#vip', sugg, result.context.type, 'Enter', ALL_FEATURES);
     expect(shouldSubmit).toBe(false);
   });
 

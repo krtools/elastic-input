@@ -2,18 +2,22 @@ import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { TokenType } from '../lexer/tokens';
 
-function lex(input: string) {
-  return new Lexer(input).tokenize();
+import { LexerOptions } from '../lexer/Lexer';
+
+const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
+
+function lex(input: string, options?: LexerOptions) {
+  return new Lexer(input, options).tokenize();
 }
 
-function lexTypes(input: string) {
-  return lex(input)
+function lexTypes(input: string, options?: LexerOptions) {
+  return lex(input, options)
     .filter(t => t.type !== TokenType.WHITESPACE)
     .map(t => t.type);
 }
 
-function lexValues(input: string) {
-  return lex(input)
+function lexValues(input: string, options?: LexerOptions) {
+  return lex(input, options)
     .filter(t => t.type !== TokenType.WHITESPACE)
     .map(t => t.value);
 }
@@ -151,23 +155,33 @@ describe('Lexer', () => {
   });
 
   describe('special tokens', () => {
-    it('tokenizes saved search (#)', () => {
-      expect(lexTypes('#mySearch')).toEqual([TokenType.SAVED_SEARCH]);
+    it('tokenizes saved search (#) when enabled', () => {
+      expect(lexTypes('#mySearch', ALL_FEATURES)).toEqual([TokenType.SAVED_SEARCH]);
+      expect(lexValues('#mySearch', ALL_FEATURES)).toEqual(['#mySearch']);
+    });
+
+    it('tokenizes bare # as saved search when enabled', () => {
+      expect(lexTypes('#', ALL_FEATURES)).toEqual([TokenType.SAVED_SEARCH]);
+      expect(lexValues('#', ALL_FEATURES)).toEqual(['#']);
+    });
+
+    it('tokenizes # as regular value when disabled (default)', () => {
+      expect(lexTypes('#mySearch')).toEqual([TokenType.VALUE]);
       expect(lexValues('#mySearch')).toEqual(['#mySearch']);
     });
 
-    it('tokenizes bare # as saved search', () => {
-      expect(lexTypes('#')).toEqual([TokenType.SAVED_SEARCH]);
-      expect(lexValues('#')).toEqual(['#']);
+    it('tokenizes history ref (!) when enabled', () => {
+      expect(lexTypes('!recent', ALL_FEATURES)).toEqual([TokenType.HISTORY_REF]);
+      expect(lexValues('!recent', ALL_FEATURES)).toEqual(['!recent']);
     });
 
-    it('tokenizes history ref (!)', () => {
-      expect(lexTypes('!recent')).toEqual([TokenType.HISTORY_REF]);
+    it('tokenizes bare ! as history ref when enabled', () => {
+      expect(lexTypes('!', ALL_FEATURES)).toEqual([TokenType.HISTORY_REF]);
+    });
+
+    it('tokenizes ! as regular value when disabled (default)', () => {
+      expect(lexTypes('!recent')).toEqual([TokenType.VALUE]);
       expect(lexValues('!recent')).toEqual(['!recent']);
-    });
-
-    it('tokenizes bare ! as history ref', () => {
-      expect(lexTypes('!')).toEqual([TokenType.HISTORY_REF]);
     });
 
     it('tokenizes wildcards', () => {
@@ -212,8 +226,8 @@ describe('Lexer', () => {
       ]);
     });
 
-    it('tokenizes - before saved search', () => {
-      expect(lexTypes('-#mySearch')).toEqual([
+    it('tokenizes - before saved search when enabled', () => {
+      expect(lexTypes('-#mySearch', ALL_FEATURES)).toEqual([
         TokenType.PREFIX_OP, TokenType.SAVED_SEARCH,
       ]);
     });

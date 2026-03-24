@@ -11,6 +11,7 @@ export type { HighlightOptions } from './components/HighlightedContent';
 
 // Internal building blocks (for advanced usage / custom integrations)
 export { Lexer } from './lexer/Lexer';
+export type { LexerOptions } from './lexer/Lexer';
 export { Parser } from './parser/Parser';
 export { Validator } from './validation/Validator';
 export { AutocompleteEngine } from './autocomplete/AutocompleteEngine';

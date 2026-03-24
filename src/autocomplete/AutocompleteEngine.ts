@@ -46,8 +46,8 @@ export class AutocompleteEngine {
     this.searchHistory = searchHistory;
     this.maxSuggestions = maxSuggestions;
     this.options = {
-      showSavedSearchHint: options.showSavedSearchHint ?? true,
-      showHistoryHint: options.showHistoryHint ?? true,
+      showSavedSearchHint: options.showSavedSearchHint ?? false,
+      showHistoryHint: options.showHistoryHint ?? false,
     };
   }
 

@@ -476,12 +476,12 @@ History suggestions use a vertical two-row layout, unlike other suggestion types
 
 ### 4.6 `#` and `!` Hint Suggestions
 
-When saved searches or history entries are configured, hint suggestions appear to inform the user about `#` and `!` features. These hints:
+The `#saved-search` and `!history` features are **opt-in** via `features.savedSearches` and `features.historySearch` (both default `false`). When disabled, `#` and `!` are treated as regular characters at the lexer level — no special tokenization, no autocomplete. When enabled, hint suggestions appear to inform the user about these features. These hints:
 
 - Only appear when the partial is **empty** (start of a new expression)
 - Disappear as soon as the user starts typing
 - Do not appear in `FIELD_VALUE` context
-- Are configurable via `dropdown.showSavedSearchHint` (default: `true`) and `dropdown.showHistoryHint` (default: `true`)
+- Are configurable via `dropdown.showSavedSearchHint` and `dropdown.showHistoryHint` (default to the feature flag value)
 - Do not appear when no saved searches or history entries exist
 - **Clickable:** Clicking the `#saved-search` or `!history` hint inserts the trigger character (`#` or `!`) into the input, focuses it, and immediately shows the corresponding saved search or history suggestions
 
@@ -1288,8 +1288,8 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `alignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom; see §8.2 |
 | `maxSuggestions` | `number` | `10` | Max suggestions shown |
 | `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
-| `showSavedSearchHint` | `boolean` | `true` | Show `#saved-search` hint in dropdown |
-| `showHistoryHint` | `boolean` | `true` | Show `!history` hint in dropdown |
+| `showSavedSearchHint` | `boolean` | `features.savedSearches` | Show `#saved-search` hint in dropdown |
+| `showHistoryHint` | `boolean` | `features.historySearch` | Show `!history` hint in dropdown |
 | `showOperators` | `boolean` | `true` | Show AND/OR/NOT suggestions; see §8.3.1 |
 | `onNavigation` | `boolean` | `true` | Show dropdown on click/arrow/focus; see §8.3.1 |
 | `navigationDelay` | `number` | `0` | Delay (ms) before dropdown on navigation; see §8.3.1 |
@@ -1306,6 +1306,8 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
 | `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
+| `savedSearches` | `boolean` | `false` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character |
+| `historySearch` | `boolean` | `false` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character |
 
 #### Async Field Loading
 

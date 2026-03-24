@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
+import { LexerOptions } from '../lexer/Lexer';
 import { Parser, CursorContext } from '../parser/Parser';
 
-function getContext(input: string, cursorOffset?: number): CursorContext {
-  const tokens = new Lexer(input).tokenize();
+const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
+
+function getContext(input: string, cursorOffset?: number, lexerOptions?: LexerOptions): CursorContext {
+  const tokens = new Lexer(input, lexerOptions).tokenize();
   return Parser.getCursorContext(tokens, cursorOffset ?? input.length);
 }
 
@@ -160,36 +163,48 @@ describe('getCursorContext', () => {
   });
 
   describe('saved search context', () => {
-    it('returns SAVED_SEARCH for #', () => {
-      const ctx = getContext('#');
+    it('returns SAVED_SEARCH for # when enabled', () => {
+      const ctx = getContext('#', undefined, ALL_FEATURES);
       expect(ctx.type).toBe('SAVED_SEARCH');
       expect(ctx.partial).toBe('');
     });
 
-    it('returns SAVED_SEARCH for #partial', () => {
-      const ctx = getContext('#my');
+    it('returns SAVED_SEARCH for #partial when enabled', () => {
+      const ctx = getContext('#my', undefined, ALL_FEATURES);
       expect(ctx.type).toBe('SAVED_SEARCH');
       expect(ctx.partial).toBe('my');
     });
 
-    it('returns SAVED_SEARCH with cursor mid-token', () => {
-      const ctx = getContext('#mySearch', 3);
+    it('returns SAVED_SEARCH with cursor mid-token when enabled', () => {
+      const ctx = getContext('#mySearch', 3, ALL_FEATURES);
       expect(ctx.type).toBe('SAVED_SEARCH');
       expect(ctx.partial).toBe('mySearch');
+    });
+
+    it('returns FIELD_NAME for # when disabled (default)', () => {
+      const ctx = getContext('#my');
+      expect(ctx.type).toBe('FIELD_NAME');
+      expect(ctx.partial).toBe('#my');
     });
   });
 
   describe('history ref context', () => {
-    it('returns HISTORY_REF for !', () => {
-      const ctx = getContext('!');
+    it('returns HISTORY_REF for ! when enabled', () => {
+      const ctx = getContext('!', undefined, ALL_FEATURES);
       expect(ctx.type).toBe('HISTORY_REF');
       expect(ctx.partial).toBe('');
     });
 
-    it('returns HISTORY_REF for !partial', () => {
-      const ctx = getContext('!rec');
+    it('returns HISTORY_REF for !partial when enabled', () => {
+      const ctx = getContext('!rec', undefined, ALL_FEATURES);
       expect(ctx.type).toBe('HISTORY_REF');
       expect(ctx.partial).toBe('rec');
+    });
+
+    it('returns FIELD_NAME for ! when disabled (default)', () => {
+      const ctx = getContext('!rec');
+      expect(ctx.type).toBe('FIELD_NAME');
+      expect(ctx.partial).toBe('!rec');
     });
   });
 

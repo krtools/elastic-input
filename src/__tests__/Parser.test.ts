@@ -3,8 +3,12 @@ import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
 import { ASTNode, ErrorNode, RangeNode } from '../parser/ast';
 
-function parse(input: string): ASTNode | null {
-  const tokens = new Lexer(input).tokenize();
+import { LexerOptions } from '../lexer/Lexer';
+
+const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
+
+function parse(input: string, lexerOptions?: LexerOptions): ASTNode | null {
+  const tokens = new Lexer(input, lexerOptions).tokenize();
   return new Parser(tokens).parse();
 }
 
@@ -282,29 +286,45 @@ describe('Parser', () => {
   });
 
   describe('special tokens', () => {
-    it('parses saved search', () => {
-      const ast = parse('#mySearch');
+    it('parses saved search when enabled', () => {
+      const ast = parse('#mySearch', ALL_FEATURES);
       expect(ast).toMatchObject({
         type: 'SavedSearch',
         name: 'mySearch',
       });
     });
 
-    it('parses history ref', () => {
-      const ast = parse('!recent');
+    it('parses history ref when enabled', () => {
+      const ast = parse('!recent', ALL_FEATURES);
       expect(ast).toMatchObject({
         type: 'HistoryRef',
         ref: 'recent',
       });
     });
 
-    it('parses saved search combined with other terms', () => {
-      const ast = parse('#mySearch AND status:active');
+    it('parses saved search combined with other terms when enabled', () => {
+      const ast = parse('#mySearch AND status:active', ALL_FEATURES);
       expect(ast).toMatchObject({
         type: 'BooleanExpr',
         operator: 'AND',
         left: { type: 'SavedSearch', name: 'mySearch' },
         right: { type: 'FieldValue', field: 'status', value: 'active' },
+      });
+    });
+
+    it('parses # as bare term when disabled (default)', () => {
+      const ast = parse('#mySearch');
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: '#mySearch',
+      });
+    });
+
+    it('parses ! as bare term when disabled (default)', () => {
+      const ast = parse('!recent');
+      expect(ast).toMatchObject({
+        type: 'BareTerm',
+        value: '!recent',
       });
     });
   });

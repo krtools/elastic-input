@@ -856,14 +856,17 @@ Controls when the autocomplete dropdown appears:
 | Mode | Behavior |
 |------|----------|
 | `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. If dismissed (e.g. via Escape), **Ctrl+Space** (Cmd+Space on macOS) restores it. |
+| `'input'` | Dropdown appears only when the user types non-whitespace characters (or deletes/pastes). Typing whitespace (space, tab) dismisses the dropdown. Navigation events (click, arrow keys, focus) never trigger the dropdown. **Ctrl+Space** always works as a manual override. |
 | `'never'` | Dropdown is completely disabled. No suggestions, date picker, or hints are shown. |
 | `'manual'` | Dropdown only appears after the user presses **Ctrl+Space** (or Cmd+Space on macOS). Once activated, the dropdown stays open for the current context type. When the context changes (e.g. moving from a field name to a field value), the dropdown is dismissed and must be re-activated with another Ctrl+Space. Escape also dismisses it. |
 
-The `manualActivationContextRef` tracks which context type was activated. When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
+The `manualActivationContextRef` tracks which context type was activated (for `'manual'` mode). When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
+
+**`'input'` mode detection:** In `handleInput`, the previous text is compared to the new text. If the new text is longer and the inserted portion (derived from cursor position) is all whitespace, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. Deletion and non-whitespace insertion follow the normal `'always'` path. Navigation is blocked by forcing `triggerOnNavigation` to `false` when mode is `'input'`.
 
 ### 8.3.1 Dropdown Trigger Options
 
-Fine-grained controls for dropdown appearance timing and content, applied within `dropdown.mode: 'always'`. These settings have no effect when `dropdown.mode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings.
+Fine-grained controls for dropdown appearance timing and content, applied within `dropdown.mode: 'always'` or `'input'`. These settings have no effect when `dropdown.mode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings. Note: `dropdown.onNavigation` and `dropdown.navigationDelay` are ignored in `'input'` mode (navigation never triggers).
 
 #### `dropdown.showOperators` (default: `true`)
 
@@ -1280,7 +1283,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `mode` | `'always' \| 'never' \| 'manual'` | `'always'` | When the dropdown appears; see §8.3 |
+| `mode` | `'always' \| 'input' \| 'never' \| 'manual'` | `'always'` | When the dropdown appears; see §8.3 |
 | `alignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom; see §8.2 |
 | `maxSuggestions` | `number` | `10` | Max suggestions shown |
 | `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |

@@ -213,7 +213,7 @@ export interface StyleConfig {
 export interface DropdownConfig {
   /** Controls when the dropdown appears. `'always'` (default) shows it as you type.
    *  `'never'` disables it entirely. `'manual'` requires Ctrl+Space. @default 'always' */
-  mode?: 'always' | 'never' | 'manual';
+  mode?: 'always' | 'never' | 'manual' | 'input';
   /** When true, the dropdown spans the full input width instead of following the caret. @default false */
   alignToInput?: boolean;
   /** Maximum number of suggestions shown. @default 10 */

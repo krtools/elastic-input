@@ -95,7 +95,7 @@ export function DemoApp() {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
 
   // Dropdown options
-  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual'>('always');
+  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual' | 'input'>('always');
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(true);
@@ -382,6 +382,7 @@ export function DemoApp() {
                 value={dropdownMode}
                 options={[
                   { value: 'always', label: 'Always' },
+                  { value: 'input', label: 'On Input' },
                   { value: 'never', label: 'Never' },
                   { value: 'manual', label: 'Ctrl+Space' },
                 ]}

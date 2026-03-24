@@ -724,7 +724,7 @@ export class Parser {
         if (t.type === TokenType.RPAREN) { depth++; continue; }
         if (t.type === TokenType.LPAREN) {
           if (depth > 0) { depth--; continue; }
-          // Found the matching LPAREN — check for FIELD_NAME COLON before it
+          // Found an unmatched LPAREN — check for FIELD_NAME COLON before it
           for (let j = i - 1; j >= 0; j--) {
             if (tokens[j].type === TokenType.WHITESPACE) continue;
             if (tokens[j].type === TokenType.COLON) {
@@ -736,7 +736,7 @@ export class Parser {
             }
             break;
           }
-          return '';
+          // Not a field group LPAREN — keep scanning outward through nested parens
         }
       }
       return '';
@@ -915,20 +915,9 @@ export class Parser {
     if (currentToken?.type === TokenType.LPAREN ||
         prevNonWsToken?.type === TokenType.LPAREN) {
       const lparenToken = (currentToken?.type === TokenType.LPAREN ? currentToken : prevNonWsToken)!;
-      const lparenIdx = tokens.indexOf(lparenToken);
-      // Check if this LPAREN is part of field:(...)
-      for (let i = lparenIdx - 1; i >= 0; i--) {
-        if (tokens[i].type === TokenType.WHITESPACE) continue;
-        if (tokens[i].type === TokenType.COLON) {
-          for (let j = i - 1; j >= 0; j--) {
-            if (tokens[j].type === TokenType.WHITESPACE) continue;
-            if (tokens[j].type === TokenType.FIELD_NAME) {
-              return { type: 'FIELD_VALUE', partial: '', fieldName: tokens[j].value, token: undefined };
-            }
-            break;
-          }
-        }
-        break;
+      const groupField = findEnclosingFieldGroup(tokens.indexOf(lparenToken));
+      if (groupField) {
+        return { type: 'FIELD_VALUE', partial: '', fieldName: groupField, token: undefined };
       }
       return { type: 'FIELD_NAME', partial: '', token: undefined };
     }

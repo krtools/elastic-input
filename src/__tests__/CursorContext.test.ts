@@ -460,5 +460,32 @@ describe('getCursorContext', () => {
       const ctx = getContext('(active )', 8);
       expect(ctx.type).toBe('OPERATOR');
     });
+
+    it('suggests field values inside nested parens in field group', () => {
+      // status:((|)) — nested parens still inside field group
+      const ctx = getContext('status:(())', 9);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+    });
+
+    it('suggests field values inside triple-nested parens in field group', () => {
+      // status:(((|))) — deeply nested still resolves to field group
+      const ctx = getContext('status:((()))', 10);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+    });
+
+    it('suggests field values after value in nested parens in field group', () => {
+      // status:((active |)) — after value inside nested parens
+      const ctx = getContext('status:((active ))', 16);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+    });
+
+    it('does not treat nested plain group as field group', () => {
+      // ((active |)) — plain nested group, not field group
+      const ctx = getContext('((active ))', 9);
+      expect(ctx.type).toBe('OPERATOR');
+    });
   });
 });

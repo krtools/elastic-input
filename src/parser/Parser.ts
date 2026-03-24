@@ -875,7 +875,10 @@ export class Parser {
     if (currentToken?.type === TokenType.FIELD_NAME || currentToken?.type === TokenType.VALUE) {
       const groupField = findEnclosingFieldGroup(tokens.indexOf(currentToken));
       if (groupField) {
-        return { type: 'FIELD_VALUE', partial: currentToken.value, fieldName: groupField, token: currentToken };
+        // A lone +/- inside a field group is a prefix operator, not a value partial
+        const partial = (currentToken.value === '-' || currentToken.value === '+') ? '' : currentToken.value;
+        const token = partial ? currentToken : undefined;
+        return { type: 'FIELD_VALUE', partial, fieldName: groupField, token };
       }
       return {
         type: 'FIELD_NAME',
@@ -884,8 +887,12 @@ export class Parser {
       };
     }
 
-    // After prefix op — suggest field names
+    // After prefix op — suggest field names (or field values inside a field group)
     if (prevNonWsToken?.type === TokenType.PREFIX_OP) {
+      const groupField = findEnclosingFieldGroup(tokens.indexOf(prevNonWsToken));
+      if (groupField) {
+        return { type: 'FIELD_VALUE', partial: '', fieldName: groupField, token: undefined };
+      }
       return { type: 'FIELD_NAME', partial: '', token: undefined };
     }
 

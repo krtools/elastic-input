@@ -413,5 +413,30 @@ describe('getCursorContext', () => {
       expect(ctx.fieldName).toBe('status');
       expect(ctx.partial).toBe('ac');
     });
+
+    it('treats lone - as prefix op inside field group, not value partial', () => {
+      // status:(-|)
+      const ctx = getContext('status:(-)', 9);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+      expect(ctx.token).toBeUndefined();
+    });
+
+    it('treats lone + as prefix op inside field group, not value partial', () => {
+      // status:(+|)
+      const ctx = getContext('status:(+)', 9);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+    });
+
+    it('suggests field values after PREFIX_OP token inside field group', () => {
+      // status:(-|active) — lexer produces PREFIX_OP when followed by value
+      const ctx = getContext('status:(-active)', 9);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+    });
   });
 });

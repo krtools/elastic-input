@@ -941,13 +941,12 @@ export function ElasticInput(props: ElasticInputProps) {
     // Cancel any pending navigation delay — typing shows dropdown immediately
     if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
 
-    const prevText = currentValueRef.current;
     let text = getPlainText(editorRef.current);
 
     // Skip if the DOM text hasn't changed from what we last processed.
     // This handles spurious input events from programmatic DOM updates
     // (e.g. innerHTML changes during undo/redo or suggestion acceptance).
-    if (text === prevText) return;
+    if (text === currentValueRef.current) return;
     let cursorPos = getCaretCharOffset(editorRef.current);
 
     // Normalize typographic characters (smart quotes, em dashes, etc.)
@@ -978,15 +977,12 @@ export function ElasticInput(props: ElasticInputProps) {
       typingGroupTimerRef.current = null;
     }, 300);
 
-    // In 'input' mode, suppress the dropdown when the change is whitespace-only insertion.
-    // Deletion and non-whitespace typing show the dropdown normally.
-    if (dropdownMode === 'input' && text.length > prevText.length) {
-      // Find the inserted portion — compare old vs new around the cursor
-      const added = text.length - prevText.length;
-      const insertStart = cursorPos - added;
-      const inserted = text.slice(Math.max(0, insertStart), cursorPos);
-      if (inserted.length > 0 && inserted.trim() === '') {
-        // Whitespace-only insertion — process input but dismiss dropdown
+    // In 'input' mode, show the dropdown only when the cursor is at a non-whitespace
+    // position (i.e. the character before the cursor is non-whitespace). This handles
+    // typing, deletion, and paste uniformly — the dropdown tracks typing momentum.
+    if (dropdownMode === 'input') {
+      const charBefore = cursorPos > 0 ? text[cursorPos - 1] : '';
+      if (!charBefore || charBefore.trim() === '') {
         processInput(text, false);
         closeDropdown();
         return;

@@ -862,7 +862,7 @@ Controls when the autocomplete dropdown appears:
 
 The `manualActivationContextRef` tracks which context type was activated (for `'manual'` mode). When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
 
-**`'input'` mode detection:** In `handleInput`, the previous text is compared to the new text. If the new text is longer and the inserted portion (derived from cursor position) is all whitespace, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. Deletion and non-whitespace insertion follow the normal `'always'` path. Navigation is blocked by forcing `triggerOnNavigation` to `false` when mode is `'input'`.
+**`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace or the cursor is at position 0, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. If the character before the cursor is non-whitespace (letter, digit, colon, paren, etc.), the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Navigation is blocked by forcing `triggerOnNavigation` to `false` when mode is `'input'`.
 
 ### 8.3.1 Dropdown Trigger Options
 

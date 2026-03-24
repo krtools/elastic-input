@@ -189,7 +189,7 @@ export function DemoApp() {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
 
   // Dropdown options
-  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual' | 'input'>('always');
+  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(true);

@@ -239,12 +239,32 @@ describe('Lexer', () => {
       expect(lexValues('score:+5')).toEqual(['score', ':', '+5']);
     });
 
-    it('does not treat standalone - as prefix op', () => {
-      // - at end of input with nothing after it
+    it('treats trailing - after whitespace as prefix op (user is typing)', () => {
       const tokens = lex('a -');
       const nonWs = tokens.filter(t => t.type !== TokenType.WHITESPACE);
-      // The - at the end has nothing alphanumeric after it
       expect(nonWs[0].type).toBe(TokenType.VALUE);
+      expect(nonWs[1].type).toBe(TokenType.PREFIX_OP);
+    });
+
+    it('keeps +/- as part of value when mid-word', () => {
+      expect(lexTypes('a+b')).toEqual([TokenType.VALUE]);
+      expect(lexValues('a+b')).toEqual(['a+b']);
+
+      expect(lexTypes('a-b')).toEqual([TokenType.VALUE]);
+      expect(lexValues('a-b')).toEqual(['a-b']);
+    });
+
+    it('keeps +/- as part of value in field:value with mid-word operator', () => {
+      expect(lexTypes('filter:a+b')).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE]);
+      expect(lexValues('filter:a+b')).toEqual(['filter', ':', 'a+b']);
+
+      expect(lexTypes('filter:a-b')).toEqual([TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE]);
+      expect(lexValues('filter:a-b')).toEqual(['filter', ':', 'a-b']);
+    });
+
+    it('keeps trailing + as part of value (e.g. c++)', () => {
+      expect(lexTypes('c++')).toEqual([TokenType.VALUE]);
+      expect(lexValues('c++')).toEqual(['c++']);
     });
   });
 

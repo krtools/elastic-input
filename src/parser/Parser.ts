@@ -938,7 +938,7 @@ export class Parser {
       return { type: 'OPERATOR', partial: '' };
     }
 
-    // After a complete value or modifier — suggest operators
+    // After a complete value or modifier — suggest operators (or field values in a field group)
     if (prevNonWsToken && (
       prevNonWsToken.type === TokenType.VALUE ||
       prevNonWsToken.type === TokenType.QUOTED_VALUE ||
@@ -947,6 +947,10 @@ export class Parser {
       prevNonWsToken.type === TokenType.TILDE ||
       prevNonWsToken.type === TokenType.BOOST
     )) {
+      const groupField = findEnclosingFieldGroup(tokens.indexOf(prevNonWsToken));
+      if (groupField) {
+        return { type: 'FIELD_VALUE', partial: '', fieldName: groupField, token: undefined };
+      }
       return { type: 'OPERATOR', partial: '' };
     }
 

@@ -438,5 +438,27 @@ describe('getCursorContext', () => {
       expect(ctx.fieldName).toBe('status');
       expect(ctx.partial).toBe('');
     });
+
+    it('suggests field values after complete value inside field group', () => {
+      // status:(active |) — after a complete value, should suggest more values not operators
+      const ctx = getContext('status:(active )', 15);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+    });
+
+    it('suggests field values after negated value inside field group', () => {
+      // status:(-active |) — after a negated value, should still suggest field values
+      const ctx = getContext('status:(-active )', 16);
+      expect(ctx.type).toBe('FIELD_VALUE');
+      expect(ctx.fieldName).toBe('status');
+      expect(ctx.partial).toBe('');
+    });
+
+    it('suggests operators after complete value in plain group', () => {
+      // (active |) — NOT a field group, should suggest operators
+      const ctx = getContext('(active )', 8);
+      expect(ctx.type).toBe('OPERATOR');
+    });
   });
 });

@@ -4,7 +4,10 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [
-    dts({ insertTypesEntry: true }),
+    dts({
+      insertTypesEntry: true,
+      exclude: ['src/__tests__/**', 'demo/**'],
+    }),
   ],
   build: {
     lib: {

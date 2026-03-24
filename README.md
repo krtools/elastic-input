@@ -19,6 +19,12 @@ Vibe-coded as a proof of concept with Claude Code
 - **Fully configurable** — colors, structural styles, fonts, and layout are all customizable via props
 - **Dark mode ready** — ships with `DARK_COLORS` and `DARK_STYLES` presets
 
+## Installation
+
+```bash
+npm install elastic-input
+```
+
 ## Quick Start
 
 ```tsx

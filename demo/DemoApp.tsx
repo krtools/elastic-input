@@ -27,6 +27,100 @@ const TABS: TabConfig[] = [
   { id: 'ecommerce', label: 'E-Commerce', fields: ECOMMERCE_FIELDS, placeholder: 'Search products... e.g. category:electronics AND price:<100' },
 ];
 
+// --- Example queries per tab ---
+
+interface ExampleQuery { label: string; query: string; desc: string }
+
+const EXAMPLE_QUERIES: Record<TabId, ExampleQuery[]> = {
+  crm: [
+    { label: 'status:active AND deal_value:>5000',
+      query: 'status:active AND deal_value:>5000',
+      desc: 'Field values with comparison operator' },
+    { label: 'Multiline boolean',
+      query: '(status:active OR status:lead)\nAND deal_value:[1000 TO 50000]\nAND created:>now-90d',
+      desc: 'Multiline query with range and relative date' },
+    { label: 'Wildcards + boost',
+      query: 'name:John* OR (tags:enterprise AND company:Acme*)^2',
+      desc: 'Wildcards, grouping, and boost syntax' },
+    { label: 'Leading wildcard (warning)',
+      query: '*corp AND status:active',
+      desc: 'Leading wildcard triggers a slow-query warning' },
+    { label: 'Bad email (warning)',
+      query: 'email:john.doe AND status:active',
+      desc: 'Email without @ triggers a format warning' },
+    { label: 'Errors: unknown + type',
+      query: 'status:active AND region:west AND deal_value:abc',
+      desc: 'Unknown field "region" and non-numeric deal_value' },
+    { label: 'Fuzzy + phrase',
+      query: '"enterprise deal" AND name:Jhon~2 AND is_vip:true',
+      desc: 'Exact phrase, fuzzy match, and boolean field' },
+    { label: 'Saved search + NOT',
+      query: '#vip-active AND NOT tags:churned',
+      desc: 'Saved search reference with NOT operator' },
+    { label: 'Complex multiline',
+      query: '(\n  (status:active AND deal_value:>10000)\n  OR (status:lead AND tags:enterprise)\n)\nAND created:[2024-01-01 TO 2024-12-31]\nAND NOT company:"Umbrella Corp"',
+      desc: 'Nested groups, ranges, NOT, and quoted phrase on multiple lines' },
+    { label: 'Regex',
+      query: 'name:/[Jj]oh?n(athan)?/ AND status:(active OR lead)',
+      desc: 'Regex pattern with field group' },
+    { label: 'Age validation',
+      query: 'age:abc AND status:active',
+      desc: 'Invalid age format triggers custom validation' },
+  ],
+  logs: [
+    { label: 'level:ERROR AND service:api-gateway',
+      query: 'level:ERROR AND service:api-gateway',
+      desc: 'Basic field value filtering' },
+    { label: 'Multiline log search',
+      query: '(level:ERROR OR level:FATAL)\nAND service:(api-gateway OR auth-service)\nAND timestamp:>now-1h',
+      desc: 'Multi-service error search with recency filter' },
+    { label: 'Status codes + duration',
+      query: 'status_code:[500 TO 599] AND duration_ms:>2000',
+      desc: 'Range for 5xx errors with slow response filter' },
+    { label: 'IP + wildcard',
+      query: 'ip:192.168.* AND level:WARN AND NOT service:notification-service',
+      desc: 'IP wildcard with NOT exclusion' },
+    { label: 'Errors: bad IP + type',
+      query: 'ip:not-an-ip AND status_code:fast AND fakefield:x',
+      desc: 'Invalid IP, non-numeric status_code, unknown field' },
+    { label: 'Regex request ID',
+      query: 'request_id:/req-[a-f0-9]{8}/ AND level:ERROR',
+      desc: 'Regex pattern matching request IDs' },
+    { label: 'Complex multiline',
+      query: '(\n  level:(ERROR OR FATAL)\n  AND status_code:>=500\n  AND duration_ms:>1000\n)\nOR (\n  message:"connection refused"\n  AND service:payment-service\n)\nAND timestamp:[2024-06-01 TO 2024-06-30]',
+      desc: 'Complex OR of two condition groups with date range' },
+    { label: 'Leading wildcard (warning)',
+      query: '*timeout* AND level:ERROR',
+      desc: 'Leading wildcard triggers slow-query warning' },
+  ],
+  ecommerce: [
+    { label: 'category:electronics AND price:<100',
+      query: 'category:electronics AND price:<100',
+      desc: 'Category filter with price comparison' },
+    { label: 'Multiline product search',
+      query: 'category:(electronics OR books)\nAND price:[10 TO 200]\nAND in_stock:true\nAND rating:>=4',
+      desc: 'Multi-category with price range and availability' },
+    { label: 'Boost + fuzzy',
+      query: '(category:electronics)^3 OR product:headphone~ AND in_stock:true',
+      desc: 'Category boost with fuzzy product match' },
+    { label: 'Errors: bad rating + unknown',
+      query: 'rating:99 AND color:red AND price:cheap',
+      desc: 'Rating out of range, unknown field, non-numeric price' },
+    { label: 'Regex SKU',
+      query: 'sku:/[A-Z]{3}-\\d{4}/ AND in_stock:true',
+      desc: 'Regex SKU pattern with availability filter' },
+    { label: 'Wildcard brand',
+      query: 'brand:Sam* AND price:[100 TO 500] AND NOT category:clothing',
+      desc: 'Brand wildcard with range and NOT' },
+    { label: 'Complex multiline',
+      query: '(\n  (category:electronics AND price:<500 AND rating:>=4)\n  OR (category:books AND price:<30)\n)\nAND in_stock:true\nAND added_date:>now-30d\nAND NOT product:"refurbished"',
+      desc: 'Nested OR groups with date, NOT, and phrase exclusion' },
+    { label: 'Leading wildcard (warning)',
+      query: '*phone* AND category:electronics',
+      desc: 'Leading wildcard triggers slow-query warning' },
+  ],
+};
+
 // --- Options panel helpers ---
 
 function OptionToggle({ label, checked, onChange, theme }: {
@@ -357,18 +451,32 @@ export function DemoApp() {
             ))}
           </div>
 
-          {/* Usage hints */}
+          {/* Example queries */}
           <div style={{ ...styles.card, marginTop: '24px' }}>
-            <div style={styles.cardTitle}>Try These</div>
-            <div style={{ fontSize: '13px', lineHeight: 1.8, color: theme.textSecondary }}>
-              <div>Type a field name (e.g. "status") to see autocomplete</div>
-              <div>Type "status:" to see enum value suggestions</div>
-              <div>Type "created:" to open the date picker</div>
-              <div>Type "xyz:hello" to see red squiggly on unknown field "xyz"</div>
-              <div>Type "status:bad" then press Home or click before it to see validation squiggly</div>
-              <div>Type "#" for saved searches, "!" for history</div>
-              <div>Type "company:" (CRM) or "brand:" (E-Commerce) to see async suggestions with loading delay</div>
-              <div>Use AND, OR, NOT, and parentheses for complex queries</div>
+            <div style={styles.cardTitle}>Examples</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '6px' }}>
+              {(EXAMPLE_QUERIES[activeTab] || []).map((ex, i) => (
+                <button
+                  key={i}
+                  title={ex.desc}
+                  onClick={() => inputApiRef.current?.setValue(ex.query)}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '12px',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'pre' as const,
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: '4px',
+                    backgroundColor: theme.surface,
+                    color: theme.text,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.backgroundColor = theme.border; }}
+                  onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.backgroundColor = theme.surface; }}
+                >
+                  {ex.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

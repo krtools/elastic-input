@@ -620,21 +620,6 @@ export function ElasticInput(props: ElasticInputProps) {
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
 
-  // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
-  // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
-  const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number) => {
-    if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
-    if (!triggerOnNavigation) return;
-    if (navigationDelay > 0) {
-      navDelayTimerRef.current = setTimeout(() => {
-        navDelayTimerRef.current = null;
-        updateSuggestionsFromTokens(toks, offset);
-      }, navigationDelay);
-    } else {
-      updateSuggestionsFromTokens(toks, offset);
-    }
-  }, [triggerOnNavigation, navigationDelay, updateSuggestionsFromTokens]);
-
   const closeDropdown = React.useCallback(() => {
     setShowDropdown(false);
     setShowDatePicker(false);
@@ -651,6 +636,27 @@ export function ElasticInput(props: ElasticInputProps) {
     // Reset manual activation so next Ctrl+Space re-activates
     manualActivationContextRef.current = null;
   }, []);
+
+  // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
+  // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
+  const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number) => {
+    if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
+    if (!triggerOnNavigation) {
+      // Navigation won't open the dropdown, but should close it if open
+      if (stateRef.current.showDropdown || stateRef.current.showDatePicker) {
+        closeDropdown();
+      }
+      return;
+    }
+    if (navigationDelay > 0) {
+      navDelayTimerRef.current = setTimeout(() => {
+        navDelayTimerRef.current = null;
+        updateSuggestionsFromTokens(toks, offset);
+      }, navigationDelay);
+    } else {
+      updateSuggestionsFromTokens(toks, offset);
+    }
+  }, [triggerOnNavigation, navigationDelay, updateSuggestionsFromTokens, closeDropdown]);
 
   const applyNewValue = React.useCallback((
     newValue: string,

@@ -862,7 +862,7 @@ Controls when the autocomplete dropdown appears:
 
 The `manualActivationContextRef` tracks which context type was activated (for `'manual'` mode). When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
 
-**`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace or the cursor is at position 0, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. If the character before the cursor is non-whitespace (letter, digit, colon, paren, etc.), the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Navigation is blocked by forcing `triggerOnNavigation` to `false` when mode is `'input'`.
+**`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace or the cursor is at position 0, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. If the character before the cursor is non-whitespace (letter, digit, colon, paren, etc.), the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Navigation (click, arrow keys, focus) does not open the dropdown but **does close it** if currently open — the `triggerSuggestionsFromNavigation` wrapper calls `closeDropdown` when `triggerOnNavigation` is false and the dropdown or date picker is visible. This prevents stale dropdowns from lingering after the user clicks to a different position.
 
 ### 8.3.1 Dropdown Trigger Options
 
@@ -874,7 +874,7 @@ When `false`, boolean operator suggestions (AND, OR, NOT) are filtered from the 
 
 #### `dropdown.onNavigation` (default: `true`)
 
-When `false`, navigation events (click, arrow keys, Home/End, focus) do not trigger the dropdown. The dropdown only appears in response to typing (input events and paste). Ctrl+Space always works regardless. The `triggerSuggestionsFromNavigation` wrapper gates `handleKeyUp`, `handleFocus`, and `handleClick`; the typing path (`processInput` via `updateSuggestionsRef`) bypasses it entirely.
+When `false`, navigation events (click, arrow keys, Home/End, focus) do not open the dropdown. The dropdown only appears in response to typing (input events and paste). However, if the dropdown is currently open (e.g. from Ctrl+Space or a previous typing event), navigation will **close** it to prevent stale dropdowns. Ctrl+Space always works regardless. The `triggerSuggestionsFromNavigation` wrapper gates `handleKeyUp`, `handleFocus`, and `handleClick`; the typing path (`processInput` via `updateSuggestionsRef`) bypasses it entirely.
 
 #### `dropdown.navigationDelay` (default: `0`)
 

@@ -426,7 +426,7 @@ describe('Tab vs Enter behavior for field value selection', () => {
   it('Tab on history ref at end appends space', () => {
     const engine = new AutocompleteEngine(
       FIELDS, [],
-      [{ query: 'level:ERROR', label: 'Errors', timestamp: Date.now() }],
+      [{ query: 'level:ERROR', label: 'Errors', description: 'Recent' }],
       10
     );
     const result = getSuggestions(engine, '!Err', undefined, ALL_FEATURES);

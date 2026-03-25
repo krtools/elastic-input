@@ -138,15 +138,15 @@ export const SAMPLE_SAVED_SEARCHES: SavedSearch[] = [
 ];
 
 export const SAMPLE_HISTORY: HistoryEntry[] = [
-  { query: 'status:active AND deal_value:>5000', timestamp: Date.now() - 3600000, label: 'Active high-value deals' },
-  { query: 'level:ERROR AND service:api-gateway', timestamp: Date.now() - 7200000, label: 'API gateway errors' },
-  { query: 'category:electronics AND price:<100', timestamp: Date.now() - 86400000, label: 'Cheap electronics' },
-  { query: 'name:John* OR name:Jane*', timestamp: Date.now() - 172800000, label: 'J names' },
-  { query: '(status:lead OR status:prospect) AND company:Acme*', timestamp: Date.now() - 259200000, label: 'Acme leads/prospects' },
-  { query: '-(is_vip:true AND status:churned)', timestamp: Date.now() - 345600000, label: 'Exclude churned VIPs' },
-  { query: '(tags:enterprise OR deal_value:>10000)^2', timestamp: Date.now() - 432000000, label: 'Boosted enterprise/high-value' },
-  { query: '"quick brown fox"', timestamp: Date.now() - 518400000, label: 'Exact phrase search' },
-  { query: 'status:inactive', timestamp: Date.now() - 604800000, label: 'Inactive contacts' },
+  { query: 'status:active AND deal_value:>5000', label: 'Active high-value deals', description: '1 hour ago' },
+  { query: 'level:ERROR AND service:api-gateway', label: 'API gateway errors', description: '2 hours ago' },
+  { query: 'category:electronics AND price:<100', label: 'Cheap electronics', description: 'Yesterday' },
+  { query: 'name:John* OR name:Jane*', label: 'J names', description: '2 days ago' },
+  { query: '(status:lead OR status:prospect) AND company:Acme*', label: 'Acme leads/prospects', description: '3 days ago' },
+  { query: '-(is_vip:true AND status:churned)', label: 'Exclude churned VIPs', description: '4 days ago' },
+  { query: '(tags:enterprise OR deal_value:>10000)^2', label: 'Boosted enterprise/high-value', description: '5 days ago' },
+  { query: '"quick brown fox"', label: 'Exact phrase search', description: '6 days ago' },
+  { query: 'status:inactive', label: 'Inactive contacts', description: '1 week ago' },
 ];
 
 export function mockFetchSavedSearches(partial: string): Promise<SavedSearch[]> {

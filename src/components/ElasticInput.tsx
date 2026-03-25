@@ -192,8 +192,8 @@ export function ElasticInput(props: ElasticInputProps) {
   // flip logic in getDropdownPosition to avoid positioning off-screen.
   const dropdownMaxHeightPx = parseInt(stylesProp?.dropdownMaxHeight || '300', 10) || 300;
 
-  const enableSavedSearches = featuresConfig?.savedSearches ?? false;
-  const enableHistorySearch = featuresConfig?.historySearch ?? false;
+  const enableSavedSearches = featuresConfig?.savedSearches ?? !!savedSearches;
+  const enableHistorySearch = featuresConfig?.historySearch ?? !!searchHistory;
   const showSavedSearchHint = dropdownConfig?.showSavedSearchHint ?? enableSavedSearches;
   const showHistoryHint = dropdownConfig?.showHistoryHint ?? enableHistorySearch;
   const showOperators = dropdownConfig?.showOperators !== false;
@@ -626,7 +626,7 @@ export function ElasticInput(props: ElasticInputProps) {
             mapped = fetched.map(h => ({
               text: AutocompleteEngine.wrapHistoryQuery(h.query),
               label: h.label || h.query,
-              description: h.timestamp ? new Date(h.timestamp).toLocaleDateString() : undefined,
+              description: h.description,
               type: 'history',
               replaceStart: start,
               replaceEnd: end,

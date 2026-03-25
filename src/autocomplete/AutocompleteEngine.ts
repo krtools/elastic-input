@@ -287,9 +287,7 @@ export class AutocompleteEngine {
       .map(h => ({
         text: AutocompleteEngine.wrapHistoryQuery(h.query),
         label: h.label || h.query,
-        description: h.timestamp
-          ? new Date(h.timestamp).toLocaleDateString()
-          : undefined,
+        description: h.description,
         type: 'history',
         replaceStart: start,
         replaceEnd: end,

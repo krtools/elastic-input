@@ -22,8 +22,8 @@ const SAVED_SEARCHES: SavedSearch[] = [
 ];
 
 const HISTORY: HistoryEntry[] = [
-  { query: 'status:active AND price:>5000', label: 'Active expensive', timestamp: Date.now() },
-  { query: 'level:ERROR AND service:api', label: 'API errors', timestamp: Date.now() },
+  { query: 'status:active AND price:>5000', label: 'Active expensive', description: '1 hour ago' },
+  { query: 'level:ERROR AND service:api', label: 'API errors', description: '2 hours ago' },
 ];
 
 const ALL_FEATURES = { savedSearches: true, historySearch: true } as const;

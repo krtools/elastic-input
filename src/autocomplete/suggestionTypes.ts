@@ -1,7 +1,7 @@
 export interface Suggestion {
   text: string;
   label: string;
-  description?: string;
+  description?: any; // string or React.ReactNode — typed as any to avoid React import in pure types
   type?: string;
   replaceStart: number;
   replaceEnd: number;

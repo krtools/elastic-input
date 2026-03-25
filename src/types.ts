@@ -74,10 +74,10 @@ export interface SavedSearch {
 export interface HistoryEntry {
   /** The query string from the history entry. */
   query: string;
-  /** Unix timestamp (ms) of when the query was executed. Used for ordering. */
-  timestamp?: number;
   /** Optional label for display in the autocomplete dropdown. Falls back to `query`. */
   label?: string;
+  /** Optional description shown below the label (e.g. date, category). Rendered as-is. */
+  description?: React.ReactNode;
 }
 
 /** An item returned by the async `fetchSuggestions` callback for field value autocomplete. */
@@ -149,6 +149,8 @@ export interface ColorConfig {
   matchedParenBg?: string;
   /** Warning-severity squiggly underlines (e.g. ambiguous precedence). */
   warning?: string;
+  /** Color for history item descriptions. Set to `'transparent'` to hide. */
+  historyDescription?: string;
 }
 
 /**

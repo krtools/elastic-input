@@ -1370,8 +1370,8 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
 | `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
-| `savedSearches` | `boolean` | `false` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character |
-| `historySearch` | `boolean` | `false` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character |
+| `savedSearches` | `boolean` | `!!savedSearches` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character. Defaults to `true` when a `savedSearches` prop is provided. |
+| `historySearch` | `boolean` | `!!searchHistory` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character. Defaults to `true` when a `searchHistory` prop is provided. |
 
 #### Async Field Loading
 

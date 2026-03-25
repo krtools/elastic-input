@@ -977,7 +977,7 @@ export function ElasticInput(props: ElasticInputProps) {
         // Caret-relative (date picker, or non-full-width dropdown)
         const rect = getCaretRect();
         if (rect) {
-          const height = s.showDatePicker ? 350 : s.suggestions.length * 32;
+          const height = s.showDatePicker ? 350 : capDropdownHeight(s.suggestions.length * 32, dropdownMaxHeightPx);
           setDropdownPosition(getDropdownPosition(rect, height, 300));
         }
       }
@@ -989,7 +989,7 @@ export function ElasticInput(props: ElasticInputProps) {
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
     };
-  }, [dropdownAlignToInput]);
+  }, [dropdownAlignToInput, dropdownMaxHeightPx]);
 
   // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
   const prevParenMatchRef = React.useRef<string | null>(null);

@@ -28,7 +28,6 @@ export const DEFAULT_COLORS: Required<ColorConfig> = {
   regexText: '#0a3069',
   matchedParenBg: '#fff3cd',
   warning: '#d4a72c',
-  historyDescription: '#656d76',
 };
 
 /** Dark mode color palette (GitHub Dark-inspired). */
@@ -59,7 +58,6 @@ export const DARK_COLORS: Required<ColorConfig> = {
   regexText: '#a5d6ff',
   matchedParenBg: '#3d3222',
   warning: '#e3b341',
-  historyDescription: '#484f58',
 };
 
 /** Default layout/structural styles for light mode. */

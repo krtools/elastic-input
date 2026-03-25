@@ -5,7 +5,7 @@
 ### Features
 
 - **`dropdown.loadingDelay`** — Configurable delay (ms) before showing the "Searching..." spinner on async fetches. Fast-responding endpoints skip the loading indicator entirely. Default `0` (immediate, preserving existing behavior).
-- **`HistoryEntry.description`** — Replaced `HistoryEntry.timestamp` (number) with `description` (ReactNode). The consumer now controls what appears in the history item's secondary text. A new `historyDescription` color key styles this text.
+- **`HistoryEntry.description`** — Replaced `HistoryEntry.timestamp` (number) with `description` (ReactNode). The consumer now controls what appears in the history item's secondary text. Styled consistently with other dropdown descriptions (inherited color, 0.7 opacity).
 - **Auto-enable `savedSearches` / `historySearch`** — When `savedSearches` or `searchHistory` callback props are provided, their respective feature flags now default to `true` (no need to set `features.savedSearches` / `features.historySearch` explicitly).
 
 ### Breaking Changes

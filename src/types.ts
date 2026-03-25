@@ -149,8 +149,6 @@ export interface ColorConfig {
   matchedParenBg?: string;
   /** Warning-severity squiggly underlines (e.g. ambiguous precedence). */
   warning?: string;
-  /** Color for history item descriptions. Set to `'transparent'` to hide. */
-  historyDescription?: string;
 }
 
 /**

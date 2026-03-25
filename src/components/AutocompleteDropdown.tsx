@@ -248,7 +248,7 @@ export function AutocompleteDropdown({
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                     {suggestion.description != null && (
-                      <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1, color: mergedColors.historyDescription, opacity: 1 }}>{suggestion.description}</span>
+                      <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
                     )}
                     <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
                   </span>

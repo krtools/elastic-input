@@ -16,7 +16,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange } from '../utils/cursorUtils';
-import { getCaretRect, getDropdownPosition, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
+import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
@@ -185,7 +185,13 @@ export function ElasticInput(props: ElasticInputProps) {
   const dropdownMode = dropdownOpenIsCallback ? null : dropdownOpen;
   const dropdownAlignToInput = dropdownConfig?.alignToInput ?? false;
   const maxSuggestions = dropdownConfig?.maxSuggestions;
+  const effectiveMaxSuggestions = maxSuggestions || DEFAULT_MAX_SUGGESTIONS;
   const suggestDebounceMs = dropdownConfig?.suggestDebounceMs;
+  // Parse dropdown max height for positioning calculations — the CSS maxHeight
+  // caps the rendered size, but we also need to cap the height passed to the
+  // flip logic in getDropdownPosition to avoid positioning off-screen.
+  const dropdownMaxHeightPx = parseInt(stylesProp?.dropdownMaxHeight || '300', 10) || 300;
+
   const enableSavedSearches = featuresConfig?.savedSearches ?? false;
   const enableHistorySearch = featuresConfig?.historySearch ?? false;
   const showSavedSearchHint = dropdownConfig?.showSavedSearchHint ?? enableSavedSearches;
@@ -326,6 +332,11 @@ export function ElasticInput(props: ElasticInputProps) {
   // stale-position flash and jitter. In caret-following mode we use rAF so the
   // caret rect is measured after the DOM has updated.
   const showDropdownAtPosition = React.useCallback((height: number, width: number, kind: 'dropdown' | 'datePicker' = 'dropdown') => {
+    // Cap height to the rendered max — the CSS maxHeight clips the dropdown,
+    // but positioning (flip logic) must use the actual rendered size to avoid
+    // placing the dropdown off-screen when there are many suggestions.
+    const cappedHeight = kind === 'datePicker' ? height : capDropdownHeight(height, dropdownMaxHeightPx);
+
     // Full-width mode only applies to the suggestion dropdown, not custom
     // dropdowns like date pickers — those stay compact and caret-relative.
     const useContainerAlign = dropdownAlignToInput && kind !== 'datePicker';
@@ -333,7 +344,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (useContainerAlign) {
       // Container-relative: position is stable, set synchronously
       setShowDropdown(true);
-      setDropdownPosition(computeDropdownPosition(height, width));
+      setDropdownPosition(computeDropdownPosition(cappedHeight, width));
       return;
     }
     // Caret-following: defer to rAF so caret rect is fresh
@@ -344,10 +355,10 @@ export function ElasticInput(props: ElasticInputProps) {
         setShowDropdown(true);
       }
       const rect = getCaretRect();
-      const pos = rect ? getDropdownPosition(rect, height, width) : null;
+      const pos = rect ? getDropdownPosition(rect, cappedHeight, width) : null;
       setDropdownPosition(pos);
     });
-  }, [dropdownAlignToInput, computeDropdownPosition]);
+  }, [dropdownAlignToInput, computeDropdownPosition, dropdownMaxHeightPx]);
 
   // Threshold: above this token count, debounce the expensive innerHTML replacement
   const HIGHLIGHT_DEBOUNCE_THRESHOLD = 80;
@@ -639,6 +650,9 @@ export function ElasticInput(props: ElasticInputProps) {
             }));
           }
 
+          // Truncate to maxSuggestions — async providers may return unbounded results
+          mapped = mapped.slice(0, effectiveMaxSuggestions);
+
           if (mapped.length > 0) {
             setSuggestions(mapped);
             setSelectedSuggestionIndex(partial ? 0 : -1);
@@ -678,7 +692,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;

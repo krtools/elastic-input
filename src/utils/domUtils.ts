@@ -71,6 +71,15 @@ export function getContainerOffset(container: HTMLElement): { top: number; left:
   };
 }
 
+/**
+ * Cap the height used for dropdown positioning to the rendered max height.
+ * The CSS maxHeight clips the dropdown visually, but the flip logic needs
+ * the actual rendered size to avoid positioning the dropdown off-screen.
+ */
+export function capDropdownHeight(contentHeight: number, maxHeightPx: number): number {
+  return Math.min(contentHeight, maxHeightPx);
+}
+
 export function getDropdownPosition(
   caretRect: DOMRect,
   dropdownHeight: number,

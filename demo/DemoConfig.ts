@@ -94,6 +94,9 @@ const MOCK_BRANDS = [
   'Bose', 'LG', 'Dell', 'HP', 'Lenovo', 'Canon', 'Dyson',
 ];
 
+// Large dataset for testing async suggestions with many results
+const MOCK_SKUS = Array.from({ length: 500 }, (_, i) => `SKU-${String(i + 1).padStart(5, '0')}`);
+
 /** Lookup of all field values for the mock fetch callback. */
 const ALL_FIELD_VALUES: Record<string, string[]> = {
   status: ['active', 'inactive', 'lead', 'prospect', 'churned'],
@@ -103,6 +106,7 @@ const ALL_FIELD_VALUES: Record<string, string[]> = {
   category: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
   company: MOCK_COMPANIES,
   brand: MOCK_BRANDS,
+  sku: MOCK_SKUS,
 };
 
 export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
@@ -117,7 +121,6 @@ export function mockFetchSuggestions(fieldName: string, partial: string): Promis
   const lower = partial.toLowerCase();
   const filtered = items
     .filter(item => item.toLowerCase().includes(lower))
-    .slice(0, 8)
     .map(item => ({ text: item, description: `${fieldName} match` }));
 
   // Simulate network delay — longer for async-only fields, shorter for enum fields

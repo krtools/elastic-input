@@ -1364,6 +1364,13 @@ export function ElasticInput(props: ElasticInputProps) {
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
+            if (selected.type === 'loading' || selected.type === 'error') {
+              // Non-interactive items: treat as no selection — close and submit
+              e.preventDefault();
+              closeDropdown();
+              if (onSearch) onSearch(currentValueRef.current, s.ast);
+              return;
+            }
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
               e.preventDefault();
               closeDropdown();
@@ -1386,7 +1393,11 @@ export function ElasticInput(props: ElasticInputProps) {
             acceptSuggestion(selected, 'Enter');
             return;
           }
-          break;
+          // No item selected — close dropdown and submit
+          e.preventDefault();
+          closeDropdown();
+          if (onSearch) onSearch(currentValueRef.current, s.ast);
+          return;
         case 'Tab': {
           if (onTabProp) {
             e.preventDefault();

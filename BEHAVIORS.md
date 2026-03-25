@@ -809,7 +809,7 @@ The dropdown's selected index determines which item is highlighted and which Ent
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
 - **Non-interactive hint selected** (fields like `price:42` where the only dropdown item is a hint such as "Enter a number"): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
 - **ArrowUp past first item**: deselects all (returns to index -1).
-- **Loading state** ("Searching..." for async fields): no item is pre-selected.
+- **Loading state** ("Searching..." for async fields): no item is pre-selected. Enter closes the dropdown and submits the search (does not block on pending fetch). Same applies to error items.
 
 - **Tests:** `SuggestionChaining.test.ts` → "number field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
 

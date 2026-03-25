@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 — 2026-03-25
+
+### Bug Fixes
+
+- **Enter key blocked during async loading** — Pressing Enter while the "Searching..." spinner or an error item was displayed did nothing. Enter now closes the dropdown and submits the search, same as when no item is selected.
+- **History description color on selection** — History item descriptions stayed gray when the row was highlighted. They now inherit the parent color and use standard 0.7 opacity, matching all other dropdown descriptions.
+
 ## 0.3.2 — 2026-03-25
 
 ### Features

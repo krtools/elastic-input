@@ -258,6 +258,10 @@ export interface DropdownConfig {
    *  immediate. If the user types before the delay elapses, the timer is cancelled.
    *  Ignored when `onNavigation` is false. @default 0 */
   navigationDelay?: number;
+  /** Delay in ms before showing the "Searching..." spinner on first entry into an
+   *  async field. If the fetch resolves before the delay, the spinner never appears.
+   *  Subsequent keystrokes preserve previous results regardless of this setting. @default 0 */
+  loadingDelay?: number;
   /** Custom renderer for field value hints. Return a React element for rich content,
    *  or null/undefined for the default hint. */
   renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;

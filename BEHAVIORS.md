@@ -530,11 +530,13 @@ Each async fetch is tagged with a monotonic request ID. When results arrive, the
 
 The "Searching..." loading item is a non-selectable dropdown entry with an animated CSS spinner. The loading indicator:
 
-- Appears immediately on first entry into a field value (when `fetchSuggestions` is provided)
+- Appears on first entry into a field value (when `fetchSuggestions` is provided), subject to `loadingDelay`
 - On subsequent keystrokes, previous results are preserved (no loading flash)
 - Only appears if the request is still the latest (checked via fetch ID)
 - Is cleared when the fetch completes, errors, or the dropdown closes
 - Uses the `placeholder` color for the spinner border
+
+**`dropdown.loadingDelay`** (default: `0`ms) — delays the "Searching..." spinner by the specified number of milliseconds. If the async fetch resolves before the delay elapses, the spinner is never shown. This prevents a distracting flash for fast-responding endpoints. When set to `0`, the spinner appears immediately (original behavior).
 
 #### 4.8.4 Debouncing
 

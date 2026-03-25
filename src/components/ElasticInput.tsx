@@ -199,6 +199,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const showOperators = dropdownConfig?.showOperators !== false;
   const triggerOnNavigation = (dropdownOpenIsCallback || dropdownMode !== 'input') && dropdownConfig?.onNavigation !== false;
   const navigationDelay = dropdownConfig?.navigationDelay ?? 0;
+  const loadingDelay = dropdownConfig?.loadingDelay ?? 0;
   const renderFieldHint = dropdownConfig?.renderFieldHint;
   const renderHistoryItem = dropdownConfig?.renderHistoryItem;
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
@@ -252,6 +253,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const navDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadingDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
@@ -503,6 +505,7 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = false;
       abortControllerRef.current?.abort();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
 
       // Parse range bounds for pre-populating the date picker
       const init = computeDatePickerInit(result.context, parseDateProp);
@@ -549,6 +552,7 @@ export function ElasticInput(props: ElasticInputProps) {
       asyncActiveRef.current = false;
       abortControllerRef.current?.abort();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
 
 
       const newSuggestions = applyFieldHint(result.suggestions, result.context);
@@ -566,24 +570,35 @@ export function ElasticInput(props: ElasticInputProps) {
         setAutocompleteContext(contextType);
       }
     } else {
-      // First entry into an async context — show "Searching..." immediately
+      // First entry into an async context — show "Searching..." spinner.
+      // If loadingDelay is set, defer the spinner so fast fetches skip it.
       const token = result.context.token;
       const start = token ? token.start : offset;
       const end = token ? token.end : offset;
-      const loadingLabel = 'Searching...';
-      const loadingSuggestion: Suggestion = {
-        text: '',
-        label: loadingLabel,
-        type: 'loading',
-        replaceStart: start,
-        replaceEnd: end,
+
+      const showSpinner = () => {
+        loadingDelayTimerRef.current = null;
+        const loadingSuggestion: Suggestion = {
+          text: '',
+          label: 'Searching...',
+          type: 'loading',
+          replaceStart: start,
+          replaceEnd: end,
+        };
+        setSuggestions([loadingSuggestion]);
+        if (!dropdownAlignToInput) setShowDropdown(false);
+        setShowDatePicker(false);
+        setSelectedSuggestionIndex(-1);
+        showDropdownAtPosition(32, 300);
       };
-      setSuggestions([loadingSuggestion]);
-      if (!dropdownAlignToInput) setShowDropdown(false);
-      setShowDatePicker(false);
-      setSelectedSuggestionIndex(-1);
+
+      if (loadingDelayTimerRef.current) clearTimeout(loadingDelayTimerRef.current);
+      if (loadingDelay > 0) {
+        loadingDelayTimerRef.current = setTimeout(showSpinner, loadingDelay);
+      } else {
+        showSpinner();
+      }
       setAutocompleteContext(contextType);
-      showDropdownAtPosition(32, 300);
     }
 
     // Handle async fetch (field values, saved searches, or history)
@@ -651,6 +666,9 @@ export function ElasticInput(props: ElasticInputProps) {
             }));
           }
 
+          // Cancel loading delay — results arrived before spinner was needed
+          if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
+
           // Truncate to maxSuggestions — async providers may return unbounded results
           mapped = mapped.slice(0, effectiveMaxSuggestions);
 
@@ -675,6 +693,7 @@ export function ElasticInput(props: ElasticInputProps) {
             }
           }
         } catch (e) {
+          if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
           // Only update if this is still the latest request
           if (!controller.signal.aborted) {
             const errorMsg = e instanceof Error ? e.message : 'Error loading suggestions';
@@ -693,7 +712,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
@@ -931,6 +950,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
       if (navDelayTimerRef.current) clearTimeout(navDelayTimerRef.current);
+      if (loadingDelayTimerRef.current) clearTimeout(loadingDelayTimerRef.current);
       abortControllerRef.current?.abort();
     };
   }, []);

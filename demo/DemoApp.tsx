@@ -163,6 +163,35 @@ function OptionSelect<T extends string | number>({ label, value, options, onChan
   );
 }
 
+function OptionNumber({ label, value, onChange, min, max, theme }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; theme: any;
+}) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
+      <span style={{ minWidth: 0 }}>{label}</span>
+      <input
+        type="number"
+        style={{
+          width: '60px',
+          padding: '3px 6px',
+          border: `1px solid ${theme.border}`,
+          borderRadius: '4px',
+          backgroundColor: theme.surface,
+          color: theme.text,
+          fontSize: '12px',
+        }}
+        value={value}
+        min={min}
+        max={max}
+        onChange={e => {
+          const n = parseInt(e.target.value, 10);
+          if (!isNaN(n)) onChange(n);
+        }}
+      />
+    </label>
+  );
+}
+
 function OptionGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: any }) {
   return (
     <div style={{ marginBottom: '12px' }}>
@@ -533,17 +562,12 @@ export function DemoApp() {
             </OptionGroup>
 
             <OptionGroup label="Limits" theme={theme}>
-              <OptionSelect
+              <OptionNumber
                 label="Max suggestions"
                 value={maxSuggestions}
-                options={[
-                  { value: 3, label: '3' },
-                  { value: 5, label: '5' },
-                  { value: 8, label: '8' },
-                  { value: 10, label: '10' },
-                  { value: 15, label: '15' },
-                ]}
                 onChange={setMaxSuggestions}
+                min={1}
+                max={100}
                 theme={theme}
               />
               <OptionSelect

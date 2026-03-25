@@ -1361,6 +1361,14 @@ export function ElasticInput(props: ElasticInputProps) {
           e.preventDefault();
           setSelectedSuggestionIndex(i => Math.max(i - 1, -1));
           return;
+        case 'PageDown':
+          e.preventDefault();
+          setSelectedSuggestionIndex(i => Math.min(i + 10, s.suggestions.length - 1));
+          return;
+        case 'PageUp':
+          e.preventDefault();
+          setSelectedSuggestionIndex(i => Math.max(i - 10, 0));
+          return;
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];

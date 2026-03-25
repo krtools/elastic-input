@@ -1346,6 +1346,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `datePresets` | `{ label, value }[]` | built-in | Custom date range picker presets; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
+| `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Set to `0` to disable. |
 
 #### `DropdownConfig` Sub-Properties
 
@@ -1445,6 +1446,21 @@ Placeholder positioning is automatically derived from `inputPadding` so it align
 | `getValidationErrors()` | Returns current validation errors |
 
 ---
+
+## 10.5 Plain Mode (`plainModeLength`)
+
+When the input text length reaches or exceeds `plainModeLength`, the component switches to plain mode:
+
+- **Lexer, Parser, Validator** are skipped entirely — no tokens, no AST, no validation errors.
+- **Syntax highlighting** is removed — the editor shows unstyled plain text.
+- **Autocomplete dropdown** is closed and not triggered.
+- **Validation squiggles** are cleared.
+- **`onChange`** still fires on every keystroke with `ast: null`.
+- **`onSearch`** still fires on Enter/Ctrl+Enter with `ast: null`.
+
+When the text drops back below the threshold (e.g. user deletes content), highlighting, autocomplete, and validation resume automatically.
+
+Set `plainModeLength` to `0` or omit to disable this behavior.
 
 ## 11. Undo / Redo
 

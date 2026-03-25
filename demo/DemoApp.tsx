@@ -31,6 +31,20 @@ const TABS: TabConfig[] = [
 
 interface ExampleQuery { label: string; query: string; desc: string }
 
+// Generate a large query to demonstrate plain mode
+function generateLargeQuery(): string {
+  const statuses = ['active', 'lead', 'prospect', 'churned', 'inactive'];
+  const tags = ['enterprise', 'smb', 'startup', 'partner', 'trial', 'premium'];
+  const lines: string[] = [];
+  for (let i = 0; i < 40; i++) {
+    const status = statuses[i % statuses.length];
+    const tag = tags[i % tags.length];
+    const value = (i + 1) * 1000;
+    lines.push(`(status:${status} AND tags:${tag} AND deal_value:>${value})`);
+  }
+  return lines.join('\nOR ');
+}
+
 const EXAMPLE_QUERIES: Record<TabId, ExampleQuery[]> = {
   crm: [
     { label: 'status:active AND deal_value:>5000',
@@ -66,6 +80,9 @@ const EXAMPLE_QUERIES: Record<TabId, ExampleQuery[]> = {
     { label: 'Age validation',
       query: 'age:abc AND status:active',
       desc: 'Invalid age format triggers custom validation' },
+    { label: 'Plain mode (large query)',
+      query: generateLargeQuery(),
+      desc: 'Exceeds plainModeLength — highlighting and autocomplete disabled' },
   ],
   logs: [
     { label: 'level:ERROR AND service:api-gateway',
@@ -392,6 +409,7 @@ export function DemoApp() {
                   validateValue={demoValidateValue}
                   onTab={useOnTab ? handleTab : undefined}
                   inputRef={api => { inputApiRef.current = api; }}
+                  plainModeLength={2000}
                 />
               </div>
               <button

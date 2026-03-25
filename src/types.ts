@@ -457,4 +457,7 @@ export interface ElasticInputProps {
    * The built-in parser handles YYYY-MM-DD, ISO 8601, and `now±Xd` syntax.
    */
   parseDate?: (value: string) => Date | null;
+  /** When the input text reaches this character count, syntax highlighting, autocomplete,
+   *  and validation are disabled and the input becomes a plain text box. `0` = always plain. */
+  plainModeLength?: number;
 }

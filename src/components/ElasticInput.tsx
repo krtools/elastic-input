@@ -177,6 +177,7 @@ export function ElasticInput(props: ElasticInputProps) {
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
     validateValue,
     parseDate: parseDateProp,
+    plainModeLength,
   } = props;
 
   // Dropdown config
@@ -291,6 +292,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [isFocused, setIsFocused] = React.useState(false);
   const [isEmpty, setIsEmpty] = React.useState(!currentValueRef.current);
+  const [isPlainMode, setIsPlainMode] = React.useState(
+    plainModeLength != null && currentValueRef.current.length >= plainModeLength
+  );
   const [cursorOffset, setCursorOffset] = React.useState(0);
   const [selectionEnd, setSelectionEnd] = React.useState(0);
   const [autocompleteContext, setAutocompleteContext] = React.useState('');
@@ -374,6 +378,32 @@ export function ElasticInput(props: ElasticInputProps) {
   }, [colors]);
 
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
+    // Plain mode: skip Lexer/Parser/Validator, no highlighting or autocomplete
+    const plain = plainModeLength != null && text.length >= plainModeLength;
+    setIsPlainMode(plain);
+    if (plain) {
+      setTokens([]);
+      setAst(null);
+      setValidationErrors([]);
+      setIsEmpty(text.length === 0);
+      setSuggestions([]);
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      if (editorRef.current) {
+        const offset = getCaretCharOffset(editorRef.current);
+        // Strip any leftover HTML highlighting — show plain text
+        if (editorRef.current.querySelector('span')) {
+          editorRef.current.textContent = text;
+          setCaretCharOffset(editorRef.current, offset);
+        }
+        setCursorOffset(offset);
+        setSelectionEnd(offset);
+      }
+      if (onChange) onChange(text, null);
+      if (onValidationChange) onValidationChange([]);
+      return;
+    }
+
     const lexer = new Lexer(text, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
@@ -418,7 +448,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange, applyHighlight]);
+  }, [colors, onChange, onValidationChange, applyHighlight, plainModeLength]);
 
   // Apply renderFieldHint to hint suggestions when in a field value context
   const applyFieldHint = React.useCallback((suggestions: Suggestion[], context: { type: string; fieldName?: string; partial: string }) => {

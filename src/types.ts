@@ -313,21 +313,6 @@ export interface ElasticInputAPI {
   setSelection: (start: number, end: number) => void;
 }
 
-/**
- * Props for the ElasticInput component.
- *
- * @example
- * ```tsx
- * <ElasticInput
- *   fields={[
- *     { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
- *     { name: 'price', type: 'number' },
- *   ]}
- *   onSearch={(query, ast) => console.log('Search:', query)}
- *   placeholder="Search..."
- * />
- * ```
- */
 /** Context passed to the `onTab` callback. */
 export interface TabContext {
   /** The currently selected suggestion, or `null` if nothing is highlighted. */
@@ -378,6 +363,21 @@ export interface ClassNamesConfig {
 /** Field definitions — either a static array or an async loader function. */
 export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
 
+/**
+ * Props for the ElasticInput component.
+ *
+ * @example
+ * ```tsx
+ * <ElasticInput
+ *   fields={[
+ *     { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
+ *     { name: 'price', type: 'number' },
+ *   ]}
+ *   onSearch={(query, ast) => console.log('Search:', query)}
+ *   placeholder="Search..."
+ * />
+ * ```
+ */
 export interface ElasticInputProps {
   /** Field definitions that determine autocomplete, validation, and syntax highlighting. Accepts a static array or an async loader function. */
   fields: FieldsSource;

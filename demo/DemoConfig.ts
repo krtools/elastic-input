@@ -1,7 +1,7 @@
 import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem, ValidateValueContext, ValidateReturn } from '../src/types';
 
 export const CRM_FIELDS: FieldConfig[] = [
-  { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
+  { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact', suggestions: false },
   { name: 'email', label: 'Email', type: 'string', description: 'Email address' },
   { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number' },
   { name: 'status', label: 'Status', type: 'string', description: 'Contact status', placeholder: 'Search statuses...' },
@@ -110,6 +110,8 @@ const ALL_FIELD_VALUES: Record<string, string[]> = {
 };
 
 export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
+  if (fieldName === 'name') return Promise.resolve([]);
+
   // Simulate a broken endpoint for the "broken" demo field
   if (fieldName === 'broken') {
     return new Promise((_, reject) => setTimeout(() => reject(new Error('Service unavailable')), 300));

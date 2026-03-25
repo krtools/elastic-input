@@ -139,6 +139,7 @@ interface FieldConfig {
   operators?: string[];   // Allowed operators (future use)
   description?: string;   // Shown in autocomplete dropdown
   placeholder?: string | false; // Hint shown while typing a value (false to suppress)
+  suggestions?: boolean;        // Whether fetchSuggestions is called (default true)
 }
 ```
 

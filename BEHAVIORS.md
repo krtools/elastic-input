@@ -506,7 +506,7 @@ Within the same priority, items retain their relevance-based ordering.
 
 When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions in every `FIELD_VALUE` context. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
 
-`FieldConfig.asyncSearch` and `FieldConfig.asyncSearchLabel` have been removed. Every field value context triggers `fetchSuggestions` when the prop is provided — there is no per-field opt-in flag. If the callback has no data for a given field it should return an empty array; the engine then falls back to the type-based hint (e.g. "Enter a number") if one exists.
+`FieldConfig.asyncSearch` and `FieldConfig.asyncSearchLabel` have been removed. By default, every field value context triggers `fetchSuggestions` when the prop is provided. To opt a field out, set `suggestions: false` on its `FieldConfig` — the component will skip the async fetch entirely (no "Searching..." spinner, no debounce timer). If the callback has no data for a given field it should return an empty array; the engine then falls back to the type-based hint (e.g. "Enter a number") if one exists.
 
 #### 4.8.1 Async Lifecycle & Dropdown Content
 

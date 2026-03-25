@@ -488,7 +488,8 @@ export function ElasticInput(props: ElasticInputProps) {
       fetchSuggestionsProp &&
       result.context.type === 'FIELD_VALUE' &&
       result.context.fieldName &&
-      resolvedField?.type !== 'boolean'
+      resolvedField?.type !== 'boolean' &&
+      resolvedField?.suggestions !== false
     ) || !!(
       typeof savedSearches === 'function' &&
       result.context.type === 'SAVED_SEARCH'

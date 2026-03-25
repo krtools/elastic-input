@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ColorConfig, StyleConfig } from '../types';
 import { mergeColors, mergeStyles, getDatePickerStyle } from '../styles/inlineStyles';
+import { cx } from '../utils/cx';
 import {
   formatDate,
   getDaysInMonth,
@@ -18,6 +19,8 @@ interface DateRangePickerProps {
   initialStart?: Date | null;
   initialEnd?: Date | null;
   presets?: { label: string; value: string }[];
+  /** Custom class name for the date picker container. */
+  className?: string;
 }
 
 type ViewLevel = 'days' | 'months' | 'years';
@@ -28,7 +31,7 @@ function getDecadeStart(year: number): number {
   return Math.floor(year / 10) * 10;
 }
 
-export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd, presets: presetsProp }: DateRangePickerProps) {
+export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd, presets: presetsProp, className }: DateRangePickerProps) {
   const now = new Date();
   // In range mode, navigate to the end date's month so the user sees "now"
   // rather than a distant start date (e.g. [now-365d TO now] → show March 2026).
@@ -155,6 +158,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     dayCells.push(
       <button
         key={d}
+        className="ei-datepicker-day"
         style={dayStyle}
         onClick={() => selectDay(d)}
         onMouseEnter={(e) => {
@@ -206,8 +210,8 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
   };
 
   return (
-    <div style={styles.container} onMouseDown={e => e.preventDefault()} onMouseLeave={() => setHoverDate(null)}>
-      <div style={styles.rangeToggle}>
+    <div className={cx('ei-datepicker', className)} style={styles.container} onMouseDown={e => e.preventDefault()} onMouseLeave={() => setHoverDate(null)}>
+      <div className="ei-datepicker-toggle" style={styles.rangeToggle}>
         {(['single', 'range'] as const).map(m => (
           <button
             key={m}
@@ -222,7 +226,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
         ))}
       </div>
 
-      <div style={styles.header}>
+      <div className="ei-datepicker-header" style={styles.header}>
         <button style={styles.navButton} onClick={navigatePrev}>&lsaquo;</button>
         <button
           style={{
@@ -251,7 +255,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
           <div style={styles.weekDays}>
             {weekDays.map(wd => <div key={wd} style={styles.weekDay}>{wd}</div>)}
           </div>
-          <div style={styles.days}>
+          <div className="ei-datepicker-days" style={styles.days}>
             {dayCells}
           </div>
         </>
@@ -348,7 +352,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
       )}
 
       {mode === 'range' && (
-        <div style={{
+        <div className="ei-datepicker-presets" style={{
           ...styles.quickOptions,
           ...presetGridStyle,
         }}>

@@ -6,6 +6,7 @@
 
 - Move field value, saved search, and history filtering to callbacks
 - Rename `dropdown.mode` to `dropdown.open` and add callback support (`dropdown.mode` still works as deprecated fallback)
+- Add static `ei-*` CSS classes to all key DOM elements and a `classNames` prop for custom class injection (Tailwind-friendly)
 
   **Breaking changes:**
 

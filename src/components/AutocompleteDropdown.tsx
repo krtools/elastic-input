@@ -1,6 +1,7 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Suggestion } from '../autocomplete/suggestionTypes';
+import { cx } from '../utils/cx';
 
 // Inject spinner keyframes once
 if (typeof document !== 'undefined') {
@@ -38,6 +39,12 @@ interface AutocompleteDropdownProps {
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
   renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
   cursorContext?: CursorContext | null;
+  /** Custom class names for dropdown elements. */
+  classNames?: {
+    dropdown?: string;
+    dropdownHeader?: string;
+    dropdownItem?: string;
+  };
 }
 
 function highlightMatch(text: string, partial: string | undefined, isSelected: boolean): React.ReactNode {
@@ -60,7 +67,7 @@ function highlightMatch(text: string, partial: string | undefined, isSelected: b
     textUnderlineOffset: '2px',
   };
 
-  return <>{before}<span style={matchStyle}>{match}</span>{after}</>;
+  return <>{before}<span className="ei-highlight-match" style={matchStyle}>{match}</span>{after}</>;
 }
 
 export function AutocompleteDropdown({
@@ -76,6 +83,7 @@ export function AutocompleteDropdown({
   renderSavedSearchItem,
   renderDropdownHeader,
   cursorContext,
+  classNames,
 }: AutocompleteDropdownProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const listRef = React.useRef<HTMLDivElement | null>(null);
@@ -122,9 +130,9 @@ export function AutocompleteDropdown({
   };
 
   const content = (
-    <div style={dropdownStyle} ref={listRef} onMouseDown={e => e.preventDefault()}>
+    <div className={cx('ei-dropdown', classNames?.dropdown)} style={dropdownStyle} ref={listRef} onMouseDown={e => e.preventDefault()}>
       {hasHeader && (
-        <div style={{
+        <div className={cx('ei-dropdown-header', classNames?.dropdownHeader)} style={{
           padding: mergedStyles.dropdownItemPadding || '4px 10px',
           fontSize: '11px',
           color: mergedColors.placeholder,
@@ -143,6 +151,7 @@ export function AutocompleteDropdown({
           return (
             <div
               key={i}
+              className={cx('ei-dropdown-item', 'ei-dropdown-item--hint', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
               style={{ ...itemStyle, opacity: isSelected ? 1 : 0.7 }}
               onClick={() => onSelect(suggestion)}
               onMouseEnter={(e) => {
@@ -154,9 +163,9 @@ export function AutocompleteDropdown({
                 (e.currentTarget as HTMLElement).style.opacity = isSelected ? '1' : '0.7';
               }}
             >
-              <span style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
+              <span className="ei-dropdown-item-label" style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
               {suggestion.description && (
-                <span style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
+                <span className="ei-dropdown-item-desc" style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
               )}
             </div>
           );
@@ -165,8 +174,8 @@ export function AutocompleteDropdown({
         // Error indicator
         if (suggestion.type === 'error') {
           return (
-            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: 0.8 }}>
-              <span style={{ ...getDropdownItemLabelStyle(false), color: mergedColors.error }}>
+            <div key={i} className={cx('ei-dropdown-item', 'ei-dropdown-item--error', classNames?.dropdownItem)} style={{ ...itemStyle, cursor: 'default', opacity: 0.8 }}>
+              <span className="ei-dropdown-item-label" style={{ ...getDropdownItemLabelStyle(false), color: mergedColors.error }}>
                 {suggestion.label || 'Error loading suggestions'}
               </span>
             </div>
@@ -176,11 +185,11 @@ export function AutocompleteDropdown({
         // Loading indicator
         if (suggestion.type === 'loading') {
           return (
-            <div key={i} style={{ ...itemStyle, cursor: 'default', opacity: 0.6, justifyContent: 'center' }}>
-              <span style={{ ...getDropdownItemLabelStyle(false), fontStyle: 'italic' }}>
+            <div key={i} className={cx('ei-dropdown-item', 'ei-dropdown-item--loading', classNames?.dropdownItem)} style={{ ...itemStyle, cursor: 'default', opacity: 0.6, justifyContent: 'center' }}>
+              <span className="ei-dropdown-item-label" style={{ ...getDropdownItemLabelStyle(false), fontStyle: 'italic' }}>
                 {suggestion.label || 'Searching...'}
               </span>
-              <span style={{ marginLeft: '6px', display: 'inline-block', animation: 'elastic-input-spin 1s linear infinite', width: '14px', height: '14px', border: '2px solid', borderColor: `${mergedColors.placeholder} transparent ${mergedColors.placeholder} transparent`, borderRadius: '50%' }} />
+              <span className="ei-dropdown-spinner" style={{ marginLeft: '6px', display: 'inline-block', animation: 'elastic-input-spin 1s linear infinite', width: '14px', height: '14px', border: '2px solid', borderColor: `${mergedColors.placeholder} transparent ${mergedColors.placeholder} transparent`, borderRadius: '50%' }} />
             </div>
           );
         }
@@ -189,10 +198,10 @@ export function AutocompleteDropdown({
         if (suggestion.type === 'hint') {
           const hintStyle = getDropdownItemStyle(false, mergedColors, mergedStyles);
           return (
-            <div key={i} style={{ ...hintStyle, cursor: 'default', opacity: suggestion.customContent ? 1 : 0.6 }}>
+            <div key={i} className={cx('ei-dropdown-item', 'ei-dropdown-item--hint', classNames?.dropdownItem)} style={{ ...hintStyle, cursor: 'default', opacity: suggestion.customContent ? 1 : 0.6 }}>
               {suggestion.customContent
                 ? suggestion.customContent
-                : <span style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
+                : <span className="ei-dropdown-item-label" style={getDropdownItemLabelStyle(isSelected)}>{suggestion.label}</span>
               }
             </div>
           );
@@ -212,6 +221,7 @@ export function AutocompleteDropdown({
           return (
             <div
               key={i}
+              className={cx('ei-dropdown-item', 'ei-dropdown-item--history', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
               style={{ ...itemStyle, flexDirection: 'column', alignItems: 'flex-start' }}
               title={hasExplicitLabel ? suggestion.text : undefined}
               onClick={() => onSelect(suggestion)}
@@ -224,7 +234,7 @@ export function AutocompleteDropdown({
             >
               {customContent != null ? customContent : (
                 <>
-                  <span style={{
+                  <span className="ei-dropdown-item-label" style={{
                     ...getDropdownItemLabelStyle(isSelected),
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
@@ -238,9 +248,9 @@ export function AutocompleteDropdown({
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                     {suggestion.description && (
-                      <span style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
+                      <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
                     )}
-                    <span style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
+                    <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
                   </span>
                 </>
               )}
@@ -255,6 +265,7 @@ export function AutocompleteDropdown({
             return (
               <div
                 key={i}
+                className={cx('ei-dropdown-item', 'ei-dropdown-item--saved-search', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
                 style={itemStyle}
                 onClick={() => onSelect(suggestion)}
                 onMouseEnter={(e) => {
@@ -270,9 +281,11 @@ export function AutocompleteDropdown({
           }
         }
 
+        const itemTypeModifier = suggestion.type === 'savedSearch' ? 'ei-dropdown-item--saved-search' : undefined;
         return (
           <div
             key={i}
+            className={cx('ei-dropdown-item', itemTypeModifier, isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
             style={itemStyle}
             onClick={() => onSelect(suggestion)}
             onMouseEnter={(e) => {
@@ -282,14 +295,14 @@ export function AutocompleteDropdown({
               (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
             }}
           >
-            <span style={getDropdownItemLabelStyle(isSelected)}>
+            <span className="ei-dropdown-item-label" style={getDropdownItemLabelStyle(isSelected)}>
               {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
             </span>
             {suggestion.description && (
-              <span style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
+              <span className="ei-dropdown-item-desc" style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
             )}
             {suggestion.type && suggestion.type !== 'hint' && (
-              <span style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{suggestion.type}</span>
+              <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{suggestion.type}</span>
             )}
           </div>
         );

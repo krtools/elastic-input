@@ -2,6 +2,7 @@ import * as React from 'react';
 import { ValidationError } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
 import { mergeColors, mergeStyles, getSquigglyStyle } from '../styles/inlineStyles';
+import { cx } from '../utils/cx';
 
 interface ValidationSquigglesProps {
   errors: ValidationError[];
@@ -10,6 +11,11 @@ interface ValidationSquigglesProps {
   colors?: ColorConfig;
   styles?: StyleConfig;
   containerRef?: HTMLDivElement | null;
+  /** Custom class names for squiggly and tooltip elements. */
+  classNames?: {
+    squiggly?: string;
+    tooltip?: string;
+  };
 }
 
 interface SquigglyRect {
@@ -139,7 +145,7 @@ function squigglyBgForColor(hexColor: string) {
   return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4' viewBox='0 0 8 4'%3E%3Cpath d='M0 2 Q2 0 4 2 Q6 4 8 2' stroke='${encoded}' fill='none' stroke-width='0.8'/%3E%3C/svg%3E")`;
 }
 
-export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef }: ValidationSquigglesProps) {
+export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef, classNames }: ValidationSquigglesProps) {
   const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
   const [mousePos, setMousePos] = React.useState<{ x: number; clientY: number }>({ x: 0, clientY: 0 });
   const [rects, setRects] = React.useState<SquigglyRect[]>([]);
@@ -240,6 +246,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         return (
           <div
             key={`wave-${i}`}
+            className={cx('ei-squiggly', isWarning ? 'ei-squiggly--warning' : 'ei-squiggly--error', classNames?.squiggly)}
             style={{
               position: 'absolute',
               left: `${r.left}px`,
@@ -269,6 +276,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         return (
           <div
             ref={tooltipRef}
+            className={cx('ei-tooltip', classNames?.tooltip)}
             style={{
               position: 'absolute',
               top: `${top}px`,

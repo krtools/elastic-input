@@ -7,7 +7,8 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig } from '../types';
+import { cx } from '../utils/cx';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -97,9 +98,10 @@ interface DatePickerPortalProps {
   datePickerInit?: DatePickerInit | null;
   fixedWidth?: number;
   datePresets?: { label: string; value: string }[];
+  datePickerClassName?: string;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -129,7 +131,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
   };
 
   return ReactDOM.createPortal(
-    <div style={style} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
+    <div className="ei-datepicker-portal" style={style} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
       <DateRangePicker
         onSelect={onSelect}
         colors={colorConfig}
@@ -138,6 +140,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         initialStart={datePickerInit?.start}
         initialEnd={datePickerInit?.end}
         presets={datePresets}
+        className={datePickerClassName}
       />
     </div>,
     portalRef.current
@@ -164,7 +167,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const {
     fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
-    colors, styles: stylesProp, placeholder, className, style,
+    colors, styles: stylesProp, placeholder, className, classNames, style,
     dropdown: dropdownConfig, features: featuresConfig,
     inputRef, datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
@@ -347,7 +350,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const applyHighlight = React.useCallback((tokens: Token[], offset: number) => {
     if (!editorRef.current) return;
-    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset });
+    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset, tokenClassName: classNames?.token });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, offset);
   }, [colors]);
@@ -737,7 +740,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos });
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token });
       editorRef.current.innerHTML = html;
       setCaretCharOffset(editorRef.current, newCursorPos);
     }
@@ -995,7 +998,7 @@ export function ElasticInput(props: ElasticInputProps) {
     prevParenMatchRef.current = matchKey;
 
     const savedOffset = getCaretCharOffset(editorRef.current);
-    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor });
+    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, savedOffset);
   }, [cursorOffset, selectionEnd, isFocused, colors]);
@@ -1084,7 +1087,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos });
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos, tokenClassName: classNames?.token });
       editorRef.current.innerHTML = html;
       if (hasSelection) {
         setSelectionCharRange(editorRef.current, entry.selStart!, entry.cursorPos);
@@ -1191,7 +1194,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
         const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
 
-        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd });
+        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token });
         editorRef.current.innerHTML = html;
         setSelectionCharRange(editorRef.current, newSelStart, newSelEnd);
 
@@ -1540,11 +1543,12 @@ export function ElasticInput(props: ElasticInputProps) {
   const placeholderStyle = getPlaceholderStyle(mergedColors, mergedStyleConfig);
 
   return (
-    <div ref={containerRef} style={containerStyle} className={className}>
+    <div ref={containerRef} style={containerStyle} className={cx('ei-container', className, classNames?.container)}>
       <div
         ref={editorRefCallback}
         contentEditable
         suppressContentEditableWarning
+        className={cx('ei-editor', classNames?.editor)}
         style={editableStyle}
         onInput={handleInput}
         onKeyDown={handleKeyDown}
@@ -1559,7 +1563,7 @@ export function ElasticInput(props: ElasticInputProps) {
       />
 
       {isEmpty && !isFocused ? (
-        <div style={placeholderStyle}>{placeholder || 'Search...'}</div>
+        <div className={cx('ei-placeholder', classNames?.placeholder)} style={placeholderStyle}>{placeholder || 'Search...'}</div>
       ) : null}
 
       <ValidationSquiggles
@@ -1569,6 +1573,7 @@ export function ElasticInput(props: ElasticInputProps) {
         colors={colors}
         styles={stylesProp}
         containerRef={containerRef.current}
+        classNames={classNames ? { squiggly: classNames.squiggly, tooltip: classNames.tooltip } : undefined}
       />
 
       <AutocompleteDropdown
@@ -1584,6 +1589,7 @@ export function ElasticInput(props: ElasticInputProps) {
         renderSavedSearchItem={renderSavedSearchItem}
         renderDropdownHeader={renderDropdownHeader}
         cursorContext={cursorContext}
+        classNames={classNames ? { dropdown: classNames.dropdown, dropdownHeader: classNames.dropdownHeader, dropdownItem: classNames.dropdownItem } : undefined}
       />
 
       {showDatePicker && dropdownPosition ? (
@@ -1596,6 +1602,7 @@ export function ElasticInput(props: ElasticInputProps) {
           datePickerInit={datePickerInit}
           fixedWidth={undefined}
           datePresets={datePresetsProp}
+          datePickerClassName={classNames?.datePicker}
         />
       ) : null}
     </div>

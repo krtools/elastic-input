@@ -342,6 +342,33 @@ export interface TabActionResult {
   submit?: boolean;
 }
 
+/**
+ * Custom CSS class names for key DOM elements.
+ * Applied alongside the static `ei-*` classes (not replacing them).
+ */
+export interface ClassNamesConfig {
+  /** Outer container div. */
+  container?: string;
+  /** The contentEditable editor div. */
+  editor?: string;
+  /** The placeholder text div. */
+  placeholder?: string;
+  /** The autocomplete dropdown container. */
+  dropdown?: string;
+  /** The dropdown header div. */
+  dropdownHeader?: string;
+  /** Each dropdown suggestion item div. */
+  dropdownItem?: string;
+  /** Each syntax-highlighted token span (in the HTML output). */
+  token?: string;
+  /** Validation squiggly underline divs. */
+  squiggly?: string;
+  /** Error/warning tooltip div. */
+  tooltip?: string;
+  /** The date picker container. */
+  datePicker?: string;
+}
+
 /** Field definitions — either a static array or an async loader function. */
 export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
 
@@ -372,6 +399,8 @@ export interface ElasticInputProps {
   placeholder?: string;
   /** CSS class name applied to the outer container `<div>`. */
   className?: string;
+  /** Custom CSS classes for key DOM elements (container, editor, dropdown, etc.). */
+  classNames?: ClassNamesConfig;
   /** Inline styles applied to the outer container `<div>`. */
   style?: React.CSSProperties;
   /** Dropdown behavior, rendering, and appearance configuration. */

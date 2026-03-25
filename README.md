@@ -116,6 +116,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `styles` | `StyleConfig` | `DEFAULT_STYLES` | Structural/layout style overrides |
 | `placeholder` | `string` | `"Search..."` | Placeholder text |
 | `className` | `string` | — | CSS class for the outer container |
+| `classNames` | `ClassNamesConfig` | — | Custom CSS classes for sub-elements (editor, dropdown, tokens, etc.) |
 | `style` | `CSSProperties` | — | Inline styles for the outer container |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
 | `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) |

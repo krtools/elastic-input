@@ -5,6 +5,29 @@ import { buildRegexHTML } from '../highlighting/regexHighlight';
 import { buildRangeHTML } from '../highlighting/rangeHighlight';
 import { findMatchingParen, ParenMatch } from '../highlighting/parenMatch';
 
+const TOKEN_CLASS_MAP: Record<TokenType, string> = {
+  [TokenType.FIELD_NAME]: 'field-name',
+  [TokenType.COLON]: 'colon',
+  [TokenType.VALUE]: 'value',
+  [TokenType.QUOTED_VALUE]: 'quoted-value',
+  [TokenType.AND]: 'and',
+  [TokenType.OR]: 'or',
+  [TokenType.NOT]: 'not',
+  [TokenType.COMPARISON_OP]: 'comparison-op',
+  [TokenType.LPAREN]: 'lparen',
+  [TokenType.RPAREN]: 'rparen',
+  [TokenType.SAVED_SEARCH]: 'saved-search',
+  [TokenType.HISTORY_REF]: 'history-ref',
+  [TokenType.PREFIX_OP]: 'prefix-op',
+  [TokenType.WILDCARD]: 'wildcard',
+  [TokenType.REGEX]: 'regex',
+  [TokenType.RANGE]: 'range',
+  [TokenType.TILDE]: 'tilde',
+  [TokenType.BOOST]: 'boost',
+  [TokenType.WHITESPACE]: 'whitespace',
+  [TokenType.UNKNOWN]: 'unknown',
+};
+
 const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
   [TokenType.FIELD_NAME]: 'fieldName',
   [TokenType.COLON]: 'operator',
@@ -30,6 +53,8 @@ const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
 
 export interface HighlightOptions {
   cursorOffset?: number;
+  /** Custom class name appended to every token span. */
+  tokenClassName?: string;
 }
 
 export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig, options?: HighlightOptions): string {
@@ -55,12 +80,12 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
 
     // Regex tokens get sub-highlighted
     if (token.type === TokenType.REGEX) {
-      return buildRegexHTML(token, colors);
+      return buildRegexHTML(token, colors, options?.tokenClassName);
     }
 
     // Range tokens get sub-highlighted
     if (token.type === TokenType.RANGE) {
-      return buildRangeHTML(token, colors);
+      return buildRangeHTML(token, colors, options?.tokenClassName);
     }
 
     let fontWeight = 'normal';
@@ -84,7 +109,8 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
       }
     }
 
-    return `<span style="color:${color};font-weight:${fontWeight};${extraStyle}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
+    const tokenClass = `ei-token ei-token--${TOKEN_CLASS_MAP[token.type]}${options?.tokenClassName ? ' ' + options.tokenClassName : ''}`;
+    return `<span class="${tokenClass}" style="color:${color};font-weight:${fontWeight};${extraStyle}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
   }).join('');
 }
 

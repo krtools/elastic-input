@@ -108,7 +108,7 @@ function escapeHTML(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function buildRangeHTML(token: Token, colors: Required<ColorConfig>): string {
+export function buildRangeHTML(token: Token, colors: Required<ColorConfig>, tokenClassName?: string): string {
   const parts = tokenizeRangeContent(token.value);
   const innerSpans = parts.map(part => {
     if (part.type === 'whitespace') {
@@ -117,8 +117,9 @@ export function buildRangeHTML(token: Token, colors: Required<ColorConfig>): str
     const colorKey = RANGE_COLOR_MAP[part.type];
     const color = colors[colorKey] || colors.fieldValue;
     const fontWeight = part.type === 'toKeyword' ? '600' : part.type === 'bracket' ? '600' : 'normal';
-    return `<span style="color:${color};font-weight:${fontWeight}">${escapeHTML(part.text)}</span>`;
+    return `<span class="ei-range-part ei-range-part--${part.type}" style="color:${color};font-weight:${fontWeight}">${escapeHTML(part.text)}</span>`;
   }).join('');
 
-  return `<span data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
+  const cls = `ei-token ei-token--range${tokenClassName ? ' ' + tokenClassName : ''}`;
+  return `<span class="${cls}" data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
 }

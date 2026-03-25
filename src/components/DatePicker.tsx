@@ -63,6 +63,7 @@ export function DatePicker({ onSelect, colors, selectedDate }: DatePickerProps) 
     dayCells.push(
       <button
         key={d}
+        className="ei-datepicker-day"
         style={dayStyle}
         onClick={() => onSelect(formatDate(date))}
         onMouseEnter={e => {
@@ -78,8 +79,8 @@ export function DatePicker({ onSelect, colors, selectedDate }: DatePickerProps) 
   }
 
   return (
-    <div style={styles.container} onMouseDown={e => e.preventDefault()}>
-      <div style={styles.header}>
+    <div className="ei-datepicker" style={styles.container} onMouseDown={e => e.preventDefault()}>
+      <div className="ei-datepicker-header" style={styles.header}>
         <button style={styles.navButton} onClick={prevMonth}>&lsaquo;</button>
         <span style={styles.monthLabel}>{getMonthName(viewMonth)} {viewYear}</span>
         <button style={styles.navButton} onClick={nextMonth}>&rsaquo;</button>
@@ -87,10 +88,10 @@ export function DatePicker({ onSelect, colors, selectedDate }: DatePickerProps) 
       <div style={styles.weekDays}>
         {weekDays.map(wd => <div key={wd} style={styles.weekDay}>{wd}</div>)}
       </div>
-      <div style={styles.days}>
+      <div className="ei-datepicker-days" style={styles.days}>
         {dayCells}
       </div>
-      <div style={styles.quickOptions}>
+      <div className="ei-datepicker-presets" style={styles.quickOptions}>
         <button style={styles.quickOption} onClick={() => onSelect('now')}>Now</button>
         <button style={styles.quickOption} onClick={() => onSelect('now-1d')}>Yesterday</button>
         <button style={styles.quickOption} onClick={() => onSelect('now-7d')}>Last 7 days</button>

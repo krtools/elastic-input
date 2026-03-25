@@ -164,14 +164,15 @@ function escapeHTML(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function buildRegexHTML(token: Token, colors: Required<ColorConfig>): string {
+export function buildRegexHTML(token: Token, colors: Required<ColorConfig>, tokenClassName?: string): string {
   const parts = tokenizeRegexContent(token.value);
   const innerSpans = parts.map(part => {
     const colorKey = REGEX_COLOR_MAP[part.type];
     const color = colors[colorKey] || colors.regexText;
     const fontWeight = part.type === 'delimiter' ? '600' : 'normal';
-    return `<span style="color:${color};font-weight:${fontWeight}">${escapeHTML(part.text)}</span>`;
+    return `<span class="ei-regex-part ei-regex-part--${part.type}" style="color:${color};font-weight:${fontWeight}">${escapeHTML(part.text)}</span>`;
   }).join('');
 
-  return `<span data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
+  const cls = `ei-token ei-token--regex${tokenClassName ? ' ' + tokenClassName : ''}`;
+  return `<span class="${cls}" data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
 }

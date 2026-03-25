@@ -1476,3 +1476,68 @@ The undo stack is capped at 100 entries. When exceeded, the oldest entry is trim
 Pushing a value identical to the current entry only updates the cursor position — it does not create a new undo step.
 
 - **Tests:** `undoStack.test.ts` → "deduplicates identical values (updates cursor only)"
+
+## 12. CSS Classes
+
+The component adds static CSS class names (prefixed `ei-`) to all key DOM elements for external CSS targeting. No CSS is shipped — classes are purely hooks for consumer stylesheets.
+
+### 12.1 Static Classes
+
+All elements receive static `ei-*` classes unconditionally. These are always present regardless of props.
+
+| Element | Class(es) |
+|---------|-----------|
+| Outer container | `ei-container` |
+| contentEditable editor | `ei-editor` |
+| Placeholder text | `ei-placeholder` |
+| Dropdown container | `ei-dropdown` |
+| Dropdown header | `ei-dropdown-header` |
+| Dropdown item | `ei-dropdown-item` |
+| Dropdown item (selected) | `ei-dropdown-item--selected` |
+| Dropdown item (hint) | `ei-dropdown-item--hint` |
+| Dropdown item (error) | `ei-dropdown-item--error` |
+| Dropdown item (loading) | `ei-dropdown-item--loading` |
+| Dropdown item (history) | `ei-dropdown-item--history` |
+| Dropdown item (saved search) | `ei-dropdown-item--saved-search` |
+| Item label | `ei-dropdown-item-label` |
+| Item description | `ei-dropdown-item-desc` |
+| Item type badge | `ei-dropdown-item-type` |
+| Loading spinner | `ei-dropdown-spinner` |
+| Match highlight | `ei-highlight-match` |
+| Token span | `ei-token ei-token--{type}` |
+| Regex sub-part | `ei-regex-part ei-regex-part--{type}` |
+| Range sub-part | `ei-range-part ei-range-part--{type}` |
+| Validation squiggly | `ei-squiggly` + `ei-squiggly--error` or `ei-squiggly--warning` |
+| Validation tooltip | `ei-tooltip` |
+| Date picker portal | `ei-datepicker-portal` |
+| Date picker container | `ei-datepicker` |
+| Date picker toggle | `ei-datepicker-toggle` |
+| Date picker header | `ei-datepicker-header` |
+| Date picker days grid | `ei-datepicker-days` |
+| Date picker day button | `ei-datepicker-day` |
+| Date picker presets | `ei-datepicker-presets` |
+
+Token type class suffixes (kebab-case of `TokenType`): `field-name`, `colon`, `value`, `quoted-value`, `and`, `or`, `not`, `comparison-op`, `lparen`, `rparen`, `saved-search`, `history-ref`, `prefix-op`, `wildcard`, `regex`, `range`, `tilde`, `boost`, `unknown`.
+
+### 12.2 Custom Class Names (`classNames` prop)
+
+The `classNames` prop on `ElasticInputProps` accepts a `ClassNamesConfig` object. Custom classes are appended after the static `ei-*` classes.
+
+```ts
+interface ClassNamesConfig {
+  container?: string;
+  editor?: string;
+  placeholder?: string;
+  dropdown?: string;
+  dropdownHeader?: string;
+  dropdownItem?: string;
+  token?: string;
+  squiggly?: string;
+  tooltip?: string;
+  datePicker?: string;
+}
+```
+
+The existing top-level `className` prop still applies to the outer container alongside `classNames.container`. All three sources are joined: `ei-container ${className} ${classNames.container}`.
+
+- **Tests:** `CssClasses.test.ts` — token class output, regex/range part classes, custom tokenClassName pass-through; `cx.test.ts` — class joining utility

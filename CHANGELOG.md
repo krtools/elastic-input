@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1 — 2026-03-25
+
+### Features
+
+- **`suggestions` field config option** — Set `suggestions: false` on a `FieldConfig` to skip the `fetchSuggestions` async cycle entirely for that field. No "Searching..." spinner, no debounce timer, no dropdown. Defaults to `true`.
+
+### Bug Fixes
+
+- **Dropdown vanishing when dragging scrollbar** — The scroll/resize reposition handler used uncapped content height for the flip logic (same class of bug as the 0.3.0 fetchSuggestions fix, but in a different code path). With many suggestions the dropdown was repositioned off-screen during scrollbar drag.
+
 ## 0.3.0 — 2026-03-25
 
 ### Features

@@ -48,18 +48,12 @@ export interface FieldConfig {
   label?: string;
   /** Data type that determines validation and autocomplete behavior. */
   type: FieldType;
-  /** Allowed values for `enum` fields, or value hints for other types. Shown in autocomplete. */
-  suggestions?: string[];
   /** Allowed comparison operators. Defaults to `>`, `>=`, `<`, `<=` for number/date fields. */
   operators?: string[];
   /** Description shown alongside the field in autocomplete suggestions. */
   description?: string;
   /** Custom placeholder hint shown in the dropdown while typing a value for this field (e.g. "Search by company name..."). Overrides the default type-based hint. Set to `false` to suppress the hint entirely. */
   placeholder?: string | false;
-  /** When `true`, the dropdown shows a "Searching..." spinner immediately when entering this field's value (instead of the sync hint). Use for fields whose values are provided by `fetchSuggestions`. @default false */
-  asyncSearch?: boolean;
-  /** Label shown next to the loading spinner for async fields. Accepts a static string or a callback receiving the current partial text. @default "Searching..." */
-  asyncSearchLabel?: string | ((partial: string) => string);
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */
@@ -337,10 +331,10 @@ export interface ElasticInputProps {
   value?: string;
   /** Initial value for uncontrolled usage. Ignored if `value` is provided. */
   defaultValue?: string;
-  /** Saved searches available via `#name` syntax. Can be an array or async loader. */
-  savedSearches?: SavedSearch[] | (() => Promise<SavedSearch[]>);
-  /** Search history available via `!` syntax. Can be an array or async loader. */
-  searchHistory?: HistoryEntry[] | (() => Promise<HistoryEntry[]>);
+  /** Saved searches available via `#name` syntax. Array is passed through as-is; callback is called per-keystroke (debounced) with the partial. */
+  savedSearches?: SavedSearch[] | ((partial: string) => Promise<SavedSearch[]>);
+  /** Search history available via `!` syntax. Array is passed through as-is; callback is called per-keystroke (debounced) with the partial. */
+  searchHistory?: HistoryEntry[] | ((partial: string) => Promise<HistoryEntry[]>);
   /** Async callback for fetching field value suggestions. Called with field name and partial text. */
   fetchSuggestions?: (fieldName: string, partial: string) => Promise<SuggestionItem[]>;
   /** Color overrides for syntax highlighting and UI elements. Merged with `DEFAULT_COLORS`. */

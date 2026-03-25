@@ -425,12 +425,13 @@ Shown in `FIELD_VALUE` context. Behavior depends on field type:
 
 | Field Type | Behavior |
 |------------|----------|
-| `string` (with `suggestions`) | Shows `field.suggestions` filtered by partial (startsWith > includes). Skipped when `fetchSuggestions` is provided — async is the single source of truth. |
 | `boolean` | Shows `true`, `false` filtered by partial |
 | `date` | Opens a date picker (no text suggestions) |
 | `number` | Shows hint: "Enter a number" (persists while typing) |
 | `string` | No default hint — dropdown stays closed. Use `placeholder` for a custom hint. |
 | `ip` | Shows hint: "Enter an IP address" (persists while typing) |
+
+`FieldConfig.suggestions` has been removed. Field value suggestions are no longer statically defined on the field config. All field value suggestions for string fields come exclusively through the `fetchSuggestions` callback (see section 4.8).
 
 For fields with a default hint (number, ip), the hint **stays visible while the user types** rather than disappearing after the first keystroke. This provides persistent context about what the field expects. String fields show no hint by default — consumers can add one via `FieldConfig.placeholder`.
 
@@ -443,7 +444,7 @@ When async results arrive (via `fetchSuggestions`), they replace the hint. When 
 
 For fully custom hint rendering (e.g. multiline rich content with instructions), the `dropdown.renderFieldHint` option accepts a callback `(field: FieldConfig, partial: string) => ReactNode | null`. When provided and returning a non-null value, the custom element replaces the default text hint in the dropdown. Returning `null` falls back to the default behavior. The callback receives the resolved `FieldConfig` (aliases are resolved to the canonical field).
 
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests all values after colon for field with suggestions", "filters values by prefix", "filters values by includes", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field with no suggestions", "shows hint for IP field", "shows no hint while typing in string field", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
+- **Tests:** `AutocompleteEngine.test.ts` → "string field returns no value suggestions (values come from fetchSuggestions)", "suggests true/false for boolean fields", "shows date picker for date field", "shows hint for number field", "shows no hint for string field without placeholder", "shows hint for IP field", "shows no hint while typing in string field without placeholder", "keeps hint visible while typing in number field", "uses custom placeholder from field config", "custom placeholder stays visible while typing", "suppresses hint when placeholder is false"
 
 ### 4.3 Operator Suggestions
 
@@ -454,17 +455,17 @@ Shown in `OPERATOR` context (after a complete value + space). Suggests `AND`, `O
 
 ### 4.4 Saved Search Suggestions
 
-Shown in `SAVED_SEARCH` context (after `#`). Filtered by prefix match on saved search name.
+Shown in `SAVED_SEARCH` context (after `#`). The engine passes saved search results through **as-is** — no filtering by partial is performed. Filtering is the caller's responsibility. When `savedSearches` is a callback, it is called per-keystroke (debounced) with the current `partial` so the caller can do server-side filtering. When it is a static array, results are passed through unfiltered.
 
-- `#vip|` → matches `"vip-active"` → suggestion text: `"#vip-active"`
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests saved searches for #", "filters saved searches by prefix", "includes # in suggestion text", "includes description"
+- `#vip|` → all saved searches are returned; caller filters by prefix
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests saved searches for #", "returns all saved searches regardless of partial (filtering is caller responsibility)", "includes # in suggestion text", "includes description"
 
 ### 4.5 History Suggestions
 
-Shown in `HISTORY_REF` context (after `!`). Filtered by substring match. Complex history queries (containing AND/OR) are wrapped in parentheses.
+Shown in `HISTORY_REF` context (after `!`). The engine passes history results through **as-is** — no filtering by partial is performed. Filtering is the caller's responsibility. When `searchHistory` is a callback, it is called per-keystroke (debounced) with the current `partial` so the caller can do server-side filtering. When it is a static array, results are passed through unfiltered. Complex history queries (containing AND/OR) are wrapped in parentheses.
 
-- `!API|` → matches history entry "API errors" → suggestion text: `"level:ERROR AND service:api"` wrapped as `"(level:ERROR AND service:api)"`
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests history for !", "filters history by partial (includes)", "wraps history with boolean ops in parens", "does not wrap simple history in parens"
+- `!API|` → all history entries are returned; caller filters by substring
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests history for !", "returns all history regardless of partial (filtering is caller responsibility)", "wraps history with boolean ops in parens", "does not wrap simple history in parens"
 
 #### History Item Layout
 
@@ -503,17 +504,17 @@ Within the same priority, items retain their relevance-based ordering.
 
 ### 4.8 Async Suggestions (`fetchSuggestions`)
 
-When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
+When a `fetchSuggestions` prop is provided, the component calls it for field value suggestions in every `FIELD_VALUE` context. The function receives the field name and partial text and returns a `Promise<SuggestionItem[]>`.
 
-**Only fields with `asyncSearch: true`** in their `FieldConfig` trigger async fetching. Fields without this flag always show their sync hint if one exists (e.g. "Enter a number") and never call `fetchSuggestions`. This prevents fields that have no async data source from flashing "Searching..." before falling back to a static hint.
+`FieldConfig.asyncSearch` and `FieldConfig.asyncSearchLabel` have been removed. Every field value context triggers `fetchSuggestions` when the prop is provided — there is no per-field opt-in flag. If the callback has no data for a given field it should return an empty array; the engine then falls back to the type-based hint (e.g. "Enter a number") if one exists.
 
 #### 4.8.1 Async Lifecycle & Dropdown Content
 
-The dropdown content follows strict rules to prevent stale results from flashing. These rules only apply to fields with `asyncSearch: true`:
+The dropdown content follows strict rules to prevent stale results from flashing:
 
 | Phase | Dropdown Shows | Notes |
 |-------|---------------|-------|
-| First entry into async field | "Searching..." spinner | Immediate loading indicator, no sync hint flash |
+| First entry into field value | "Searching..." spinner | Immediate loading indicator, no sync hint flash |
 | Subsequent keystrokes (debounce pending) | Previous results preserved | No flash to empty/sync |
 | Debounce fires, fetch starts | Previous results preserved | Last-good results stay visible |
 | Fetch resolves (current) | New results | Fresh data shown |
@@ -529,7 +530,7 @@ Each async fetch is tagged with a monotonic request ID. When results arrive, the
 
 The "Searching..." loading item is a non-selectable dropdown entry with an animated CSS spinner. The loading indicator:
 
-- Appears immediately on first entry into an async field value
+- Appears immediately on first entry into a field value (when `fetchSuggestions` is provided)
 - On subsequent keystrokes, previous results are preserved (no loading flash)
 - Only appears if the request is still the latest (checked via fetch ID)
 - Is cleared when the fetch completes, errors, or the dropdown closes
@@ -545,6 +546,17 @@ When `fetchSuggestions` throws or rejects, the dropdown shows an error message i
 
 - Stale errors (from aborted requests) are discarded, same as stale results.
 - Typing again triggers a new fetch attempt — no manual retry needed.
+
+#### 4.8.6 Async `savedSearches` and `searchHistory` Callbacks
+
+The `savedSearches` and `searchHistory` props each accept either a static array or an async callback:
+
+- `savedSearches?: SavedSearch[] | ((partial: string) => Promise<SavedSearch[]>)`
+- `searchHistory?: HistoryEntry[] | ((partial: string) => Promise<HistoryEntry[]>)`
+
+When provided as a callback, the function is called **per-keystroke** (debounced) with the current partial text (the characters typed after `#` or `!`). This allows server-side filtering before results are returned. The engine passes the results through as-is — it does not filter them again. When provided as a static array, results are passed through unfiltered regardless of the partial.
+
+The `hasSavedSearchProvider` and `hasHistoryProvider` flags in `AutocompleteOptions` are set to `true` when a callback is provided, so that the `#saved-search` and `!history` hints appear in the dropdown even before the first async results arrive.
 
 ### 4.9 Dropdown Header (`dropdown.renderHeader`)
 
@@ -617,11 +629,11 @@ After accepting a suggestion, the component immediately evaluates the new cursor
 
 Accepting a field suggestion (e.g., `status:`) immediately shows value suggestions for that field.
 
-- Type `sta` → accept `status:` → shows `[active, inactive, pending]`
+- Type `sta` → accept `status:` → enters `FIELD_VALUE` context (shows placeholder hint if configured, or empty if not)
 - Type `is` → accept `is_vip:` → shows `[true, false]`
 - Type `pri` → accept `price:` → shows hint "Enter a number"
 - Type `cre` → accept `created:` → opens date picker
-- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" shows value suggestions", "selecting \"level:\" shows value suggestions", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows no suggestions (string field, no default hint)"
+- **Tests:** `SuggestionChaining.test.ts` → "selecting \"status:\" enters FIELD_VALUE context with placeholder hint", "selecting \"is_vip:\" shows boolean suggestions", "selecting \"price:\" shows number hint", "selecting \"created:\" shows date picker", "selecting \"name:\" shows no suggestions (string field, no default hint)"
 
 ### 6.2 Value → Operator
 
@@ -1329,26 +1341,9 @@ Each `FieldConfig` can declare `aliases: string[]`. An alias is treated identica
 
 - **Tests:** `Validator.test.ts` → "field aliases" suite; `AutocompleteEngine.test.ts` → "field aliases" suite
 
-#### `asyncSearch` Flag
+#### `asyncSearch` and `asyncSearchLabel` (removed)
 
-Each `FieldConfig` can set `asyncSearch: true` to indicate that the field's values are provided by the `fetchSuggestions` callback. This controls the initial dropdown behavior when entering a value for that field:
-
-- **`asyncSearch: true`**: Shows a loading spinner immediately on first entry. The `fetchSuggestions` callback is invoked. Subsequent keystrokes preserve previous results until new ones arrive.
-- **`asyncSearch: false` (default)**: Shows the sync hint if one exists for the field type (e.g. "Enter a number" for number fields). String fields show no default hint. The `fetchSuggestions` callback is **not** invoked for this field.
-
-This prevents fields without an async data source (e.g. `email`, `price`) from flashing a loading spinner before falling back to a static hint.
-
-#### `asyncSearchLabel`
-
-Customizes the loading spinner label for async fields. Accepts a static string or a callback receiving the current partial text. Defaults to `"Searching..."`.
-
-```ts
-// Static string
-{ name: 'company', asyncSearch: true, asyncSearchLabel: 'Searching companies...' }
-
-// Dynamic callback
-{ name: 'company', asyncSearch: true, asyncSearchLabel: (partial) => `Searching for "${partial}"...` }
-```
+`FieldConfig.asyncSearch` and `FieldConfig.asyncSearchLabel` have been removed. All field value contexts now trigger `fetchSuggestions` when the prop is provided — there is no per-field opt-in flag. If the callback returns an empty array for a given field, the engine falls back to the type-based hint (e.g. "Enter a number" for number fields). See §4.8 for the full async lifecycle.
 
 ### 10.2 Style Configuration
 

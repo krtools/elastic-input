@@ -5,7 +5,7 @@ import { Validator, ValidationError, ValidateValueFn } from '../validation/Valid
 import { FieldConfig } from '../types';
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
+  { name: 'status', type: 'string' },
   { name: 'price', type: 'number' },
   { name: 'created', type: 'date' },
   { name: 'is_vip', type: 'boolean' },

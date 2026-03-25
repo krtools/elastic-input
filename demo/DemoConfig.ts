@@ -4,28 +4,20 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'name', label: 'Contact Name', type: 'string', description: 'Full name of the contact' },
   { name: 'email', label: 'Email', type: 'string', description: 'Email address' },
   { name: 'phone', label: 'Phone', type: 'string', description: 'Phone number' },
-  { name: 'status', label: 'Status', type: 'string',
-    suggestions: ['active', 'inactive', 'lead', 'prospect', 'churned'],
-    description: 'Contact status', placeholder: 'Search statuses...' },
-  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...', asyncSearch: true, asyncSearchLabel: 'Searching companies...' },
+  { name: 'status', label: 'Status', type: 'string', description: 'Contact status', placeholder: 'Search statuses...' },
+  { name: 'company', label: 'Company', type: 'string', description: 'Company name', placeholder: 'Search companies...' },
   { name: 'deal_value', label: 'Deal Value', type: 'number', description: 'Deal value in dollars' },
   { name: 'created', label: 'Created Date', type: 'date', description: 'When the contact was created' },
   { name: 'last_contact', label: 'Last Contact', type: 'date', description: 'Last interaction date' },
   { name: 'is_vip', label: 'VIP', type: 'boolean', description: 'Whether the contact is a VIP' },
-  { name: 'tags', label: 'Tags', type: 'string',
-    suggestions: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
-    description: 'Contact tags' },
+  { name: 'tags', label: 'Tags', type: 'string', description: 'Contact tags' },
   { name: 'age', label: 'Age', type: 'string', description: 'Contact age (years since DOB)', placeholder: false },
-  { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)', asyncSearch: true },
+  { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)' },
 ];
 
 export const LOG_FIELDS: FieldConfig[] = [
-  { name: 'level', label: 'Log Level', type: 'string',
-    suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
-    description: 'Severity level' },
-  { name: 'service', label: 'Service', type: 'string',
-    suggestions: ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service'],
-    description: 'Microservice name' },
+  { name: 'level', label: 'Log Level', type: 'string', description: 'Severity level' },
+  { name: 'service', label: 'Service', type: 'string', description: 'Microservice name' },
   { name: 'message', label: 'Message', type: 'string', description: 'Log message content' },
   { name: 'timestamp', label: 'Timestamp', type: 'date', description: 'When the log was recorded' },
   { name: 'request_id', label: 'Request ID', type: 'string', description: 'Unique request identifier' },
@@ -37,11 +29,9 @@ export const LOG_FIELDS: FieldConfig[] = [
 
 export const ECOMMERCE_FIELDS: FieldConfig[] = [
   { name: 'product', label: 'Product Name', type: 'string', description: 'Product name' },
-  { name: 'category', label: 'Category', type: 'string',
-    suggestions: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
-    description: 'Product category' },
+  { name: 'category', label: 'Category', type: 'string', description: 'Product category' },
   { name: 'price', label: 'Price', type: 'number', description: 'Product price' },
-  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...', asyncSearch: true },
+  { name: 'brand', label: 'Brand', type: 'string', description: 'Brand name', placeholder: 'Search brands...' },
   { name: 'in_stock', label: 'In Stock', type: 'boolean', description: 'Availability' },
   { name: 'rating', label: 'Rating', type: 'number', description: 'Customer rating (1-5)' },
   { name: 'added_date', label: 'Added Date', type: 'date', description: 'When product was added' },
@@ -104,16 +94,16 @@ const MOCK_BRANDS = [
   'Bose', 'LG', 'Dell', 'HP', 'Lenovo', 'Canon', 'Dyson',
 ];
 
-/** Build a lookup of all field values across all demo field configs. */
-const ALL_FIELD_VALUES: Record<string, string[]> = {};
-for (const field of [...CRM_FIELDS, ...LOG_FIELDS, ...ECOMMERCE_FIELDS]) {
-  if (field.suggestions && !ALL_FIELD_VALUES[field.name]) {
-    ALL_FIELD_VALUES[field.name] = field.suggestions;
-  }
-}
-// Add async-only fields (no static suggestions)
-ALL_FIELD_VALUES['company'] = MOCK_COMPANIES;
-ALL_FIELD_VALUES['brand'] = MOCK_BRANDS;
+/** Lookup of all field values for the mock fetch callback. */
+const ALL_FIELD_VALUES: Record<string, string[]> = {
+  status: ['active', 'inactive', 'lead', 'prospect', 'churned'],
+  tags: ['enterprise', 'startup', 'smb', 'partner', 'referral'],
+  level: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
+  service: ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service'],
+  category: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
+  company: MOCK_COMPANIES,
+  brand: MOCK_BRANDS,
+};
 
 export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
   // Simulate a broken endpoint for the "broken" demo field
@@ -153,3 +143,17 @@ export const SAMPLE_HISTORY: HistoryEntry[] = [
   { query: '"quick brown fox"', timestamp: Date.now() - 518400000, label: 'Exact phrase search' },
   { query: 'status:inactive', timestamp: Date.now() - 604800000, label: 'Inactive contacts' },
 ];
+
+export function mockFetchSavedSearches(partial: string): Promise<SavedSearch[]> {
+  const lower = partial.toLowerCase();
+  const filtered = SAMPLE_SAVED_SEARCHES
+    .filter(s => s.name.toLowerCase().includes(lower) || (s.description || '').toLowerCase().includes(lower));
+  return new Promise(resolve => setTimeout(() => resolve(filtered), 100));
+}
+
+export function mockFetchHistory(partial: string): Promise<HistoryEntry[]> {
+  const lower = partial.toLowerCase();
+  const filtered = SAMPLE_HISTORY
+    .filter(h => h.query.toLowerCase().includes(lower) || (h.label || '').toLowerCase().includes(lower));
+  return new Promise(resolve => setTimeout(() => resolve(filtered), 100));
+}

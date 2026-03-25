@@ -16,6 +16,10 @@ export interface AutocompleteResult {
 export interface AutocompleteOptions {
   showSavedSearchHint?: boolean;
   showHistoryHint?: boolean;
+  /** Set to true when a savedSearches callback is provided (for hints even when no sync data). */
+  hasSavedSearchProvider?: boolean;
+  /** Set to true when a searchHistory callback is provided (for hints even when no sync data). */
+  hasHistoryProvider?: boolean;
 }
 
 export class AutocompleteEngine {
@@ -189,33 +193,7 @@ export class AutocompleteEngine {
         }));
     }
 
-    // Show static suggestions unless the field opts into async search,
-    // in which case fetchSuggestions is the single source of truth.
-    if (field.suggestions && !field.asyncSearch) {
-      const lower = partial.toLowerCase();
-      const scored = field.suggestions
-        .map(s => {
-          const sl = s.toLowerCase();
-          let score = 0;
-          if (sl.startsWith(lower)) score = 2;
-          else if (sl.includes(lower)) score = 1;
-          return { value: s, score };
-        })
-        .filter(s => s.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .slice(0, this.maxSuggestions);
-
-      return scored.map(s => ({
-        text: s.value,
-        label: s.value,
-        type: field.type,
-        replaceStart: start,
-        replaceEnd: end,
-        matchPartial: partial,
-      }));
-    }
-
-    // Freeform hint — shown while typing for fields without static suggestions.
+    // Freeform hint — shown while typing for fields without a fetchSuggestions callback.
     // Suppressed if field.placeholder is explicitly false.
     if (field.placeholder !== false) {
       const defaultHints: Record<string, string> = {
@@ -261,7 +239,9 @@ export class AutocompleteEngine {
 
   private getSpecialHints(start: number, end: number): Suggestion[] {
     const hints: Suggestion[] = [];
-    if (this.options.showSavedSearchHint && this.savedSearches.length > 0) {
+    const hasSavedSearches = this.savedSearches.length > 0 || this.options.hasSavedSearchProvider;
+    const hasHistory = this.searchHistory.length > 0 || this.options.hasHistoryProvider;
+    if (this.options.showSavedSearchHint && hasSavedSearches) {
       hints.push({
         text: '#',
         label: '#saved-search',
@@ -272,7 +252,7 @@ export class AutocompleteEngine {
         priority: 20,
       });
     }
-    if (this.options.showHistoryHint && this.searchHistory.length > 0) {
+    if (this.options.showHistoryHint && hasHistory) {
       hints.push({
         text: '!',
         label: '!history',
@@ -287,9 +267,7 @@ export class AutocompleteEngine {
   }
 
   private getSavedSearchSuggestions(partial: string, start: number, end: number): Suggestion[] {
-    const lower = partial.toLowerCase();
     return this.savedSearches
-      .filter(s => s.name.toLowerCase().startsWith(lower))
       .slice(0, this.maxSuggestions)
       .map(s => ({
         text: '#' + s.name,
@@ -304,39 +282,37 @@ export class AutocompleteEngine {
   }
 
   private getHistorySuggestions(partial: string, start: number, end: number): Suggestion[] {
-    const lower = partial.toLowerCase();
     return this.searchHistory
-      .filter(h => {
-        const label = h.label || h.query;
-        return label.toLowerCase().includes(lower);
-      })
       .slice(0, this.maxSuggestions)
-      .map(h => {
-        // Wrap in parens only if the top-level AST node is a BooleanExpr
-        // (explicit AND/OR or implicit adjacency). Already-grouped expressions
-        // like -(a AND b) or (a OR b)^2 don't need extra wrapping.
-        let replacementText = h.query;
-        try {
-          const tokens = new Lexer(h.query).tokenize();
-          const ast = new Parser(tokens).parse();
-          if (ast && ast.type === 'BooleanExpr') {
-            replacementText = '(' + h.query + ')';
-          }
-        } catch {
-          // Parse failure — leave as-is
-        }
-        return {
-          text: replacementText,
-          label: h.label || h.query,
-          description: h.timestamp
-            ? new Date(h.timestamp).toLocaleDateString()
-            : undefined,
-          type: 'history',
-          replaceStart: start,
-          replaceEnd: end,
-          matchPartial: partial,
-          sourceData: h,
-        };
-      });
+      .map(h => ({
+        text: AutocompleteEngine.wrapHistoryQuery(h.query),
+        label: h.label || h.query,
+        description: h.timestamp
+          ? new Date(h.timestamp).toLocaleDateString()
+          : undefined,
+        type: 'history',
+        replaceStart: start,
+        replaceEnd: end,
+        matchPartial: partial,
+        sourceData: h,
+      }));
+  }
+
+  /**
+   * Wraps a history query in parens if the top-level AST node is a BooleanExpr
+   * (explicit AND/OR or implicit adjacency). Already-grouped expressions
+   * like -(a AND b) or (a OR b)^2 don't need extra wrapping.
+   */
+  static wrapHistoryQuery(query: string): string {
+    try {
+      const tokens = new Lexer(query).tokenize();
+      const ast = new Parser(tokens).parse();
+      if (ast && ast.type === 'BooleanExpr') {
+        return '(' + query + ')';
+      }
+    } catch {
+      // Parse failure — leave as-is
+    }
+    return query;
   }
 }

@@ -36,8 +36,8 @@ const fields: FieldConfig[] = [
     name: 'status',
     label: 'Status',
     type: 'string',
-    suggestions: ['active', 'inactive', 'pending'],
     description: 'Account status',
+    placeholder: 'Search statuses...',
   },
   {
     name: 'created',
@@ -109,9 +109,9 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `onValidationChange` | `(errors) => void` | — | Called when validation errors change |
 | `value` | `string` | — | Controlled input value |
 | `defaultValue` | `string` | — | Initial uncontrolled value |
-| `savedSearches` | `SavedSearch[] \| () => Promise<SavedSearch[]>` | — | Saved search definitions (sync or async) |
-| `searchHistory` | `HistoryEntry[] \| () => Promise<HistoryEntry[]>` | — | Search history entries (sync or async) |
-| `fetchSuggestions` | `(field, partial) => Promise<SuggestionItem[]>` | — | Async suggestion provider for field values |
+| `savedSearches` | `SavedSearch[] \| (partial) => Promise<SavedSearch[]>` | — | Saved search definitions (sync array or async callback with partial) |
+| `searchHistory` | `HistoryEntry[] \| (partial) => Promise<HistoryEntry[]>` | — | Search history entries (sync array or async callback with partial) |
+| `fetchSuggestions` | `(field, partial) => Promise<SuggestionItem[]>` | — | Async suggestion provider for field values (called for all non-boolean fields) |
 | `colors` | `ColorConfig` | `DEFAULT_COLORS` | Syntax highlighting and UI colors |
 | `styles` | `StyleConfig` | `DEFAULT_STYLES` | Structural/layout style overrides |
 | `placeholder` | `string` | `"Search..."` | Placeholder text |
@@ -130,12 +130,13 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 
 ```typescript
 interface FieldConfig {
-  name: string;          // Field identifier used in queries
-  label?: string;        // Display label (used in autocomplete)
-  type: FieldType;       // 'string' | 'number' | 'date' | 'boolean' | 'ip'
-  suggestions?: string[];// Autocomplete values (any field type can have suggestions)
-  operators?: string[];  // Allowed operators (future use)
-  description?: string;  // Shown in autocomplete dropdown
+  name: string;           // Field identifier used in queries
+  label?: string;         // Display label (used in autocomplete)
+  type: FieldType;        // 'string' | 'number' | 'date' | 'boolean' | 'ip'
+  aliases?: string[];     // Alternative names that resolve to this field
+  operators?: string[];   // Allowed operators (future use)
+  description?: string;   // Shown in autocomplete dropdown
+  placeholder?: string | false; // Hint shown while typing a value (false to suppress)
 }
 ```
 
@@ -239,12 +240,15 @@ const savedSearches = [
 
 Type `#` in the input to see saved search suggestions. Selecting one replaces the `#token` with the saved query text.
 
-Supports async loading:
+Supports async loading with per-keystroke filtering:
 
 ```tsx
 <ElasticInput
   fields={fields}
-  savedSearches={() => fetch('/api/saved-searches').then(r => r.json())}
+  savedSearches={async (partial) => {
+    const res = await fetch(`/api/saved-searches?q=${partial}`);
+    return res.json();
+  }}
 />
 ```
 
@@ -266,9 +270,21 @@ const history = [
 
 Type `!` to see history suggestions. Selecting one inserts the query (wrapped in parentheses if it contains boolean operators).
 
+Supports async loading with per-keystroke filtering:
+
+```tsx
+<ElasticInput
+  fields={fields}
+  searchHistory={async (partial) => {
+    const res = await fetch(`/api/history?q=${partial}`);
+    return res.json();
+  }}
+/>
+```
+
 ## Async Suggestions
 
-Provide dynamic suggestions for field values:
+Provide dynamic suggestions for field values. Called for all non-boolean field value contexts when provided:
 
 ```tsx
 <ElasticInput
@@ -401,7 +417,7 @@ const ast = parser.parse();
 
 // Validate
 const fields: FieldConfig[] = [
-  { name: 'status', type: 'string', suggestions: ['active', 'inactive'] },
+  { name: 'status', type: 'string' },
   { name: 'price', type: 'number' },
 ];
 const validator = new Validator(fields);

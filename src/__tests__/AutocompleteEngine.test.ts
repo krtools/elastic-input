@@ -4,8 +4,8 @@ import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig, SavedSearch, HistoryEntry } from '../types';
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
-  { name: 'level', label: 'Log Level', type: 'string', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'] },
+  { name: 'status', label: 'Status', type: 'string', placeholder: 'Search statuses...' },
+  { name: 'level', label: 'Log Level', type: 'string' },
   { name: 'name', label: 'Contact Name', type: 'string' },
   { name: 'price', label: 'Price', type: 'number' },
   { name: 'created', label: 'Created Date', type: 'date' },
@@ -122,39 +122,22 @@ describe('AutocompleteEngine', () => {
     });
   });
 
-  describe('field value suggestions (enum)', () => {
-    it('suggests all enum values after colon', () => {
-      const labels = suggestionLabels('status:');
-      expect(labels).toEqual(['active', 'inactive', 'pending']);
+  describe('field value suggestions (string fields)', () => {
+    it('string field with placeholder shows hint after colon', () => {
+      const result = getSuggestions('status:');
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].type).toBe('hint');
+      expect(result.suggestions[0].label).toBe('Search statuses...');
     });
 
-    it('filters enum values by prefix', () => {
-      const labels = suggestionLabels('status:act');
-      expect(labels).toContain('active');
-      expect(labels).toContain('inactive'); // "inactive" includes "act"
-      expect(labels).not.toContain('pending');
+    it('string field without placeholder shows no suggestions', () => {
+      const result = getSuggestions('level:');
+      expect(result.suggestions).toHaveLength(0);
     });
 
-    it('filters enum values by includes', () => {
-      const labels = suggestionLabels('status:tiv');
-      expect(labels).toContain('active'); // contains "tiv"
-      expect(labels).toContain('inactive'); // contains "tiv"
-      expect(labels).not.toContain('pending');
-    });
-
-    it('suggests enum values inside parens', () => {
-      const labels = suggestionLabels('(status:act');
-      expect(labels).toContain('active');
-    });
-
-    it('suggests values for -field:partial', () => {
-      const labels = suggestionLabels('-status:act');
-      expect(labels).toContain('active');
-    });
-
-    it('suggests values for second field in query', () => {
-      const labels = suggestionLabels('status:active AND level:ER');
-      expect(labels).toContain('ERROR');
+    it('string field returns no value suggestions (values come from fetchSuggestions)', () => {
+      const result = getSuggestions('name:john');
+      expect(result.suggestions).toHaveLength(0);
     });
   });
 
@@ -172,8 +155,8 @@ describe('AutocompleteEngine', () => {
     });
   });
 
-  describe('field value suggestions (freeform)', () => {
-    it('shows no hint for string field with no suggestions', () => {
+  describe('field value suggestions (freeform hints)', () => {
+    it('shows no hint for string field without placeholder', () => {
       const result = getSuggestions('name:');
       expect(result.suggestions).toHaveLength(0);
     });
@@ -190,7 +173,7 @@ describe('AutocompleteEngine', () => {
       expect(result.suggestions[0].label).toBe('Enter an IP address');
     });
 
-    it('shows no hint while typing in string field', () => {
+    it('shows no hint while typing in string field without placeholder', () => {
       const result = getSuggestions('name:john');
       expect(result.suggestions).toHaveLength(0);
     });
@@ -290,10 +273,11 @@ describe('AutocompleteEngine', () => {
       expect(labels).toContain('recent-errors');
     });
 
-    it('filters saved searches by prefix', () => {
+    it('returns all saved searches regardless of partial (filtering is caller responsibility)', () => {
       const labels = suggestionLabels('#vip');
       expect(labels).toContain('vip-active');
-      expect(labels).not.toContain('high-value');
+      expect(labels).toContain('high-value');
+      expect(labels).toContain('recent-errors');
     });
 
     it('includes # in suggestion text', () => {
@@ -314,10 +298,10 @@ describe('AutocompleteEngine', () => {
       expect(labels).toContain('API errors');
     });
 
-    it('filters history by partial (includes)', () => {
+    it('returns all history regardless of partial (filtering is caller responsibility)', () => {
       const labels = suggestionLabels('!API');
       expect(labels).toContain('API errors');
-      expect(labels).not.toContain('Active expensive');
+      expect(labels).toContain('Active expensive');
     });
 
     it('wraps history with top-level boolean ops in parens', () => {
@@ -408,10 +392,10 @@ describe('AutocompleteEngine', () => {
     });
 
     it('sets correct replacement range for value', () => {
-      const result = getSuggestions('status:act');
+      const result = getSuggestions('is_vip:tr');
       const suggestion = result.suggestions[0];
       expect(suggestion.replaceStart).toBe(7);
-      expect(suggestion.replaceEnd).toBe(10);
+      expect(suggestion.replaceEnd).toBe(9);
     });
 
     it('sets correct replacement range for saved search', () => {
@@ -455,12 +439,13 @@ describe('AutocompleteEngine', () => {
       expect(result.suggestions).toHaveLength(0);
     });
 
-    it('quoted value AFTER colon still shows field value suggestions', () => {
+    it('quoted value AFTER colon still enters FIELD_VALUE context', () => {
       const result = getSuggestions('status:"act');
       expect(result.context.type).toBe('FIELD_VALUE');
       expect(result.context.fieldName).toBe('status');
-      expect(result.suggestions.length).toBeGreaterThan(0);
-      expect(result.suggestions.map(s => s.text)).toContain('active');
+      // Placeholder hint shown (values come via fetchSuggestions)
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].type).toBe('hint');
     });
 
     it('bare single-quote is treated as regular text (no field match)', () => {
@@ -618,62 +603,42 @@ describe('AutocompleteEngine', () => {
     });
   });
 
-  describe('asyncSearch flag', () => {
-    const mixedFields: FieldConfig[] = [
-      { name: 'status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
-      { name: 'company', type: 'string', asyncSearch: true, placeholder: 'Search companies...' },
+  describe('placeholder hints', () => {
+    const hintFields: FieldConfig[] = [
+      { name: 'company', type: 'string', placeholder: 'Search companies...' },
       { name: 'email', type: 'string' },
-      { name: 'brand', type: 'string', asyncSearch: true },
+      { name: 'brand', type: 'string', placeholder: 'Search brands...' },
     ];
 
-    function getAsyncSuggs(input: string, cursorOffset?: number) {
+    function getHintSuggs(input: string, cursorOffset?: number) {
       const tokens = new Lexer(input).tokenize();
-      const engine = new AutocompleteEngine(mixedFields);
+      const engine = new AutocompleteEngine(hintFields);
       return engine.getSuggestions(tokens, cursorOffset ?? input.length);
     }
 
-    it('enum field without asyncSearch shows static suggestions', () => {
-      const result = getAsyncSuggs('status:');
-      const values = result.suggestions.filter(s => s.type !== 'hint');
-      expect(values.map(s => s.text)).toEqual(expect.arrayContaining(['active', 'inactive', 'pending']));
-    });
-
-    it('enum field without asyncSearch shows filtered suggestions', () => {
-      const result = getAsyncSuggs('status:act');
-      const values = result.suggestions.filter(s => s.type !== 'hint');
-      expect(values.some(s => s.text === 'active')).toBe(true);
-      expect(values.some(s => s.text === 'pending')).toBe(false);
-    });
-
-    it('asyncSearch field does not show static suggestions', () => {
-      const result = getAsyncSuggs('company:');
-      // Should only have the hint, no static value suggestions
-      const values = result.suggestions.filter(s => s.type !== 'hint');
-      expect(values).toHaveLength(0);
-    });
-
-    it('non-async string field shows no default hint', () => {
-      const result = getAsyncSuggs('email:');
-      expect(result.suggestions).toHaveLength(0);
-    });
-
-    it('asyncSearch string field shows placeholder hint', () => {
-      const result = getAsyncSuggs('company:');
+    it('string field with placeholder shows hint', () => {
+      const result = getHintSuggs('company:');
       const hints = result.suggestions.filter(s => s.type === 'hint');
-      expect(hints.length).toBeGreaterThan(0);
+      expect(hints.length).toBe(1);
       expect(hints[0].label).toBe('Search companies...');
     });
 
-    it('asyncSearch string field without placeholder shows no default hint', () => {
-      const result = getAsyncSuggs('brand:');
+    it('string field without placeholder shows nothing', () => {
+      const result = getHintSuggs('email:');
       expect(result.suggestions).toHaveLength(0);
+    });
+
+    it('placeholder hint stays visible while typing', () => {
+      const result = getHintSuggs('brand:ac');
+      expect(result.suggestions).toHaveLength(1);
+      expect(result.suggestions[0].label).toBe('Search brands...');
     });
   });
 
   describe('field aliases', () => {
     const aliasedFields: FieldConfig[] = [
       { name: 'name', type: 'string', label: 'Contact Name', aliases: ['contact_name', 'full_name'] },
-      { name: 'status', type: 'string', suggestions: ['active', 'inactive'], aliases: ['state'] },
+      { name: 'is_active', type: 'boolean', aliases: ['active'] },
       { name: 'price', type: 'number' },
     ];
 
@@ -695,11 +660,11 @@ describe('AutocompleteEngine', () => {
       expect(fieldSuggs.some(s => s.text === 'name:')).toBe(true);
     });
 
-    it('resolves alias for value suggestions', () => {
-      const result = getSuggs('state:');
-      // Should resolve to status field and show enum values
-      expect(result.suggestions.some(s => s.text === 'active')).toBe(true);
-      expect(result.suggestions.some(s => s.text === 'inactive')).toBe(true);
+    it('resolves alias for boolean value suggestions', () => {
+      const result = getSuggs('active:');
+      // Should resolve to is_active (boolean) and show true/false
+      expect(result.suggestions.some(s => s.text === 'true')).toBe(true);
+      expect(result.suggestions.some(s => s.text === 'false')).toBe(true);
     });
 
     it('resolveField returns canonical config for alias', () => {

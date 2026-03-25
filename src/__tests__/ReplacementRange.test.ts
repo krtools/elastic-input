@@ -6,11 +6,12 @@ import { FieldConfig } from '../types';
 import { getReplacementRange, getTokenIndexRange } from '../utils/textUtils';
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
-  { name: 'level', label: 'Log Level', type: 'string', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR'] },
+  { name: 'status', label: 'Status', type: 'string' },
+  { name: 'level', label: 'Log Level', type: 'string' },
   { name: 'name', label: 'Name', type: 'string' },
   { name: 'price', label: 'Price', type: 'number' },
   { name: 'created', label: 'Created Date', type: 'date' },
+  { name: 'is_vip', label: 'VIP', type: 'boolean' },
 ];
 
 function getSuggestions(input: string, cursorOffset?: number) {
@@ -177,81 +178,80 @@ describe('Double Colon Prevention', () => {
 
 describe('Selection Replacement', () => {
   it('double-clicking a value and accepting replaces it correctly', () => {
-    // "status:active" — double-click "active" selects chars 7-13
+    // "is_vip:true" — double-click "true" selects chars 7-11
     // cursor start = 7, suggestions at offset 7
-    const result = getSuggestions('status:active', 7);
+    const result = getSuggestions('is_vip:true', 7);
     expect(result.context.type).toBe('FIELD_VALUE');
-    const inactiveSugg = result.suggestions.find(s => s.text === 'inactive');
-    expect(inactiveSugg).toBeDefined();
-    expect(inactiveSugg!.replaceStart).toBe(7);
-    expect(inactiveSugg!.replaceEnd).toBe(13);
+    const trueSugg = result.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
+    expect(trueSugg!.replaceStart).toBe(7);
+    expect(trueSugg!.replaceEnd).toBe(11);
 
     const newValue = acceptSuggestionWithSelection(
-      'status:active', 'inactive',
-      inactiveSugg!.replaceStart, inactiveSugg!.replaceEnd,
-      7, 13 // browser selection
+      'is_vip:true', 'false',
+      trueSugg!.replaceStart, trueSugg!.replaceEnd,
+      7, 11 // browser selection
     );
-    expect(newValue).toBe('status:inactive');
+    expect(newValue).toBe('is_vip:false');
   });
 
   it('collapsed cursor (no selection) uses token range only', () => {
-    const result = getSuggestions('status:active', 10);
-    const inactiveSugg = result.suggestions.find(s => s.text === 'inactive');
-    expect(inactiveSugg).toBeDefined();
+    const result = getSuggestions('is_vip:true', 9);
+    const trueSugg = result.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
 
     const newValue = acceptSuggestionWithSelection(
-      'status:active', 'inactive',
-      inactiveSugg!.replaceStart, inactiveSugg!.replaceEnd,
-      10, 10 // collapsed cursor
+      'is_vip:true', 'false',
+      trueSugg!.replaceStart, trueSugg!.replaceEnd,
+      9, 9 // collapsed cursor
     );
-    expect(newValue).toBe('status:inactive');
+    expect(newValue).toBe('is_vip:false');
   });
 
   it('double-clicking value in multi-field query replaces only that value', () => {
-    // "status:active AND level:ERROR" — double-click "ERROR" selects 24-29
-    // Cursor at 24 is at COLON(23,24) boundary. The COLON handler detects
-    // the following VALUE(24,29), so partial="ERROR" and token covers (24,29).
-    const result = getSuggestions('status:active AND level:ERROR', 24);
+    // "status:active AND is_vip:true" — double-click "true" selects 25-29
+    // Cursor at 25 is at COLON(24,25) boundary. The COLON handler detects
+    // the following VALUE(25,29), so partial="true" and token covers (25,29).
+    const result = getSuggestions('status:active AND is_vip:true', 25);
     expect(result.context.type).toBe('FIELD_VALUE');
-    expect(result.context.fieldName).toBe('level');
-    expect(result.context.partial).toBe('ERROR');
+    expect(result.context.fieldName).toBe('is_vip');
+    expect(result.context.partial).toBe('true');
     expect(result.context.token).toBeDefined();
-    expect(result.context.token!.start).toBe(24);
+    expect(result.context.token!.start).toBe(25);
     expect(result.context.token!.end).toBe(29);
 
-    // "ERROR" matches "ERROR" (the existing value)
-    const errorSugg = result.suggestions.find(s => s.text === 'ERROR');
-    expect(errorSugg).toBeDefined();
-    expect(errorSugg!.replaceStart).toBe(24);
-    expect(errorSugg!.replaceEnd).toBe(29);
+    // "true" matches "true" (the existing value)
+    const trueSugg = result.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
+    expect(trueSugg!.replaceStart).toBe(25);
+    expect(trueSugg!.replaceEnd).toBe(29);
 
-    // Simulate accepting "WARN" with the same replacement range
+    // Simulate accepting "false" with the same replacement range
     const newValue = acceptSuggestionWithSelection(
-      'status:active AND level:ERROR', 'WARN',
-      24, 29, // token range
-      24, 29  // selection range
+      'status:active AND is_vip:true', 'false',
+      25, 29, // token range
+      25, 29  // selection range
     );
-    expect(newValue).toBe('status:active AND level:WARN');
+    expect(newValue).toBe('status:active AND is_vip:false');
   });
 
   it('selection extending beyond token uses broader range', () => {
-    // User drag-selects "active " (7-14, including trailing space)
-    // Token range for VALUE is (7, 13), selection is (7, 14)
-    // Effective range should use max(13, 14) = 14
-    // Cursor at 7 (colon boundary) picks up VALUE "active" as partial
-    const result = getSuggestions('status:active AND x', 7);
+    // User drag-selects "true " (7-12, including trailing space)
+    // Token range for VALUE is (7, 11), selection is (7, 12)
+    // Effective range should use max(11, 12) = 12
+    // Cursor at 7 (colon boundary) picks up VALUE "true" as partial
+    const result = getSuggestions('is_vip:true AND x', 7);
     expect(result.context.type).toBe('FIELD_VALUE');
-    // "active" partial matches "active" and "inactive"
-    const activeSugg = result.suggestions.find(s => s.text === 'active');
-    expect(activeSugg).toBeDefined();
+    const trueSugg = result.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
 
     // Simulate with broader selection range
     const newValue = acceptSuggestionWithSelection(
-      'status:active AND x', 'pending',
-      activeSugg!.replaceStart, activeSugg!.replaceEnd, // token: 7-13
-      7, 14 // selection includes trailing space
+      'is_vip:true AND x', 'false',
+      trueSugg!.replaceStart, trueSugg!.replaceEnd, // token: 7-11
+      7, 12 // selection includes trailing space
     );
-    expect(newValue).toBe('status:pendingAND x');
+    expect(newValue).toBe('is_vip:falseAND x');
   });
 
   it('selecting entire field:value pair and replacing field works', () => {
@@ -405,22 +405,22 @@ describe('getTokenIndexRange', () => {
 
 describe('Value replacement does not bleed into adjacent tokens', () => {
   it('replacing partial value does not affect rest of query', () => {
-    const result = getSuggestions('status:act AND x', 10);
-    const activeSugg = result.suggestions.find(s => s.text === 'active');
-    expect(activeSugg).toBeDefined();
-    expect(activeSugg!.replaceStart).toBe(7);
-    expect(activeSugg!.replaceEnd).toBe(10);
+    const result = getSuggestions('is_vip:tr AND x', 9);
+    const trueSugg = result.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
+    expect(trueSugg!.replaceStart).toBe(7);
+    expect(trueSugg!.replaceEnd).toBe(9);
 
-    const newValue = acceptSuggestion('status:act AND x', 'active', activeSugg!.replaceStart, activeSugg!.replaceEnd);
-    expect(newValue).toBe('status:active AND x');
+    const newValue = acceptSuggestion('is_vip:tr AND x', 'true', trueSugg!.replaceStart, trueSugg!.replaceEnd);
+    expect(newValue).toBe('is_vip:true AND x');
   });
 
   it('replacing value at end of input works', () => {
-    const result = getSuggestions('status:pen', 10);
-    const pendingSugg = result.suggestions.find(s => s.text === 'pending');
-    expect(pendingSugg).toBeDefined();
+    const result = getSuggestions('is_vip:fa', 9);
+    const falseSugg = result.suggestions.find(s => s.text === 'false');
+    expect(falseSugg).toBeDefined();
 
-    const newValue = acceptSuggestion('status:pen', 'pending', pendingSugg!.replaceStart, pendingSugg!.replaceEnd);
-    expect(newValue).toBe('status:pending');
+    const newValue = acceptSuggestion('is_vip:fa', 'false', falseSugg!.replaceStart, falseSugg!.replaceEnd);
+    expect(newValue).toBe('is_vip:false');
   });
 });

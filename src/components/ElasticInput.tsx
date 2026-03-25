@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry } from '../types';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -253,7 +253,7 @@ export function ElasticInput(props: ElasticInputProps) {
     new AutocompleteEngine(
       initialFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
-      { showSavedSearchHint, showHistoryHint },
+      { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     )
   );
   const validatorRef = React.useRef(new Validator(initialFields));
@@ -442,7 +442,6 @@ export function ElasticInput(props: ElasticInputProps) {
     }
 
     // Determine if this context will trigger an async fetch
-    // Only fields with asyncSearch: true get the immediate "Searching..." treatment
     const resolvedField = result.context.fieldName
       ? engineRef.current.resolveField(result.context.fieldName)
       : undefined;
@@ -450,7 +449,13 @@ export function ElasticInput(props: ElasticInputProps) {
       fetchSuggestionsProp &&
       result.context.type === 'FIELD_VALUE' &&
       result.context.fieldName &&
-      resolvedField?.asyncSearch
+      resolvedField?.type !== 'boolean'
+    ) || !!(
+      typeof savedSearches === 'function' &&
+      result.context.type === 'SAVED_SEARCH'
+    ) || !!(
+      typeof searchHistory === 'function' &&
+      result.context.type === 'HISTORY_REF'
     );
 
     if (result.showDatePicker) {
@@ -521,15 +526,11 @@ export function ElasticInput(props: ElasticInputProps) {
         setAutocompleteContext(contextType);
       }
     } else {
-      // First entry into an async field — show "Searching..." immediately
-      // instead of flashing the sync hint (e.g. "Search companies...").
+      // First entry into an async context — show "Searching..." immediately
       const token = result.context.token;
       const start = token ? token.start : offset;
       const end = token ? token.end : offset;
-      const asyncLabel = resolvedField?.asyncSearchLabel;
-      const loadingLabel = typeof asyncLabel === 'function'
-        ? asyncLabel(result.context.partial)
-        : asyncLabel || 'Searching...';
+      const loadingLabel = 'Searching...';
       const loadingSuggestion: Suggestion = {
         text: '',
         label: loadingLabel,
@@ -545,12 +546,8 @@ export function ElasticInput(props: ElasticInputProps) {
       showDropdownAtPosition(32, 300);
     }
 
-    // Handle async fetchSuggestions
+    // Handle async fetch (field values, saved searches, or history)
     if (willFetchAsync) {
-      // Resolve alias to canonical field name for the fetch callback
-      const rawFieldName = result.context.fieldName!;
-      const resolved = engineRef.current.resolveField(rawFieldName);
-      const fieldName = resolved ? resolved.name : rawFieldName;
       const partial = result.context.partial;
       const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
 
@@ -568,20 +565,52 @@ export function ElasticInput(props: ElasticInputProps) {
         const end = token ? token.end : offset;
 
         try {
-          const fetchedSuggestions = await fetchSuggestionsProp!(fieldName, partial);
+          let mapped: Suggestion[];
 
-          // Discard stale results — this fetch was aborted
-          if (controller.signal.aborted) return;
+          if (result.context.type === 'SAVED_SEARCH' && typeof savedSearches === 'function') {
+            const fetched: SavedSearch[] = await savedSearches(partial);
+            if (controller.signal.aborted) return;
+            mapped = fetched.map(s => ({
+              text: '#' + s.name,
+              label: s.name,
+              description: s.description || s.query,
+              type: 'savedSearch',
+              replaceStart: start,
+              replaceEnd: end,
+              matchPartial: partial,
+              sourceData: s,
+            }));
+          } else if (result.context.type === 'HISTORY_REF' && typeof searchHistory === 'function') {
+            const fetched: HistoryEntry[] = await searchHistory(partial);
+            if (controller.signal.aborted) return;
+            mapped = fetched.map(h => ({
+              text: AutocompleteEngine.wrapHistoryQuery(h.query),
+              label: h.label || h.query,
+              description: h.timestamp ? new Date(h.timestamp).toLocaleDateString() : undefined,
+              type: 'history',
+              replaceStart: start,
+              replaceEnd: end,
+              matchPartial: partial,
+              sourceData: h,
+            }));
+          } else {
+            // FIELD_VALUE — resolve alias to canonical field name
+            const rawFieldName = result.context.fieldName!;
+            const resolved = engineRef.current.resolveField(rawFieldName);
+            const fieldName = resolved ? resolved.name : rawFieldName;
+            const fetched = await fetchSuggestionsProp!(fieldName, partial);
+            if (controller.signal.aborted) return;
+            mapped = fetched.map(s => ({
+              text: s.text,
+              label: s.label || s.text,
+              description: s.description,
+              type: s.type,
+              replaceStart: start,
+              replaceEnd: end,
+              matchPartial: partial,
+            }));
+          }
 
-          const mapped: Suggestion[] = fetchedSuggestions.map(s => ({
-            text: s.text,
-            label: s.label || s.text,
-            description: s.description,
-            type: s.type,
-            replaceStart: start,
-            replaceEnd: end,
-            matchPartial: partial,
-          }));
           if (mapped.length > 0) {
             setSuggestions(mapped);
             setSelectedSuggestionIndex(partial ? 0 : -1);
@@ -621,7 +650,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode, showOperators]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode, showOperators]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
@@ -780,19 +809,14 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // --- Lifecycle ---
 
-  // Load async data
+  // Load sync data arrays into engine (callback forms are handled per-keystroke)
   React.useEffect(() => {
-    const loadAsync = async () => {
-      if (savedSearches) {
-        const data = typeof savedSearches === 'function' ? await savedSearches() : savedSearches;
-        engineRef.current.updateSavedSearches(data);
-      }
-      if (searchHistory) {
-        const data = typeof searchHistory === 'function' ? await searchHistory() : searchHistory;
-        engineRef.current.updateSearchHistory(data);
-      }
-    };
-    loadAsync();
+    if (Array.isArray(savedSearches)) {
+      engineRef.current.updateSavedSearches(savedSearches);
+    }
+    if (Array.isArray(searchHistory)) {
+      engineRef.current.updateSearchHistory(searchHistory);
+    }
   }, [savedSearches, searchHistory]);
 
   // Rebuild engine/validator when resolved fields change
@@ -800,21 +824,16 @@ export function ElasticInput(props: ElasticInputProps) {
     engineRef.current = new AutocompleteEngine(
       resolvedFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
-      { showSavedSearchHint, showHistoryHint },
+      { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     );
     validatorRef.current = new Validator(resolvedFields);
-    // Re-load async data for new engine
-    const loadAsync = async () => {
-      if (savedSearches) {
-        const data = typeof savedSearches === 'function' ? await savedSearches() : savedSearches;
-        engineRef.current.updateSavedSearches(data);
-      }
-      if (searchHistory) {
-        const data = typeof searchHistory === 'function' ? await searchHistory() : searchHistory;
-        engineRef.current.updateSearchHistory(data);
-      }
-    };
-    loadAsync();
+    // Re-load sync data arrays for new engine
+    if (Array.isArray(savedSearches)) {
+      engineRef.current.updateSavedSearches(savedSearches);
+    }
+    if (Array.isArray(searchHistory)) {
+      engineRef.current.updateSearchHistory(searchHistory);
+    }
     // Re-validate current input with new fields (e.g. after async fields load)
     if (currentValueRef.current) {
       processInput(currentValueRef.current, false);

@@ -18,8 +18,8 @@ const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
  */
 
 const FIELDS: FieldConfig[] = [
-  { name: 'status', label: 'Status', type: 'string', suggestions: ['active', 'inactive', 'pending'] },
-  { name: 'level', label: 'Log Level', type: 'string', suggestions: ['DEBUG', 'INFO', 'WARN', 'ERROR'] },
+  { name: 'status', label: 'Status', type: 'string', placeholder: 'Search statuses...' },
+  { name: 'level', label: 'Log Level', type: 'string' },
   { name: 'name', label: 'Name', type: 'string' },
   { name: 'price', label: 'Price', type: 'number' },
   { name: 'created', label: 'Created Date', type: 'date' },
@@ -82,7 +82,7 @@ function acceptWithKey(
 }
 
 describe('Suggestion chaining — field selection → value suggestions', () => {
-  it('selecting "status:" shows enum value suggestions', () => {
+  it('selecting "status:" enters FIELD_VALUE context with placeholder hint', () => {
     const engine = getEngine();
 
     // Step 1: type "sta", get field suggestions
@@ -95,14 +95,15 @@ describe('Suggestion chaining — field selection → value suggestions', () => 
     expect(newValue).toBe('status:');
     expect(newCursorPos).toBe(7);
 
-    // Step 3: value suggestions should appear
+    // Step 3: enters FIELD_VALUE context, shows placeholder hint
     expect(nextResult.context.type).toBe('FIELD_VALUE');
     expect(nextResult.context.fieldName).toBe('status');
-    expect(nextResult.suggestions.length).toBe(3);
-    expect(nextResult.suggestions.map(s => s.text)).toEqual(['active', 'inactive', 'pending']);
+    expect(nextResult.suggestions.length).toBe(1);
+    expect(nextResult.suggestions[0].type).toBe('hint');
+    expect(nextResult.suggestions[0].label).toBe('Search statuses...');
   });
 
-  it('selecting "level:" shows enum value suggestions', () => {
+  it('selecting "level:" enters FIELD_VALUE context with no suggestions', () => {
     const engine = getEngine();
     const step1 = getSuggestions(engine, 'lev');
     const levelSugg = step1.suggestions.find(s => s.text === 'level:');
@@ -111,7 +112,7 @@ describe('Suggestion chaining — field selection → value suggestions', () => 
     const { newValue, nextResult } = acceptAndGetNext(engine, 'lev', levelSugg!);
     expect(newValue).toBe('level:');
     expect(nextResult.context.type).toBe('FIELD_VALUE');
-    expect(nextResult.suggestions.map(s => s.text)).toEqual(['DEBUG', 'INFO', 'WARN', 'ERROR']);
+    expect(nextResult.suggestions).toHaveLength(0);
   });
 
   it('selecting "is_vip:" shows boolean suggestions', () => {
@@ -162,32 +163,29 @@ describe('Suggestion chaining — field selection → value suggestions', () => 
 });
 
 describe('Suggestion chaining — value selection → operator suggestions', () => {
-  it('selecting "active" after "status:" suggests operators', () => {
+  it('selecting "true" after "is_vip:" suggests operators after space', () => {
     const engine = getEngine();
 
-    // Start with "status:" and get value suggestions
-    const step1 = getSuggestions(engine, 'status:');
-    const activeSugg = step1.suggestions.find(s => s.text === 'active');
-    expect(activeSugg).toBeDefined();
+    // Start with "is_vip:" and get boolean suggestions
+    const step1 = getSuggestions(engine, 'is_vip:');
+    const trueSugg = step1.suggestions.find(s => s.text === 'true');
+    expect(trueSugg).toBeDefined();
 
-    // Accept "active" → "status:active", cursor at 13
-    const { newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, 'status:', activeSugg!);
-    expect(newValue).toBe('status:active');
-    expect(newCursorPos).toBe(13);
+    // Accept "true" → "is_vip:true", cursor at 11
+    const { newValue, newCursorPos } = acceptAndGetNext(engine, 'is_vip:', trueSugg!);
+    expect(newValue).toBe('is_vip:true');
+    expect(newCursorPos).toBe(11);
 
-    // After a complete field:value, context should suggest operators
-    // (no suggestions since cursor is at end of value token, not after whitespace)
-    // But if we check context type at the cursor position:
-    const ctx = getContext('status:active', 13);
-    // cursor at end of VALUE token → the value itself — FIELD_VALUE context
+    // After a complete field:value, context at end is still FIELD_VALUE
+    const ctx = getContext('is_vip:true', 11);
     expect(ctx.type).toBe('FIELD_VALUE');
   });
 
   it('after accepting value and pressing space, operator suggestions appear', () => {
     const engine = getEngine();
 
-    // Simulate: "status:active " — user accepted value, then pressed space
-    const result = getSuggestions(engine, 'status:active ');
+    // Simulate: "is_vip:true " — user accepted value, then pressed space
+    const result = getSuggestions(engine, 'is_vip:true ');
     expect(result.context.type).toBe('OPERATOR');
     expect(result.suggestions.map(s => s.label)).toContain('AND');
     expect(result.suggestions.map(s => s.label)).toContain('OR');
@@ -216,39 +214,38 @@ describe('Suggestion chaining — operator selection → field suggestions', () 
 });
 
 describe('Suggestion chaining — full query building flow', () => {
-  it('builds "status:active AND level:ERROR" step by step', () => {
+  it('builds "is_vip:true AND price:" step by step', () => {
     const engine = getEngine();
 
-    // Step 1: type "sta" → select "status:"
-    let result = getSuggestions(engine, 'sta');
-    let sugg = result.suggestions.find(s => s.text === 'status:')!;
-    let { newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, 'sta', sugg);
-    expect(newValue).toBe('status:');
+    // Step 1: type "is" → select "is_vip:"
+    let result = getSuggestions(engine, 'is');
+    let sugg = result.suggestions.find(s => s.text === 'is_vip:')!;
+    let { newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, 'is', sugg);
+    expect(newValue).toBe('is_vip:');
 
-    // Step 2: value suggestions appear → select "active"
-    sugg = nextResult.suggestions.find(s => s.text === 'active')!;
+    // Step 2: boolean suggestions appear → select "true"
+    sugg = nextResult.suggestions.find(s => s.text === 'true')!;
     expect(sugg).toBeDefined();
     ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue, sugg));
-    expect(newValue).toBe('status:active');
+    expect(newValue).toBe('is_vip:true');
 
     // Step 3: type space, get operator suggestions → select "AND "
     result = getSuggestions(engine, newValue + ' ');
     sugg = result.suggestions.find(s => s.text === 'AND ')!;
     expect(sugg).toBeDefined();
     ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue + ' ', sugg));
-    expect(newValue).toBe('status:active AND ');
+    expect(newValue).toBe('is_vip:true AND ');
 
-    // Step 4: field suggestions appear → select "level:"
-    sugg = nextResult.suggestions.find(s => s.text === 'level:')!;
+    // Step 4: field suggestions appear → select "price:"
+    sugg = nextResult.suggestions.find(s => s.text === 'price:')!;
     expect(sugg).toBeDefined();
     ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue, sugg));
-    expect(newValue).toBe('status:active AND level:');
+    expect(newValue).toBe('is_vip:true AND price:');
 
-    // Step 5: value suggestions appear → select "ERROR"
-    sugg = nextResult.suggestions.find(s => s.text === 'ERROR')!;
-    expect(sugg).toBeDefined();
-    ({ newValue, newCursorPos } = acceptAndGetNext(engine, newValue, sugg));
-    expect(newValue).toBe('status:active AND level:ERROR');
+    // Step 5: number hint appears
+    expect(nextResult.context.type).toBe('FIELD_VALUE');
+    expect(nextResult.suggestions[0].type).toBe('hint');
+    expect(nextResult.suggestions[0].label).toBe('Enter a number');
   });
 });
 
@@ -306,51 +303,51 @@ describe('Cursor movement triggers correct context', () => {
 describe('Tab vs Enter behavior for field value selection', () => {
   it('Tab on field value at end of input appends trailing space', () => {
     const engine = getEngine();
-    const step1 = getSuggestions(engine, 'status:');
-    const activeSugg = step1.suggestions.find(s => s.text === 'active')!;
-    expect(activeSugg).toBeDefined();
+    const step1 = getSuggestions(engine, 'is_vip:');
+    const trueSugg = step1.suggestions.find(s => s.text === 'true')!;
+    expect(trueSugg).toBeDefined();
 
     const { newValue, newCursorPos } = acceptWithKey(
-      engine, 'status:', activeSugg, 'FIELD_VALUE', 'Tab'
+      engine, 'is_vip:', trueSugg, 'FIELD_VALUE', 'Tab'
     );
-    expect(newValue).toBe('status:active ');
-    expect(newCursorPos).toBe(14); // after the space
+    expect(newValue).toBe('is_vip:true ');
+    expect(newCursorPos).toBe(12); // after the space
   });
 
   it('Tab on field value NOT at end of input does NOT append space', () => {
     const engine = getEngine();
-    // "status:act AND x" — cursor at offset 10 (inside "act"), FIELD_VALUE context
-    const step1 = getSuggestions(engine, 'status:act AND x', 10);
-    const activeSugg = step1.suggestions.find(s => s.text === 'active')!;
-    expect(activeSugg).toBeDefined();
+    // "is_vip:tr AND x" — cursor at offset 9 (inside "tr"), FIELD_VALUE context
+    const step1 = getSuggestions(engine, 'is_vip:tr AND x', 9);
+    const trueSugg = step1.suggestions.find(s => s.text === 'true')!;
+    expect(trueSugg).toBeDefined();
 
     const { newValue } = acceptWithKey(
-      engine, 'status:act AND x', activeSugg, 'FIELD_VALUE', 'Tab'
+      engine, 'is_vip:tr AND x', trueSugg, 'FIELD_VALUE', 'Tab'
     );
-    expect(newValue).toBe('status:active AND x');
+    expect(newValue).toBe('is_vip:true AND x');
   });
 
   it('Enter on field value sets shouldSubmit flag', () => {
     const engine = getEngine();
-    const step1 = getSuggestions(engine, 'status:');
-    const activeSugg = step1.suggestions.find(s => s.text === 'active')!;
+    const step1 = getSuggestions(engine, 'is_vip:');
+    const trueSugg = step1.suggestions.find(s => s.text === 'true')!;
 
     const { newValue, shouldSubmit } = acceptWithKey(
-      engine, 'status:', activeSugg, 'FIELD_VALUE', 'Enter'
+      engine, 'is_vip:', trueSugg, 'FIELD_VALUE', 'Enter'
     );
-    expect(newValue).toBe('status:active ');
+    expect(newValue).toBe('is_vip:true ');
     expect(shouldSubmit).toBe(true);
   });
 
   it('Enter on field value at end appends trailing space', () => {
     const engine = getEngine();
-    const step1 = getSuggestions(engine, 'status:');
-    const activeSugg = step1.suggestions.find(s => s.text === 'active')!;
+    const step1 = getSuggestions(engine, 'is_vip:');
+    const falseSugg = step1.suggestions.find(s => s.text === 'false')!;
 
     const { newValue } = acceptWithKey(
-      engine, 'status:', activeSugg, 'FIELD_VALUE', 'Enter'
+      engine, 'is_vip:', falseSugg, 'FIELD_VALUE', 'Enter'
     );
-    expect(newValue).toBe('status:active ');
+    expect(newValue).toBe('is_vip:false ');
   });
 
   it('Tab on field name does NOT append space', () => {
@@ -457,35 +454,34 @@ describe('Tab vs Enter behavior for field value selection', () => {
   it('full flow: Tab-accept values appends spaces for easy chaining', () => {
     const engine = getEngine();
 
-    // Step 1: select "status:" via Tab (field name — no trailing space)
-    let result = getSuggestions(engine, 'sta');
-    let sugg = result.suggestions.find(s => s.text === 'status:')!;
-    let { newValue } = acceptWithKey(engine, 'sta', sugg, result.context.type, 'Tab');
-    expect(newValue).toBe('status:');
+    // Step 1: select "is_vip:" via Tab (field name — no trailing space)
+    let result = getSuggestions(engine, 'is');
+    let sugg = result.suggestions.find(s => s.text === 'is_vip:')!;
+    let { newValue } = acceptWithKey(engine, 'is', sugg, result.context.type, 'Tab');
+    expect(newValue).toBe('is_vip:');
 
-    // Step 2: select "active" via Tab (field value at end — trailing space)
+    // Step 2: select "true" via Tab (field value at end — trailing space)
     result = getSuggestions(engine, newValue);
-    sugg = result.suggestions.find(s => s.text === 'active')!;
+    sugg = result.suggestions.find(s => s.text === 'true')!;
     ({ newValue } = acceptWithKey(engine, newValue, sugg, result.context.type, 'Tab'));
-    expect(newValue).toBe('status:active ');
+    expect(newValue).toBe('is_vip:true ');
 
     // Step 3: select "AND " via Tab (operator — no extra space, already has one)
     result = getSuggestions(engine, newValue);
     sugg = result.suggestions.find(s => s.text === 'AND ')!;
     ({ newValue } = acceptWithKey(engine, newValue, sugg, result.context.type, 'Tab'));
-    expect(newValue).toBe('status:active AND ');
+    expect(newValue).toBe('is_vip:true AND ');
 
-    // Step 4: select "level:" via Tab (field name — no trailing space)
+    // Step 4: select "price:" via Tab (field name — no trailing space)
     result = getSuggestions(engine, newValue);
-    sugg = result.suggestions.find(s => s.text === 'level:')!;
+    sugg = result.suggestions.find(s => s.text === 'price:')!;
     ({ newValue } = acceptWithKey(engine, newValue, sugg, result.context.type, 'Tab'));
-    expect(newValue).toBe('status:active AND level:');
+    expect(newValue).toBe('is_vip:true AND price:');
 
-    // Step 5: select "ERROR" via Tab (field value at end — trailing space)
+    // Step 5: number hint appears — verify context
     result = getSuggestions(engine, newValue);
-    sugg = result.suggestions.find(s => s.text === 'ERROR')!;
-    ({ newValue } = acceptWithKey(engine, newValue, sugg, result.context.type, 'Tab'));
-    expect(newValue).toBe('status:active AND level:ERROR ');
+    expect(result.suggestions[0].type).toBe('hint');
+    expect(result.suggestions[0].label).toBe('Enter a number');
   });
 });
 

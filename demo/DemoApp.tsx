@@ -7,8 +7,8 @@ import { ElasticInputAPI, FieldConfig, TabContext, TabActionResult } from '../sr
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
-  SAMPLE_SAVED_SEARCHES, SAMPLE_HISTORY,
-  mockFetchSuggestions, demoValidateValue,
+  mockFetchSuggestions, mockFetchSavedSearches, mockFetchHistory,
+  demoValidateValue,
 } from './DemoConfig';
 import { lightTheme, darkTheme, getAppStyles } from './styles';
 
@@ -336,8 +336,8 @@ export function DemoApp() {
                   onSearch={handleSearch}
                   onChange={handleChange}
                   onValidationChange={setValidationErrors}
-                  savedSearches={SAMPLE_SAVED_SEARCHES}
-                  searchHistory={SAMPLE_HISTORY}
+                  savedSearches={mockFetchSavedSearches}
+                  searchHistory={mockFetchHistory}
                   fetchSuggestions={mockFetchSuggestions}
                   dropdown={{
                     mode: dropdownMode,

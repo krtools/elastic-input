@@ -42,6 +42,8 @@ export type {
   TabContext,
   TabActionResult,
   DropdownConfig,
+  DropdownOpenContext,
+  DropdownOpenProp,
   FeaturesConfig,
 } from './types';
 

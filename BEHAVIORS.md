@@ -862,12 +862,14 @@ When `dropdown.alignToInput` is `true`, the suggestion dropdown spans the full w
 
 Custom dropdowns like the date picker are **excluded** from full-width mode — they remain compact and caret-relative even when `dropdown.alignToInput` is true. This prevents rendered components from being stretched to the full input width.
 
-### 8.3 Dropdown Mode (`dropdown.mode`)
+### 8.3 Dropdown Open (`dropdown.open`)
 
-Controls when the autocomplete dropdown appears:
+Controls when the autocomplete dropdown appears. Accepts either a string constant or a callback function. The previous property name `dropdown.mode` is deprecated but still supported as a fallback (`open ?? mode ?? 'always'`).
 
-| Mode | Behavior |
-|------|----------|
+#### String constants
+
+| Constant | Behavior |
+|----------|----------|
 | `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. If dismissed (e.g. via Escape), **Ctrl+Space** (Cmd+Space on macOS) restores it. |
 | `'input'` | Dropdown appears only when the user types non-whitespace characters (or deletes/pastes). Typing whitespace (space, tab) dismisses the dropdown. Navigation events (click, arrow keys, focus) never trigger the dropdown. **Ctrl+Space** always works as a manual override. |
 | `'never'` | Dropdown is completely disabled. No suggestions, date picker, or hints are shown. |
@@ -877,9 +879,41 @@ The `manualActivationContextRef` tracks which context type was activated (for `'
 
 **`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace or the cursor is at position 0, the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called. If the character before the cursor is non-whitespace (letter, digit, colon, paren, etc.), the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Navigation (click, arrow keys, focus) does not open the dropdown but **does close it** if currently open — the `triggerSuggestionsFromNavigation` wrapper calls `closeDropdown` when `triggerOnNavigation` is false and the dropdown or date picker is visible. This prevents stale dropdowns from lingering after the user clicks to a different position.
 
+#### Callback form
+
+When `dropdown.open` is a function, it receives a `DropdownOpenContext` and returns a tri-state value:
+
+```ts
+(ctx: DropdownOpenContext) => boolean | null
+```
+
+| Return value | Meaning |
+|-------------|---------|
+| `true` | Force the dropdown open (override engine decision) |
+| `false` | Force the dropdown closed |
+| `null` | Let the engine decide (same as no callback) |
+
+The `DropdownOpenContext` contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `trigger` | `'input' \| 'navigation' \| 'ctrlSpace' \| 'modeChange'` | What caused the suggestion update |
+| `context` | `CursorContext` | Current cursor context (field name, value, operator, etc.) |
+| `suggestions` | `Suggestion[]` | Suggestions the engine computed |
+| `isOpen` | `boolean` | Whether the dropdown is currently open |
+
+When the callback is active, the string-constant mode logic (including the `'manual'` state machine and `'input'` whitespace detection) is bypassed entirely. The callback receives every trigger and has full control.
+
+**Common callback patterns** (tested in `DropdownOpen.test.ts`):
+
+- **Manual-like:** `(ctx) => ctx.trigger === 'ctrlSpace' ? null : false` — only show on Ctrl+Space
+- **Suppress when empty:** `(ctx) => ctx.suggestions.length > 0 ? null : false` — hide when no suggestions
+- **Field-value only:** `(ctx) => ctx.context.type === 'FIELD_VALUE' ? null : false` — only show in field value positions
+- **Sticky:** `(ctx) => ctx.isOpen ? true : null` — once open, keep open until explicitly closed
+
 ### 8.3.1 Dropdown Trigger Options
 
-Fine-grained controls for dropdown appearance timing and content, applied within `dropdown.mode: 'always'` or `'input'`. These settings have no effect when `dropdown.mode` is `'never'` or `'manual'`. Ctrl+Space manual activation always works regardless of these settings. Note: `dropdown.onNavigation` and `dropdown.navigationDelay` are ignored in `'input'` mode (navigation never triggers).
+Fine-grained controls for dropdown appearance timing and content, applied within `dropdown.open: 'always'` or `'input'`. These settings have no effect when `dropdown.open` is `'never'` or `'manual'`. When `dropdown.open` is a callback, these settings are ignored (the callback has full control). Ctrl+Space manual activation always works regardless of these settings. Note: `dropdown.onNavigation` and `dropdown.navigationDelay` are ignored in `'input'` mode (navigation never triggers).
 
 #### `dropdown.showOperators` (default: `true`)
 

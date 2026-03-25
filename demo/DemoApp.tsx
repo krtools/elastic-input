@@ -189,7 +189,7 @@ export function DemoApp() {
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
 
   // Dropdown options
-  const [dropdownMode, setDropdownMode] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
+  const [dropdownOpen, setDropdownOpen] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(false);
@@ -340,7 +340,7 @@ export function DemoApp() {
                   searchHistory={mockFetchHistory}
                   fetchSuggestions={mockFetchSuggestions}
                   dropdown={{
-                    mode: dropdownMode,
+                    open: dropdownOpen,
                     alignToInput: dropdownAlignToInput,
                     maxSuggestions,
                     suggestDebounceMs,
@@ -490,15 +490,15 @@ export function DemoApp() {
           <div style={panelStyle}>
             <OptionGroup label="Dropdown" theme={theme}>
               <OptionSelect
-                label="Mode"
-                value={dropdownMode}
+                label="Open"
+                value={dropdownOpen}
                 options={[
                   { value: 'always', label: 'Always' },
                   { value: 'input', label: 'On Input' },
                   { value: 'never', label: 'Never' },
                   { value: 'manual', label: 'Ctrl+Space' },
                 ]}
-                onChange={setDropdownMode}
+                onChange={setDropdownOpen}
                 theme={theme}
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />

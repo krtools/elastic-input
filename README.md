@@ -118,7 +118,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `className` | `string` | — | CSS class for the outer container |
 | `style` | `CSSProperties` | — | Inline styles for the outer container |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
-| `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (mode, triggers, renderers) |
+| `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) |
 | `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap, savedSearches, historySearch) |
 | `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
 | `onFocus` | `() => void` | — | Called when the input gains focus |

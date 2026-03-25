@@ -204,9 +204,36 @@ export interface StyleConfig {
  * Configuration for the autocomplete dropdown: when it appears, what it shows, and
  * how suggestion items are rendered. All properties are optional with sensible defaults.
  */
+/** Context passed to a `dropdown.open` callback. */
+export interface DropdownOpenContext {
+  /** What caused this evaluation. */
+  trigger: 'input' | 'navigation' | 'ctrlSpace' | 'modeChange';
+  /** Current cursor context from the parser. */
+  context: CursorContext;
+  /** Suggestions the engine has computed (may be empty). */
+  suggestions: Suggestion[];
+  /** Whether the dropdown is currently visible. */
+  isOpen: boolean;
+}
+
+/**
+ * Value for `dropdown.open`. A string constant for common presets,
+ * or a callback for custom logic.
+ *
+ * Callback return values:
+ * - `true` — force the dropdown open (the engine still decides *what* to show)
+ * - `false` — force the dropdown closed
+ * - `null` — no opinion; let the engine decide
+ */
+export type DropdownOpenProp =
+  | 'always' | 'never' | 'manual' | 'input'
+  | ((ctx: DropdownOpenContext) => boolean | null);
+
 export interface DropdownConfig {
-  /** Controls when the dropdown appears. `'always'` (default) shows it as you type.
-   *  `'never'` disables it entirely. `'manual'` requires Ctrl+Space. @default 'always' */
+  /** Controls when the dropdown appears. Accepts a preset string or a callback.
+   *  @default 'always' */
+  open?: DropdownOpenProp;
+  /** @deprecated Use `open` instead. */
   mode?: 'always' | 'never' | 'manual' | 'input';
   /** When true, the dropdown spans the full input width instead of following the caret. @default false */
   alignToInput?: boolean;

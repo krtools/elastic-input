@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext } from '../types';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -172,7 +172,9 @@ export function ElasticInput(props: ElasticInputProps) {
   } = props;
 
   // Dropdown config
-  const dropdownMode = dropdownConfig?.mode ?? 'always';
+  const dropdownOpen: DropdownOpenProp = dropdownConfig?.open ?? dropdownConfig?.mode ?? 'always';
+  const dropdownOpenIsCallback = typeof dropdownOpen === 'function';
+  const dropdownMode = dropdownOpenIsCallback ? null : dropdownOpen;
   const dropdownAlignToInput = dropdownConfig?.alignToInput ?? false;
   const maxSuggestions = dropdownConfig?.maxSuggestions;
   const suggestDebounceMs = dropdownConfig?.suggestDebounceMs;
@@ -181,7 +183,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const showSavedSearchHint = dropdownConfig?.showSavedSearchHint ?? enableSavedSearches;
   const showHistoryHint = dropdownConfig?.showHistoryHint ?? enableHistorySearch;
   const showOperators = dropdownConfig?.showOperators !== false;
-  const triggerOnNavigation = dropdownMode !== 'input' && dropdownConfig?.onNavigation !== false;
+  const triggerOnNavigation = (dropdownOpenIsCallback || dropdownMode !== 'input') && dropdownConfig?.onNavigation !== false;
   const navigationDelay = dropdownConfig?.navigationDelay ?? 0;
   const renderFieldHint = dropdownConfig?.renderFieldHint;
   const renderHistoryItem = dropdownConfig?.renderHistoryItem;
@@ -242,6 +244,8 @@ export function ElasticInput(props: ElasticInputProps) {
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
   // was activated via Ctrl+Space. Reset when context changes.
   const manualActivationContextRef = React.useRef<string | null>(null);
+  // Tracks what caused the current dropdown evaluation (for callback context)
+  const dropdownTriggerRef = React.useRef<DropdownOpenContext['trigger']>('input');
   // Expand/shrink selection state: the cached hierarchy and current level index
   const expandSelRef = React.useRef<{ ranges: SelectionRange[]; level: number } | null>(null);
   // Stable ref to the latest updateSuggestionsFromTokens so processInput (defined
@@ -416,28 +420,44 @@ export function ElasticInput(props: ElasticInputProps) {
     const contextType = result.context.type;
     setCursorContext(result.context);
 
-    // Dropdown mode gating
-    if (dropdownMode === 'never') {
-      setShowDropdown(false);
-      setShowDatePicker(false);
-      setSuggestions([]);
-      return;
-    }
-    if (dropdownMode === 'manual') {
-      // If manual activation is set but context changed, dismiss
-      if (manualActivationContextRef.current && manualActivationContextRef.current !== contextType) {
-        manualActivationContextRef.current = null;
+    // Dropdown open gating
+    if (dropdownOpenIsCallback) {
+      const decision = (dropdownOpen as (ctx: DropdownOpenContext) => boolean | null)({
+        trigger: dropdownTriggerRef.current,
+        context: result.context,
+        suggestions: result.suggestions,
+        isOpen: stateRef.current.showDropdown || stateRef.current.showDatePicker,
+      });
+      if (decision === false) {
         setShowDropdown(false);
         setShowDatePicker(false);
         setSuggestions([]);
         return;
       }
-      // If not activated, don't show anything
-      if (!manualActivationContextRef.current) {
+      // true or null: proceed (engine decides what to show)
+    } else {
+      if (dropdownMode === 'never') {
         setShowDropdown(false);
         setShowDatePicker(false);
         setSuggestions([]);
         return;
+      }
+      if (dropdownMode === 'manual') {
+        // If manual activation is set but context changed, dismiss
+        if (manualActivationContextRef.current && manualActivationContextRef.current !== contextType) {
+          manualActivationContextRef.current = null;
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+          return;
+        }
+        // If not activated, don't show anything
+        if (!manualActivationContextRef.current) {
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+          return;
+        }
       }
     }
 
@@ -650,7 +670,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownMode, showOperators]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
@@ -683,6 +703,7 @@ export function ElasticInput(props: ElasticInputProps) {
       }
       return;
     }
+    dropdownTriggerRef.current = 'navigation';
     if (navigationDelay > 0) {
       navDelayTimerRef.current = setTimeout(() => {
         navDelayTimerRef.current = null;
@@ -891,16 +912,32 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, []);
 
-  // Proactively close dropdown when dropdownMode changes
+  // Proactively close dropdown when dropdown.open changes
   React.useEffect(() => {
-    if (dropdownMode === 'never') {
+    if (dropdownOpenIsCallback) {
+      // Evaluate callback to decide if the dropdown should close
+      const s = stateRef.current;
+      if (s.cursorContext) {
+        const decision = (dropdownOpen as (ctx: DropdownOpenContext) => boolean | null)({
+          trigger: 'modeChange',
+          context: s.cursorContext,
+          suggestions: s.suggestions,
+          isOpen: s.showDropdown || s.showDatePicker,
+        });
+        if (decision === false) {
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+        }
+      }
+    } else if (dropdownMode === 'never') {
       setShowDropdown(false);
       setShowDatePicker(false);
       setSuggestions([]);
     }
-    // Reset manual activation when mode changes
+    // Reset manual activation when open changes
     manualActivationContextRef.current = null;
-  }, [dropdownMode]);
+  }, [dropdownOpen]);
 
   // Reposition dropdown on window resize / scroll so it stays anchored
   React.useEffect(() => {
@@ -1008,10 +1045,12 @@ export function ElasticInput(props: ElasticInputProps) {
       typingGroupTimerRef.current = null;
     }, 300);
 
+    dropdownTriggerRef.current = 'input';
+
     // In 'input' mode, show the dropdown only when the cursor is at a non-whitespace
     // position (i.e. the character before the cursor is non-whitespace). This handles
     // typing, deletion, and paste uniformly — the dropdown tracks typing momentum.
-    if (dropdownMode === 'input') {
+    if (!dropdownOpenIsCallback && dropdownMode === 'input') {
       const charBefore = cursorPos > 0 ? text[cursorPos - 1] : '';
       if (!charBefore || charBefore.trim() === '') {
         processInput(text, false);
@@ -1021,7 +1060,7 @@ export function ElasticInput(props: ElasticInputProps) {
     }
 
     processInput(text, true);
-  }, [processInput, dropdownMode, closeDropdown]);
+  }, [processInput, dropdownOpenIsCallback, dropdownMode, closeDropdown]);
 
   const handleCompositionStart = React.useCallback(() => {
     isComposingRef.current = true;
@@ -1244,7 +1283,8 @@ export function ElasticInput(props: ElasticInputProps) {
     // Ctrl+Space: activate/restore dropdown
     if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      if (dropdownMode === 'manual') {
+      dropdownTriggerRef.current = 'ctrlSpace';
+      if (!dropdownOpenIsCallback && dropdownMode === 'manual') {
         const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
         manualActivationContextRef.current = result.context.type;
       }
@@ -1381,7 +1421,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];

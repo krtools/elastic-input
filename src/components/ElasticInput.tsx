@@ -47,20 +47,24 @@ export interface DatePickerInit {
  * Returns { mode: 'range', start, end } when cursor is inside a range
  * expression on a date field, or null for single-date (FIELD_VALUE) contexts.
  */
-export function computeDatePickerInit(context: { type: string; partial?: string; token?: { value: string } }): DatePickerInit | null {
+export function computeDatePickerInit(
+  context: { type: string; partial?: string; token?: { value: string } },
+  parseDateFn?: (value: string) => Date | null,
+): DatePickerInit | null {
+  const parse = (v: string) => (parseDateFn?.(v) ?? parseDate(v));
   if (context.type === 'RANGE' && context.token) {
     const raw = context.token.value;
     const hasClosed = raw.endsWith(']') || raw.endsWith('}');
     const inner = hasClosed ? raw.slice(1, -1) : raw.slice(1);
     const toMatch = inner.match(/^(.*?)\s+[Tt][Oo]\s+(.*)$/);
     if (toMatch) {
-      const lower = parseDate(toMatch[1].trim());
-      const upper = parseDate(toMatch[2].trim());
+      const lower = parse(toMatch[1].trim());
+      const upper = parse(toMatch[2].trim());
       return { mode: 'range', start: lower, end: upper };
     }
   }
   if (context.type === 'FIELD_VALUE' && context.partial) {
-    const date = parseDate(context.partial);
+    const date = parse(context.partial);
     if (date) {
       return { mode: 'single', start: date, end: null };
     }
@@ -172,6 +176,7 @@ export function ElasticInput(props: ElasticInputProps) {
     inputRef, datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
     validateValue,
+    parseDate: parseDateProp,
   } = props;
 
   // Dropdown config
@@ -361,7 +366,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -488,7 +493,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
       // Parse range bounds for pre-populating the date picker
-      const init = computeDatePickerInit(result.context);
+      const init = computeDatePickerInit(result.context, parseDateProp);
       const prevInit = datePickerInitRef.current;
       datePickerInitRef.current = init;
       setDatePickerInit(init);
@@ -737,7 +742,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token });
@@ -1083,7 +1088,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
@@ -1192,7 +1197,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
-        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current)];
+        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token });
         editorRef.current.innerHTML = html;

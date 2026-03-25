@@ -120,6 +120,53 @@ describe('Date picker range → single transition', () => {
     });
   });
 
+  describe('custom parseDateFn', () => {
+    it('uses custom parser for single date init', () => {
+      const customParseDate = (value: string) => {
+        if (value === 'yesterday') return new Date(2026, 2, 24);
+        return null;
+      };
+      // Built-in parser doesn't know "yesterday"
+      const result = getResult('created:yesterday');
+      expect(computeDatePickerInit(result.context)).toBeNull();
+      // Custom parser recognizes it
+      const init = computeDatePickerInit(result.context, customParseDate);
+      expect(init).not.toBeNull();
+      expect(init!.mode).toBe('single');
+      expect(init!.start!.getFullYear()).toBe(2026);
+      expect(init!.start!.getMonth()).toBe(2);
+      expect(init!.start!.getDate()).toBe(24);
+    });
+
+    it('uses custom parser for range bounds', () => {
+      const customParseDate = (value: string) => {
+        if (value === 'last monday') return new Date(2026, 2, 23);
+        if (value === 'next friday') return new Date(2026, 2, 27);
+        return null;
+      };
+      const result = getResult('created:[last monday TO next friday]', 15);
+      // Built-in parser fails on these
+      const builtIn = computeDatePickerInit(result.context);
+      expect(builtIn!.start).toBeNull();
+      expect(builtIn!.end).toBeNull();
+      // Custom parser resolves both bounds
+      const init = computeDatePickerInit(result.context, customParseDate);
+      expect(init!.mode).toBe('range');
+      expect(init!.start!.getDate()).toBe(23);
+      expect(init!.end!.getDate()).toBe(27);
+    });
+
+    it('falls back to built-in parser when custom returns null', () => {
+      const customParseDate = (_value: string) => null;
+      const result = getResult('created:2024-06-15');
+      // Custom parser returns null, but built-in handles ISO dates
+      const init = computeDatePickerInit(result.context, customParseDate);
+      expect(init).not.toBeNull();
+      expect(init!.mode).toBe('single');
+      expect(init!.start!.getFullYear()).toBe(2024);
+    });
+  });
+
   describe('single date highlight on reopen', () => {
     it('clicking existing date value produces single init with that date', () => {
       const result = getResult('created:2024-06-15');

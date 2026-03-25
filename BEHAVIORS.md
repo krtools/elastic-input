@@ -1210,7 +1210,24 @@ Warning squiggles are rendered with an amber/yellow color (`warning` color key) 
 
 - **Tests:** `Validator.test.ts` → "Ambiguous precedence warnings" suite (8 tests)
 
-### 9.17 Non-Validated Cases
+### 9.17 Custom Date Parser (`parseDate` prop)
+
+The `parseDate` prop allows consumers to provide a custom date parser that supplements the built-in parser. The custom parser receives a string and returns a `Date` if valid, or `null` if not recognized.
+
+**Validation:** The custom parser is tried first in `validateSingleDate`. If it returns a `Date`, the value is accepted. If it returns `null`, the built-in checks (`now±Xd` patterns, `isValidDateString`) still run as fallback. This means the custom parser extends rather than replaces built-in date recognition.
+
+**Date picker initialization:** `computeDatePickerInit` tries the custom parser first, then falls back to the built-in `parseDate`. This allows the picker to correctly open to dates in custom formats (e.g., "last tuesday") while still handling standard ISO dates.
+
+| Input | No custom parser | With parser recognizing "yesterday" |
+|-------|-----------------|-------------------------------------|
+| `created:yesterday` | Error: not a valid date | Valid (no error) |
+| `created:2024-01-15` | Valid | Valid (falls through to built-in) |
+| `created:[yesterday TO now]` | Error on "yesterday" | Valid |
+
+- **Tests:** `Validator.test.ts` → "accepts dates via custom parseDate function", "custom parseDate applies to range bounds", "custom parseDate applies inside field groups"
+- **Tests:** `DatePickerRangeTransition.test.ts` → "custom parseDateFn" suite (3 tests)
+
+### 9.18 Non-Validated Cases
 
 - Bare terms have no built-in type validation, but the `validateValue` callback is still called with `position: 'bare_term'` for custom validation
 - Empty field groups (`field:()`) pass validation
@@ -1325,6 +1342,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
 | `datePresets` | `{ label, value }[]` | built-in | Custom date range picker presets; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
+| `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
 
 #### `DropdownConfig` Sub-Properties
 

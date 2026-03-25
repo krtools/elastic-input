@@ -105,6 +105,45 @@ describe('Validator', () => {
     expect(validate('created:now-7d')).toHaveLength(0);
   });
 
+  it('accepts dates via custom parseDate function', () => {
+    const customParseDate = (value: string) => {
+      if (value === 'last tuesday') return new Date(2026, 2, 17);
+      if (value === 'yesterday') return new Date(2026, 2, 24);
+      return null;
+    };
+    const tokens = new Lexer('created:yesterday').tokenize();
+    const ast = new Parser(tokens).parse();
+    // Without custom parser: invalid
+    expect(new Validator(FIELDS).validate(ast)).toHaveLength(1);
+    // With custom parser: valid
+    expect(new Validator(FIELDS).validate(ast, undefined, customParseDate)).toHaveLength(0);
+  });
+
+  it('custom parseDate applies to range bounds', () => {
+    const customParseDate = (value: string) => {
+      if (value === 'yesterday') return new Date(2026, 2, 24);
+      return null;
+    };
+    const tokens = new Lexer('created:[yesterday TO now]').tokenize();
+    const ast = new Parser(tokens).parse();
+    // Without custom parser: "yesterday" is invalid
+    const errorsWithout = new Validator(FIELDS).validate(ast);
+    expect(errorsWithout.some(e => e.message.includes('not a valid date'))).toBe(true);
+    // With custom parser: "yesterday" is valid, "now" is always valid
+    expect(new Validator(FIELDS).validate(ast, undefined, customParseDate)).toHaveLength(0);
+  });
+
+  it('custom parseDate applies inside field groups', () => {
+    const customParseDate = (value: string) => {
+      if (value === 'yesterday') return new Date(2026, 2, 24);
+      return null;
+    };
+    const tokens = new Lexer('created:(yesterday)').tokenize();
+    const ast = new Parser(tokens).parse();
+    expect(new Validator(FIELDS).validate(ast)).toHaveLength(1);
+    expect(new Validator(FIELDS).validate(ast, undefined, customParseDate)).toHaveLength(0);
+  });
+
   it('flags comparison operator on non-numeric/date field', () => {
     const errors = validate('status:>active');
     expect(errors).toHaveLength(1);

@@ -444,4 +444,11 @@ export interface ElasticInputProps {
    * severity), a `{ message, severity }` object, or `null` if valid.
    */
   validateValue?: (context: ValidateValueContext) => ValidateReturn;
+  /**
+   * Custom date parser for date-typed fields. Called during validation and date picker
+   * initialization. Return a `Date` if the string is a valid date, or `null` if not.
+   * When provided, values accepted by this parser bypass the built-in date format checks.
+   * The built-in parser handles YYYY-MM-DD, ISO 8601, and `now±Xd` syntax.
+   */
+  parseDate?: (value: string) => Date | null;
 }

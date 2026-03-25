@@ -126,6 +126,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context) => TabActionResult` | — | Override Tab key behavior (accept/blur/submit) |
 | `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
+| `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
 
 ## Field Configuration
 

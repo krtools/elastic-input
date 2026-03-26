@@ -1545,12 +1545,11 @@ export function ElasticInput(props: ElasticInputProps) {
     requestAnimationFrame(() => {
       if (editorRef.current) {
         const toks = stateRef.current.tokens;
-        if (toks.length > 0) {
-          const offset = getCaretCharOffset(editorRef.current);
-          triggerSuggestionsFromNavigation(toks, offset);
-        } else {
-          triggerSuggestionsFromNavigation([], 0);
-        }
+        const offset = toks.length > 0 ? getCaretCharOffset(editorRef.current) : 0;
+        // Restore cursorOffset from DOM — handleBlur sets it to -1
+        setCursorOffset(offset);
+        setSelectionEnd(offset);
+        triggerSuggestionsFromNavigation(toks, offset);
       }
     });
   }, [handleInput, triggerSuggestionsFromNavigation, onFocusProp]);

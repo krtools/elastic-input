@@ -805,7 +805,7 @@ When `features.multiline` is enabled (default: `true`), Shift+Enter inserts a li
 
 The dropdown's selected index determines which item is highlighted and which Enter/Tab would accept.
 
-- **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus).
+- **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus). When `dropdown.autoSelect` is `true`, the first item is pre-selected even with an empty partial (index = 0).
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
 - **Non-interactive hint selected** (fields like `price:42` where the only dropdown item is a hint such as "Enter a number"): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
 - **Arrow key wrapping**: ArrowDown on the last item wraps to the first; ArrowUp on the first item wraps to the last.
@@ -1381,6 +1381,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
 | `renderHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; see §4.9 |
+| `autoSelect` | `boolean` | `false` | Pre-select the first suggestion even with an empty partial; see §7.10 |
 
 #### `FeaturesConfig` Sub-Properties
 

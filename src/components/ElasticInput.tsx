@@ -205,6 +205,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderHistoryItem = dropdownConfig?.renderHistoryItem;
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
   const renderDropdownHeader = dropdownConfig?.renderHeader;
+  const autoSelect = dropdownConfig?.autoSelect ?? false;
 
   // Features config
   const multiline = featuresConfig?.multiline !== false; // default true
@@ -602,7 +603,7 @@ export function ElasticInput(props: ElasticInputProps) {
         setSuggestions(newSuggestions);
         if (!dropdownAlignToInput) setShowDropdown(false);
         setShowDatePicker(false);
-        setSelectedSuggestionIndex(result.context.partial ? 0 : -1);
+        setSelectedSuggestionIndex((result.context.partial || autoSelect) ? 0 : -1);
         setAutocompleteContext(contextType);
         showDropdownAtPosition(newSuggestions.length * 32, 300);
       } else {
@@ -716,7 +717,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
           if (mapped.length > 0) {
             setSuggestions(mapped);
-            setSelectedSuggestionIndex(partial ? 0 : -1);
+            setSelectedSuggestionIndex((partial || autoSelect) ? 0 : -1);
             showDropdownAtPosition(mapped.length * 32, 300);
           } else {
             // No async results — fall back to the sync hint (e.g. "Search companies...")
@@ -727,7 +728,7 @@ export function ElasticInput(props: ElasticInputProps) {
             );
             if (hintSuggestions.length > 0) {
               setSuggestions(hintSuggestions);
-              setSelectedSuggestionIndex(syncResult.context.partial ? 0 : -1);
+              setSelectedSuggestionIndex((syncResult.context.partial || autoSelect) ? 0 : -1);
               showDropdownAtPosition(hintSuggestions.length * 32, 300);
             } else {
               setShowDropdown(false);
@@ -754,7 +755,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;

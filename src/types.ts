@@ -280,6 +280,10 @@ export interface DropdownConfig {
   /** Custom renderer for a header above the suggestion list. Return a React element,
    *  or null/undefined for no header. */
   renderHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
+  /** Automatically select the first suggestion when the dropdown opens, even with an
+   *  empty partial. When false, the first item is only pre-selected after the user
+   *  starts typing a partial match. @default false */
+  autoSelect?: boolean;
 }
 
 /**

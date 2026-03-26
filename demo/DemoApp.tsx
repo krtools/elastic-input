@@ -267,6 +267,9 @@ export function DemoApp() {
   const [savedSearchesEnabled, setSavedSearchesEnabled] = React.useState(true);
   const [historySearchEnabled, setHistorySearchEnabled] = React.useState(true);
 
+  // Selection options
+  const [autoSelect, setAutoSelect] = React.useState(false);
+
   // Hint options
   const [showSavedSearchHint, setShowSavedSearchHint] = React.useState(true);
   const [showHistoryHint, setShowHistoryHint] = React.useState(true);
@@ -425,6 +428,7 @@ export function DemoApp() {
                   dropdown={{
                     open: dropdownOpen,
                     alignToInput: dropdownAlignToInput,
+                    autoSelect,
                     maxSuggestions,
                     suggestDebounceMs,
                     showSavedSearchHint,
@@ -598,6 +602,7 @@ export function DemoApp() {
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />
               <OptionToggle label="Section headers" checked={showDropdownHeaders} onChange={setShowDropdownHeaders} theme={theme} />
+              <OptionToggle label="Auto-select first" checked={autoSelect} onChange={setAutoSelect} theme={theme} />
               <OptionToggle label="Operator suggestions" checked={showOperators} onChange={setShowOperators} theme={theme} />
               <OptionToggle label="Show on navigation" checked={navTrigger} onChange={setNavTrigger} theme={theme} />
               <OptionSelect

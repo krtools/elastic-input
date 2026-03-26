@@ -472,4 +472,24 @@ export interface ElasticInputProps {
   /** When the input text reaches this character count, syntax highlighting, autocomplete,
    *  and validation are disabled and the input becomes a plain text box. `0` = always plain. */
   plainModeLength?: number;
+  /**
+   * Intercept paste events before text is inserted. Receives the plain-text clipboard
+   * content and the original ClipboardEvent. Return:
+   * - A `string` to insert that text instead of the original
+   * - `null` to cancel the paste entirely
+   * - A `Promise` resolving to either — the component remains fully interactive while
+   *   the promise is pending (no text is inserted until it resolves)
+   *
+   * @example
+   * ```tsx
+   * interceptPaste={async (text) => {
+   *   if (text.includes('\n')) {
+   *     const choice = await showDialog('Join lines with AND?');
+   *     return choice ? text.split('\n').join(' AND ') : text;
+   *   }
+   *   return text; // pass through unchanged
+   * }}
+   * ```
+   */
+  interceptPaste?: (text: string, event: React.ClipboardEvent) => string | null | Promise<string | null>;
 }

@@ -128,6 +128,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
 | `plainModeLength` | `number` | — | Character count at which highlighting, autocomplete, and validation are disabled for performance |
+| `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Transform or cancel pasted text before insertion; supports async |
 
 ## Field Configuration
 

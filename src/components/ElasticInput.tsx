@@ -178,6 +178,7 @@ export function ElasticInput(props: ElasticInputProps) {
     validateValue,
     parseDate: parseDateProp,
     plainModeLength,
+    interceptPaste,
   } = props;
 
   // Dropdown config
@@ -1584,10 +1585,7 @@ export function ElasticInput(props: ElasticInputProps) {
     triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start);
   }, [triggerSuggestionsFromNavigation, closeDropdown]);
 
-  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pastedText = normalizeTypographicChars(e.clipboardData.getData('text/plain'));
-
+  const doPaste = React.useCallback((text: string) => {
     // Break typing group so paste is its own undo entry
     if (typingGroupTimerRef.current) {
       clearTimeout(typingGroupTimerRef.current);
@@ -1595,9 +1593,29 @@ export function ElasticInput(props: ElasticInputProps) {
     }
 
     // Insert text at cursor, replacing any selection
-    insertTextAtCursor(pastedText);
+    insertTextAtCursor(text);
     handleInput();
   }, [handleInput]);
+
+  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedText = normalizeTypographicChars(e.clipboardData.getData('text/plain'));
+
+    if (interceptPaste) {
+      const result = interceptPaste(pastedText, e);
+      if (result != null && typeof (result as Promise<unknown>)?.then === 'function') {
+        // Async — the component stays interactive, text is inserted when the promise resolves
+        (result as Promise<string | null>).then(transformed => {
+          if (transformed != null) doPaste(transformed);
+        }).catch(() => { /* promise rejected — treat as cancelled paste */ });
+      } else if (result != null) {
+        doPaste(result as string);
+      }
+      // result === null → paste cancelled
+    } else {
+      doPaste(pastedText);
+    }
+  }, [interceptPaste, doPaste]);
 
   const handleDateSelect = React.useCallback((dateStr: string) => {
     const s = stateRef.current;

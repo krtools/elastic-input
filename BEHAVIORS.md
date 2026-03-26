@@ -847,6 +847,18 @@ The expansion hierarchy is built by `getExpansionRanges()` in `src/utils/expandS
 
 - **Tests:** `expandSelection.test.ts` → 14 tests covering bare terms, field values, boolean expressions, groups, negation, field groups, whitespace, operator positions, and deduplication
 
+### 7.13 Paste Interception (`interceptPaste`)
+
+The `interceptPaste` prop lets the consumer transform or cancel clipboard content before it is inserted. The callback receives the plain-text clipboard string and the original `ClipboardEvent`, and returns one of:
+
+- A **string** — inserted instead of the original text
+- **`null`** — the paste is cancelled (nothing is inserted)
+- A **Promise** resolving to either — the component remains fully interactive while the promise is pending. No intermediate state is shown; text is inserted only when the promise resolves. If the promise rejects, the paste is silently cancelled.
+
+This supports use cases like prompting the user for a transformation (e.g. joining newline-separated lists with `AND`), normalizing external formats, or blocking specific content.
+
+When `interceptPaste` is not provided, paste works normally (typographic normalization is still applied).
+
 ---
 
 ## 8. Dropdown Positioning
@@ -1363,6 +1375,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
 | `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Set to `0` to disable. |
+| `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Intercept paste before insertion; see §7.14 |
 
 #### `DropdownConfig` Sub-Properties
 

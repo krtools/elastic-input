@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.3.4 — 2026-03-26
+
+### Features
+
+- **`interceptPaste` prop** — Intercept paste events before text is inserted. The callback receives the plain-text clipboard content and can return a transformed string, `null` to cancel, or a Promise for async workflows (e.g. prompting the user). The component stays fully interactive while a promise is pending.
+- **`dropdown.autoSelect` option** — When `true`, the first dropdown suggestion is pre-selected even with an empty partial (e.g. right after typing a colon). Off by default.
+- **`formatQuery` utility** — Pretty-prints queries with line breaks at boolean operators, indented nested groups, and inline short expressions. Exported from the package.
+- **`valueTypes` color config** — Per-field-type value colors (`string`, `number`, `date`, `boolean`, `ip`) on `ColorConfig`. Overrides the default `fieldValue` color based on the field's declared type.
+- **`plainModeLength` prop** — Character count threshold that degrades the input to plain text mode (no highlighting, autocomplete, or validation). Set to `0` for always-plain.
+- **PageUp/PageDown dropdown navigation** — Jumps 10 items at a time; PageDown clamps to last, PageUp clamps to first.
+- **Arrow key wrap-around** — ArrowDown on the last dropdown item wraps to the first; ArrowUp on the first wraps to the last.
+
+### Bug Fixes
+
+- **Focus/blur cursor context** — Alt-tabbing away and back, then pressing Ctrl+Space, now correctly restores the cursor context instead of showing field-name suggestions.
+- **JSDoc placement** — Moved the `ElasticInputProps` JSDoc comment to sit directly above the interface declaration.
+
 ## 0.3.3 — 2026-03-25
 
 ### Bug Fixes

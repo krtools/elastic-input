@@ -808,7 +808,7 @@ The dropdown's selected index determines which item is highlighted and which Ent
 - **Empty partial** (cursor just landed in a position, nothing typed yet): no item is pre-selected (index = -1). The dropdown shows options but the user must arrow-down or click to select one. Enter/Tab fall through to their default behavior (Enter submits, Tab moves focus).
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
 - **Non-interactive hint selected** (fields like `price:42` where the only dropdown item is a hint such as "Enter a number"): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
-- **ArrowUp past first item**: deselects all (returns to index -1).
+- **Arrow key wrapping**: ArrowDown on the last item wraps to the first; ArrowUp on the first item wraps to the last.
 - **PageDown/PageUp**: jumps 10 items at a time. PageDown clamps to the last item; PageUp clamps to the first (index 0, does not deselect).
 - **Loading state** ("Searching..." for async fields): no item is pre-selected. Enter closes the dropdown and submits the search (does not block on pending fetch). Same applies to error items.
 

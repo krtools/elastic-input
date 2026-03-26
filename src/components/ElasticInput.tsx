@@ -1385,11 +1385,11 @@ export function ElasticInput(props: ElasticInputProps) {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
-          setSelectedSuggestionIndex(i => Math.min(i + 1, s.suggestions.length - 1));
+          setSelectedSuggestionIndex(i => i >= s.suggestions.length - 1 ? 0 : i + 1);
           return;
         case 'ArrowUp':
           e.preventDefault();
-          setSelectedSuggestionIndex(i => Math.max(i - 1, -1));
+          setSelectedSuggestionIndex(i => i <= 0 ? s.suggestions.length - 1 : i - 1);
           return;
         case 'PageDown':
           e.preventDefault();

@@ -10,6 +10,7 @@ import {
   mockFetchSuggestions, mockFetchSavedSearches, mockFetchHistory,
   demoValidateValue,
 } from './DemoConfig';
+import { formatQuery } from '../src/utils/formatQuery';
 import { lightTheme, darkTheme, getAppStyles } from './styles';
 
 type TabId = 'crm' | 'logs' | 'ecommerce';
@@ -453,6 +454,17 @@ export function DemoApp() {
                 onClick={() => handleSearch(lastQuery, lastAST)}
               >
                 Search
+              </button>
+              <button
+                style={{ ...styles.searchButton, backgroundColor: theme.textSecondary }}
+                onClick={() => {
+                  const api = inputApiRef.current;
+                  if (!api) return;
+                  const formatted = formatQuery(api.getValue());
+                  api.setValue(formatted);
+                }}
+              >
+                Format
               </button>
             </div>
             {searchResult && <div style={styles.queryResult}>{searchResult}</div>}

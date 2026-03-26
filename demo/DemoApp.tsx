@@ -265,7 +265,12 @@ export function DemoApp() {
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
   const theme = isDark ? darkTheme : lightTheme;
-  const colors = isDark ? DARK_COLORS : DEFAULT_COLORS;
+  const colors = {
+    ...(isDark ? DARK_COLORS : DEFAULT_COLORS),
+    valueTypes: isDark
+      ? { string: '#a5d6ff', number: '#79c0ff', date: '#d2a8ff', boolean: '#ff7b72', ip: '#7ee787' }
+      : { string: '#0550ae', number: '#0a3069', date: '#8250df', boolean: '#cf222e', ip: '#116329' },
+  };
   const styles = getAppStyles(theme);
   const tab = TABS.find(t => t.id === activeTab) || TABS[0];
 

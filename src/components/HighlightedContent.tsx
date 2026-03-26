@@ -1,5 +1,5 @@
 import { Token, TokenType } from '../lexer/tokens';
-import { ColorConfig } from '../types';
+import { ColorConfig, FieldConfig, FieldType } from '../types';
 import { mergeColors } from '../styles/inlineStyles';
 import { buildRegexHTML } from '../highlighting/regexHighlight';
 import { buildRangeHTML } from '../highlighting/rangeHighlight';
@@ -55,6 +55,8 @@ export interface HighlightOptions {
   cursorOffset?: number;
   /** Custom class name appended to every token span. */
   tokenClassName?: string;
+  /** Field lookup map for per-type value coloring (keyed by field name and aliases). */
+  fieldTypeMap?: Map<string, FieldType>;
 }
 
 export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig, options?: HighlightOptions): string {
@@ -68,9 +70,77 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
       ? findMatchingParen(tokens, options.cursorOffset)
       : null;
 
-  return tokens.map(token => {
+  // Build a map of token index → field type for value tokens.
+  // Handles both simple field:value and field groups field:(a OR b).
+  const valueTypes = colorConfig?.valueTypes;
+  const fieldTypeMap = options?.fieldTypeMap;
+  let tokenFieldTypes: (FieldType | undefined)[] | undefined;
+  if (valueTypes && fieldTypeMap) {
+    tokenFieldTypes = new Array(tokens.length);
+    let pendingFieldName: string | undefined;
+    let sawColon = false;
+    // Stack of field types for nested field groups: field:(a OR (b AND c))
+    const groupStack: (FieldType | undefined)[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (t.type === TokenType.FIELD_NAME) {
+        pendingFieldName = t.value;
+        sawColon = false;
+      } else if (t.type === TokenType.COLON && pendingFieldName) {
+        sawColon = true;
+      } else if (t.type === TokenType.WHITESPACE) {
+        // whitespace between colon and value is allowed
+      } else if (t.type === TokenType.LPAREN) {
+        if (sawColon && pendingFieldName) {
+          // field:( — push field type onto group stack
+          groupStack.push(fieldTypeMap.get(pendingFieldName.toLowerCase()));
+        } else {
+          // plain grouping paren — push undefined
+          groupStack.push(undefined);
+        }
+        pendingFieldName = undefined;
+        sawColon = false;
+      } else if (t.type === TokenType.RPAREN) {
+        groupStack.pop();
+        pendingFieldName = undefined;
+        sawColon = false;
+      } else if (
+        t.type === TokenType.VALUE || t.type === TokenType.QUOTED_VALUE ||
+        t.type === TokenType.RANGE || t.type === TokenType.REGEX ||
+        t.type === TokenType.WILDCARD
+      ) {
+        if (sawColon && pendingFieldName) {
+          // Direct field:value
+          tokenFieldTypes[i] = fieldTypeMap.get(pendingFieldName.toLowerCase());
+        } else if (groupStack.length > 0) {
+          // Inside a field group — use innermost group's type
+          tokenFieldTypes[i] = groupStack[groupStack.length - 1];
+        }
+        pendingFieldName = undefined;
+        sawColon = false;
+      } else if (t.type === TokenType.AND || t.type === TokenType.OR || t.type === TokenType.NOT) {
+        // Boolean operators inside groups don't reset context
+        pendingFieldName = undefined;
+        sawColon = false;
+      } else {
+        pendingFieldName = undefined;
+        sawColon = false;
+      }
+    }
+  }
+
+  return tokens.map((token, tokenIndex) => {
     const colorKey = TOKEN_COLOR_MAP[token.type] || 'text';
-    const color = colors[colorKey] || colors.text;
+    let color = colors[colorKey] || colors.text;
+
+    // Per-field-type value color override
+    if (valueTypes && tokenFieldTypes) {
+      const ft = tokenFieldTypes[tokenIndex];
+      if (ft && valueTypes[ft]) {
+        color = valueTypes[ft]!;
+      }
+    }
+
     const escapedValue = escapeHTML(token.value);
 
     if (token.type === TokenType.WHITESPACE) {

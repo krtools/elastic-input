@@ -149,6 +149,14 @@ export interface ColorConfig {
   matchedParenBg?: string;
   /** Warning-severity squiggly underlines (e.g. ambiguous precedence). */
   warning?: string;
+  /** Per-field-type value colors. Overrides `fieldValue` for values belonging to a typed field. */
+  valueTypes?: {
+    string?: string;
+    number?: string;
+    date?: string;
+    boolean?: string;
+    ip?: string;
+  };
 }
 
 /**

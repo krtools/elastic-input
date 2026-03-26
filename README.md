@@ -349,6 +349,14 @@ const myColors: ColorConfig = {
   cursor: '#1f2328',
   dropdownSelected: '#0969da',
   dropdownHover: '#f6f8fa',
+  // Per-field-type value colors (overrides fieldValue for typed fields)
+  valueTypes: {
+    string: '#0550ae',
+    number: '#0a3069',
+    date: '#8250df',
+    boolean: '#cf222e',
+    ip: '#116329',
+  },
 };
 ```
 

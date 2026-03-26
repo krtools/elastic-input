@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig } from '../types';
 import { cx } from '../utils/cx';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
@@ -234,6 +234,18 @@ export function ElasticInput(props: ElasticInputProps) {
     return () => { cancelled = true; };
   }, [fieldsProp]);
 
+  // Build a field name → type lookup for per-type value coloring
+  const fieldTypeMap = React.useMemo(() => {
+    const map = new Map<string, FieldType>();
+    for (const f of resolvedFields) {
+      map.set(f.name.toLowerCase(), f.type);
+      if (f.aliases) {
+        for (const a of f.aliases) map.set(a.toLowerCase(), f.type);
+      }
+    }
+    return map;
+  }, [resolvedFields]);
+
   // --- Refs ---
   // Track editor element in both a ref (for sync access in handlers) and state
   // (so that ValidationSquiggles re-renders once the DOM node is available).
@@ -372,7 +384,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const applyHighlight = React.useCallback((tokens: Token[], offset: number) => {
     if (!editorRef.current) return;
-    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset, tokenClassName: classNames?.token });
+    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, offset);
   }, [colors]);
@@ -809,7 +821,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token });
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token, fieldTypeMap });
       editorRef.current.innerHTML = html;
       setCaretCharOffset(editorRef.current, newCursorPos);
     }
@@ -1068,7 +1080,7 @@ export function ElasticInput(props: ElasticInputProps) {
     prevParenMatchRef.current = matchKey;
 
     const savedOffset = getCaretCharOffset(editorRef.current);
-    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token });
+    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token, fieldTypeMap });
     editorRef.current.innerHTML = html;
     setCaretCharOffset(editorRef.current, savedOffset);
   }, [cursorOffset, selectionEnd, isFocused, colors]);
@@ -1157,7 +1169,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos, tokenClassName: classNames?.token });
+      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos, tokenClassName: classNames?.token, fieldTypeMap });
       editorRef.current.innerHTML = html;
       if (hasSelection) {
         setSelectionCharRange(editorRef.current, entry.selStart!, entry.cursorPos);
@@ -1264,7 +1276,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
         const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
 
-        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token });
+        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;
         setSelectionCharRange(editorRef.current, newSelStart, newSelEnd);
 

@@ -1290,7 +1290,23 @@ RANGE tokens are sub-highlighted with distinct colors for each part:
 
 No new `ColorConfig` properties are needed — existing color keys are reused.
 
-### 9.5.3 Matching Parenthesis Highlighting
+### 9.5.3 Per-Field-Type Value Colors (`valueTypes`)
+
+The `colors.valueTypes` object maps field types to colors, overriding the default `fieldValue` color for values belonging to typed fields:
+
+```typescript
+colors={{ valueTypes: { string: '#0550ae', number: '#0a3069', date: '#8250df', boolean: '#cf222e', ip: '#116329' } }}
+```
+
+- Applies to `VALUE`, `QUOTED_VALUE`, `RANGE`, `REGEX`, and `WILDCARD` tokens that follow a `FIELD_NAME:` pair.
+- Works inside field groups: `status:(active OR inactive)` — both values get the `string` color.
+- Bare terms (no field) are unaffected — they use the default `text` color.
+- Values for unknown fields (not in `fields`) are unaffected — they use the default `fieldValue` color.
+- Omitted type keys fall back to `fieldValue`.
+
+- **Tests:** `CssClasses.test.ts` → "valueTypes per-field-type coloring" (7 tests)
+
+### 9.5.4 Matching Parenthesis Highlighting
 
 When the cursor is adjacent to a parenthesis, both the paren and its matching counterpart are highlighted with a background color (`matchedParenBg`) and bold weight. This follows standard IDE bracket matching rules:
 
@@ -1302,7 +1318,7 @@ Matching respects nesting: `((a))` with cursor after inner `(` matches the inner
 
 - **Tests:** `parenMatch.test.ts` → 12 tests covering basic matching, nesting, priority, unmatched, and edge cases
 
-### 9.5.4 Large Input Performance
+### 9.5.5 Large Input Performance
 
 For large inputs (hundreds of tokens), two optimizations prevent browser lock-up:
 
@@ -1310,7 +1326,7 @@ For large inputs (hundreds of tokens), two optimizations prevent browser lock-up
 
 **DOM simplification for bulk selection operations:** When the editor has >40 child nodes and the user is about to delete or replace a large selection (>20 characters), the component strips all syntax-highlighting spans down to plain text before the browser processes the edit. This prevents forced reflow from the browser splitting/merging hundreds of styled spans. Single-character edits (backspace/delete at a cursor position, or small selection replacements) are not stripped — they only touch 1-2 spans and are fast natively.
 
-### 9.5.5 Theme Transition Re-highlighting
+### 9.5.6 Theme Transition Re-highlighting
 
 When the `colors` prop changes (e.g. switching between light and dark themes), the inline-styled HTML in the contentEditable editor must be regenerated with the new color values. The paren matching effect tracks the previous `colors` reference and forces a `buildHighlightedHTML` re-render when it changes, bypassing the paren-match-key early-return optimization. Without this, the old color values remain baked into the HTML spans until the next text edit.
 

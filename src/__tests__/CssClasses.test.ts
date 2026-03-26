@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { TokenType } from '../lexer/tokens';
 import { buildHighlightedHTML } from '../components/HighlightedContent';
+import { FieldType } from '../types';
 
 describe('CSS classes on highlighted tokens', () => {
   it('adds ei-token and type class to each token span', () => {
@@ -131,5 +132,64 @@ describe('TOKEN_CLASS_MAP coverage', () => {
     for (const t of expectedTypes) {
       expect(allTypes.has(t), `Expected token type ${t} to appear in test queries`).toBe(true);
     }
+  });
+});
+
+describe('valueTypes per-field-type coloring', () => {
+  const fieldTypeMap = new Map<string, FieldType>([
+    ['status', 'string'],
+    ['price', 'number'],
+    ['created', 'date'],
+    ['is_vip', 'boolean'],
+    ['ip', 'ip'],
+  ]);
+  const valueTypes = { string: '#aaa', number: '#bbb', date: '#ccc', boolean: '#ddd', ip: '#eee' };
+
+  it('colors simple field:value by field type', () => {
+    const tokens = new Lexer('status:active').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    expect(html).toContain('color:#aaa');
+  });
+
+  it('colors number field value', () => {
+    const tokens = new Lexer('price:100').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    expect(html).toContain('color:#bbb');
+  });
+
+  it('colors boolean field value', () => {
+    const tokens = new Lexer('is_vip:true').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    expect(html).toContain('color:#ddd');
+  });
+
+  it('colors values inside field groups', () => {
+    const tokens = new Lexer('status:(active OR inactive)').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    // Both values inside the group should get the string color
+    const matches = html.match(/color:#aaa/g);
+    expect(matches?.length).toBe(2);
+  });
+
+  it('does not color bare terms (no field)', () => {
+    const tokens = new Lexer('hello world').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    expect(html).not.toContain('color:#aaa');
+    expect(html).not.toContain('color:#bbb');
+  });
+
+  it('does not color values for unknown fields', () => {
+    const tokens = new Lexer('unknown:value').tokenize();
+    const html = buildHighlightedHTML(tokens, { valueTypes }, { fieldTypeMap });
+    // Should use default fieldValue color, not any valueTypes color
+    expect(html).not.toContain('color:#aaa');
+    expect(html).not.toContain('color:#bbb');
+  });
+
+  it('falls back to fieldValue when valueTypes is not set', () => {
+    const tokens = new Lexer('status:active').tokenize();
+    const html = buildHighlightedHTML(tokens, undefined, { fieldTypeMap });
+    // Should not contain any valueTypes colors
+    expect(html).not.toContain('color:#aaa');
   });
 });

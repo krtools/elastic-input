@@ -209,6 +209,22 @@ function OptionNumber({ label, value, onChange, min, max, theme }: {
   );
 }
 
+function OptionColor({ label, value, onChange, theme }: {
+  label: string; value: string; onChange: (v: string) => void; theme: any;
+}) {
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
+      <input
+        type="color"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ width: '24px', height: '20px', padding: 0, border: `1px solid ${theme.border}`, borderRadius: '3px', cursor: 'pointer', backgroundColor: 'transparent' }}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function OptionGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: any }) {
   return (
     <div style={{ marginBottom: '12px' }}>
@@ -258,6 +274,13 @@ export function DemoApp() {
   const [maxSuggestions, setMaxSuggestions] = React.useState(8);
   const [suggestDebounceMs, setSuggestDebounceMs] = React.useState(200);
 
+  // Value type colors
+  const [vtString, setVtString] = React.useState(isDark ? '#a5d6ff' : '#0550ae');
+  const [vtNumber, setVtNumber] = React.useState(isDark ? '#79c0ff' : '#0a3069');
+  const [vtDate, setVtDate] = React.useState(isDark ? '#d2a8ff' : '#8250df');
+  const [vtBoolean, setVtBoolean] = React.useState(isDark ? '#ff7b72' : '#cf222e');
+  const [vtIp, setVtIp] = React.useState(isDark ? '#7ee787' : '#116329');
+
   // Tab override
   const [useOnTab, setUseOnTab] = React.useState(false);
   const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
@@ -267,9 +290,7 @@ export function DemoApp() {
   const theme = isDark ? darkTheme : lightTheme;
   const colors = {
     ...(isDark ? DARK_COLORS : DEFAULT_COLORS),
-    valueTypes: isDark
-      ? { string: '#a5d6ff', number: '#79c0ff', date: '#d2a8ff', boolean: '#ff7b72', ip: '#7ee787' }
-      : { string: '#0550ae', number: '#0a3069', date: '#8250df', boolean: '#cf222e', ip: '#116329' },
+    valueTypes: { string: vtString, number: vtNumber, date: vtDate, boolean: vtBoolean, ip: vtIp },
   };
   const styles = getAppStyles(theme);
   const tab = TABS.find(t => t.id === activeTab) || TABS[0];
@@ -352,7 +373,17 @@ export function DemoApp() {
           </button>
           <button
             style={styles.themeToggle}
-            onClick={() => setIsDark(d => !d)}
+            onClick={() => {
+              setIsDark(d => {
+                const dark = !d;
+                setVtString(dark ? '#a5d6ff' : '#0550ae');
+                setVtNumber(dark ? '#79c0ff' : '#0a3069');
+                setVtDate(dark ? '#d2a8ff' : '#8250df');
+                setVtBoolean(dark ? '#ff7b72' : '#cf222e');
+                setVtIp(dark ? '#7ee787' : '#116329');
+                return dark;
+              });
+            }}
           >
             {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
@@ -622,6 +653,14 @@ export function DemoApp() {
                   ))}
                 </div>
               )}
+            </OptionGroup>
+
+            <OptionGroup label="Value Type Colors" theme={theme}>
+              <OptionColor label="string" value={vtString} onChange={setVtString} theme={theme} />
+              <OptionColor label="number" value={vtNumber} onChange={setVtNumber} theme={theme} />
+              <OptionColor label="date" value={vtDate} onChange={setVtDate} theme={theme} />
+              <OptionColor label="boolean" value={vtBoolean} onChange={setVtBoolean} theme={theme} />
+              <OptionColor label="ip" value={vtIp} onChange={setVtIp} theme={theme} />
             </OptionGroup>
           </div>
         )}

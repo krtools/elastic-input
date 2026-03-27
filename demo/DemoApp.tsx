@@ -269,6 +269,7 @@ export function DemoApp() {
 
   // Selection options
   const [autoSelect, setAutoSelect] = React.useState(false);
+  const [homeEndKeys, setHomeEndKeys] = React.useState(false);
 
   // Hint options
   const [showSavedSearchHint, setShowSavedSearchHint] = React.useState(true);
@@ -429,6 +430,7 @@ export function DemoApp() {
                     open: dropdownOpen,
                     alignToInput: dropdownAlignToInput,
                     autoSelect,
+                    homeEndKeys,
                     maxSuggestions,
                     suggestDebounceMs,
                     showSavedSearchHint,
@@ -603,6 +605,7 @@ export function DemoApp() {
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />
               <OptionToggle label="Section headers" checked={showDropdownHeaders} onChange={setShowDropdownHeaders} theme={theme} />
               <OptionToggle label="Auto-select first" checked={autoSelect} onChange={setAutoSelect} theme={theme} />
+              <OptionToggle label="Home/End keys" checked={homeEndKeys} onChange={setHomeEndKeys} theme={theme} />
               <OptionToggle label="Operator suggestions" checked={showOperators} onChange={setShowOperators} theme={theme} />
               <OptionToggle label="Show on navigation" checked={navTrigger} onChange={setNavTrigger} theme={theme} />
               <OptionSelect

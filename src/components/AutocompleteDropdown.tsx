@@ -39,6 +39,8 @@ interface AutocompleteDropdownProps {
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
   renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
   cursorContext?: CursorContext | null;
+  /** Ref callback to expose the dropdown list element for page-size calculations. */
+  listRefCallback?: (el: HTMLDivElement | null) => void;
   /** Custom class names for dropdown elements. */
   classNames?: {
     dropdown?: string;
@@ -83,6 +85,7 @@ export function AutocompleteDropdown({
   renderSavedSearchItem,
   renderDropdownHeader,
   cursorContext,
+  listRefCallback,
   classNames,
 }: AutocompleteDropdownProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
@@ -130,7 +133,7 @@ export function AutocompleteDropdown({
   };
 
   const content = (
-    <div className={cx('ei-dropdown', classNames?.dropdown)} style={dropdownStyle} ref={listRef} onMouseDown={e => e.preventDefault()}>
+    <div className={cx('ei-dropdown', classNames?.dropdown)} style={dropdownStyle} ref={el => { listRef.current = el; listRefCallback?.(el); }} onMouseDown={e => e.preventDefault()}>
       {hasHeader && (
         <div className={cx('ei-dropdown-header', classNames?.dropdownHeader)} style={{
           padding: mergedStyles.dropdownItemPadding || '4px 10px',

@@ -809,7 +809,8 @@ The dropdown's selected index determines which item is highlighted and which Ent
 - **Non-empty partial** (user has started typing): the first matching item is pre-selected (index = 0). Enter/Tab accept it immediately.
 - **Non-interactive hint selected** (fields like `price:42` where the only dropdown item is a hint such as "Enter a number"): Tab adds a trailing space after the typed value, closes the dropdown, and then reopens it with suggestions for the next position. Enter closes the dropdown and submits the search. This matches the behavior of fields with real suggestions — Tab/Enter always "exit" the field value.
 - **Arrow key wrapping**: ArrowDown on the last item wraps to the first; ArrowUp on the first item wraps to the last.
-- **PageDown/PageUp**: jumps 10 items at a time. PageDown clamps to the last item; PageUp clamps to the first (index 0, does not deselect).
+- **PageDown/PageUp**: jumps by one visible "page" of items (calculated from the dropdown's visible height divided by item height). PageDown clamps to the last item; PageUp clamps to the first (index 0, does not deselect).
+- **Home/End** (when `dropdown.homeEndKeys` is `true`): Home jumps to the first item; End jumps to the last. Only intercepted when an item is already selected (index >= 0) — otherwise the keys pass through for normal text cursor movement.
 - **Loading state** ("Searching..." for async fields): no item is pre-selected. Enter closes the dropdown and submits the search (does not block on pending fetch). Same applies to error items.
 
 - **Tests:** `SuggestionChaining.test.ts` → "number field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
@@ -1395,6 +1396,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
 | `renderHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; see §4.9 |
 | `autoSelect` | `boolean` | `false` | Pre-select the first suggestion even with an empty partial; see §7.10 |
+| `homeEndKeys` | `boolean` | `false` | Home/End navigate to first/last dropdown item when one is selected; see §7.10 |
 
 #### `FeaturesConfig` Sub-Properties
 

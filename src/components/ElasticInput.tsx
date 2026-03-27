@@ -207,6 +207,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
   const renderDropdownHeader = dropdownConfig?.renderHeader;
   const autoSelect = dropdownConfig?.autoSelect ?? false;
+  const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;
 
   // Features config
   const multiline = featuresConfig?.multiline !== false; // default true
@@ -258,9 +259,11 @@ export function ElasticInput(props: ElasticInputProps) {
     setEditorEl(el);
   }, []);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const dropdownListRef = React.useRef<HTMLDivElement | null>(null);
   const currentValueRef = React.useRef(value || defaultValue || '');
   const debounceTimerRef = React.useRef<any>(null);
   const isComposingRef = React.useRef(false);
+  const keyConsumedByDropdownRef = React.useRef(false);
   const undoStackRef = React.useRef(new UndoStack());
   const typingGroupTimerRef = React.useRef<any>(null);
 
@@ -1192,6 +1195,19 @@ export function ElasticInput(props: ElasticInputProps) {
     if (onValidationChange) onValidationChange(newErrors);
   }, [colors, onChange, onValidationChange, closeDropdown]);
 
+  const getDropdownPageSize = React.useCallback((): number => {
+    const list = dropdownListRef.current;
+    if (!list) return 10;
+    const visibleHeight = list.clientHeight;
+    // Find the first suggestion item (skip header if present)
+    const items = list.querySelectorAll('.ei-dropdown-item');
+    const firstItem = items[0] as HTMLElement | undefined;
+    if (!firstItem) return 10;
+    const itemHeight = firstItem.offsetHeight;
+    if (itemHeight <= 0) return 10;
+    return Math.max(1, Math.floor(visibleHeight / itemHeight));
+  }, []);
+
   const handleKeyDown = React.useCallback((e: React.KeyboardEvent) => {
     // External handler gets first shot; if it preventDefault()s, skip internal handling
     if (onKeyDownProp) onKeyDownProp(e as React.KeyboardEvent<HTMLDivElement>);
@@ -1395,24 +1411,49 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    keyConsumedByDropdownRef.current = false;
     if (s.showDropdown && s.suggestions.length > 0) {
       switch (e.key) {
         case 'ArrowDown':
           e.preventDefault();
+          keyConsumedByDropdownRef.current = true;
           setSelectedSuggestionIndex(i => i >= s.suggestions.length - 1 ? 0 : i + 1);
           return;
         case 'ArrowUp':
           e.preventDefault();
+          keyConsumedByDropdownRef.current = true;
           setSelectedSuggestionIndex(i => i <= 0 ? s.suggestions.length - 1 : i - 1);
           return;
-        case 'PageDown':
+        case 'PageDown': {
           e.preventDefault();
-          setSelectedSuggestionIndex(i => Math.min(i + 10, s.suggestions.length - 1));
+          keyConsumedByDropdownRef.current = true;
+          const pageSize = getDropdownPageSize();
+          setSelectedSuggestionIndex(i => Math.min(i + pageSize, s.suggestions.length - 1));
           return;
-        case 'PageUp':
+        }
+        case 'PageUp': {
           e.preventDefault();
-          setSelectedSuggestionIndex(i => Math.max(i - 10, 0));
+          keyConsumedByDropdownRef.current = true;
+          const pageSize = getDropdownPageSize();
+          setSelectedSuggestionIndex(i => Math.max(i - pageSize, 0));
           return;
+        }
+        case 'Home':
+          if (homeEndKeys && s.selectedSuggestionIndex >= 0) {
+            e.preventDefault();
+            keyConsumedByDropdownRef.current = true;
+            setSelectedSuggestionIndex(0);
+            return;
+          }
+          break; // fall through to default cursor behavior
+        case 'End':
+          if (homeEndKeys && s.selectedSuggestionIndex >= 0) {
+            e.preventDefault();
+            keyConsumedByDropdownRef.current = true;
+            setSelectedSuggestionIndex(s.suggestions.length - 1);
+            return;
+          }
+          break; // fall through to default cursor behavior
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
@@ -1527,9 +1568,14 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, homeEndKeys, getDropdownPageSize]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
+    // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move
+    if (keyConsumedByDropdownRef.current) {
+      keyConsumedByDropdownRef.current = false;
+      return;
+    }
     const navKeys = ['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
     if (navKeys.includes(e.key)) {
       if (!editorRef.current) return;
@@ -1708,6 +1754,7 @@ export function ElasticInput(props: ElasticInputProps) {
         renderSavedSearchItem={renderSavedSearchItem}
         renderDropdownHeader={renderDropdownHeader}
         cursorContext={cursorContext}
+        listRefCallback={el => { dropdownListRef.current = el; }}
         classNames={classNames ? { dropdown: classNames.dropdown, dropdownHeader: classNames.dropdownHeader, dropdownItem: classNames.dropdownItem } : undefined}
       />
 

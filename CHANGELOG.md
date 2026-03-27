@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.5 — 2026-03-26
+
+### Features
+
+- **`dropdown.homeEndKeys` option** — Home/End navigate to the first/last dropdown item when enabled and an item is already selected. Keys pass through for normal cursor movement when no item is selected.
+- **Dynamic PageUp/PageDown page size** — Page size is now calculated from the dropdown's visible height and item height instead of a fixed jump of 10.
+- **`FormatQueryOptions`** — `formatQuery` now accepts an optional second argument with `maxLineLength` (default 60) and `indent` (default 2 spaces) options.
+
 ## 0.3.4 — 2026-03-26
 
 ### Features
@@ -9,7 +17,7 @@
 - **`formatQuery` utility** — Pretty-prints queries with line breaks at boolean operators, indented nested groups, and inline short expressions. Exported from the package.
 - **`valueTypes` color config** — Per-field-type value colors (`string`, `number`, `date`, `boolean`, `ip`) on `ColorConfig`. Overrides the default `fieldValue` color based on the field's declared type.
 - **`plainModeLength` prop** — Character count threshold that degrades the input to plain text mode (no highlighting, autocomplete, or validation). Set to `0` for always-plain.
-- **PageUp/PageDown dropdown navigation** — Jumps 10 items at a time; PageDown clamps to last, PageUp clamps to first.
+- **PageUp/PageDown dropdown navigation** — Jumps by one visible page; PageDown clamps to last, PageUp clamps to first.
 - **Arrow key wrap-around** — ArrowDown on the last dropdown item wraps to the first; ArrowUp on the first wraps to the last.
 
 ### Bug Fixes

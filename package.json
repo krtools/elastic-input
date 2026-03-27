@@ -1,6 +1,6 @@
 {
   "name": "elastic-input",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Syntax-aware smart autocomplete input for Elastic query syntax",
   "license": "MIT",
   "repository": {

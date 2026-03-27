@@ -860,6 +860,12 @@ This supports use cases like prompting the user for a transformation (e.g. joini
 
 When `interceptPaste` is not provided, paste works normally (typographic normalization is still applied).
 
+### 7.14 Alt+Shift+F — Format Query
+
+When `features.formatQuery` is enabled (default: `false`):
+
+Pressing **Alt+Shift+F** pretty-prints the current query in-place using `formatQuery`. The cursor is placed at the end of the formatted result. If formatting produces no change, nothing happens.
+
 ---
 
 ## 8. Dropdown Positioning
@@ -1406,6 +1412,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
 | `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |
+| `formatQuery` | `boolean` | `false` | Enable Alt+Shift+F to pretty-print the query in-place; see §7.14 |
 | `savedSearches` | `boolean` | `!!savedSearches` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character. Defaults to `true` when a `savedSearches` prop is provided. |
 | `historySearch` | `boolean` | `!!searchHistory` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character. Defaults to `true` when a `searchHistory` prop is provided. |
 

@@ -302,6 +302,8 @@ export interface FeaturesConfig {
   expandSelection?: boolean;
   /** Pressing `*` with a single value token selected wraps it in wildcards. @default false */
   wildcardWrap?: boolean;
+  /** Enable Alt+Shift+F to pretty-print the query in-place using `formatQuery`. @default false */
+  formatQuery?: boolean;
   /** Enable `#name` saved-search syntax and autocomplete. When false, `#` is a regular character. @default false */
   savedSearches?: boolean;
   /** Enable `!query` history-search syntax and autocomplete. When false, `!` is a regular character. @default false */

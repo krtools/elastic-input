@@ -20,6 +20,7 @@ import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCurso
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
+import { formatQuery } from '../utils/formatQuery';
 import {
   mergeColors,
   mergeStyles,
@@ -214,6 +215,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
+  const enableFormatQuery = featuresConfig?.formatQuery ?? false;
   const lexerOptions = React.useMemo(() => ({
     savedSearches: enableSavedSearches,
     historySearch: enableHistorySearch,
@@ -1215,6 +1217,16 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const s = stateRef.current;
 
+    // Alt+Shift+F — format query (opt-in via features.formatQuery)
+    if (enableFormatQuery && e.key === 'F' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      const formatted = formatQuery(currentValueRef.current);
+      if (formatted !== currentValueRef.current) {
+        applyNewValue(formatted, formatted.length);
+      }
+      return;
+    }
+
     // Performance: before bulk selection operations on large highlighted DOM,
     // strip spans to plain text so the browser doesn't have to split/merge
     // hundreds of elements. Only triggers for large selections — single-char
@@ -1568,7 +1580,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, homeEndKeys, getDropdownPageSize]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, homeEndKeys, getDropdownPageSize, enableFormatQuery]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

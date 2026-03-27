@@ -286,6 +286,9 @@ export function DemoApp() {
   const [vtBoolean, setVtBoolean] = React.useState(isDark ? '#ff7b72' : '#cf222e');
   const [vtIp, setVtIp] = React.useState(isDark ? '#7ee787' : '#116329');
 
+  // No-results message
+  const [showNoResults, setShowNoResults] = React.useState(false);
+
   // Tab override
   const [useOnTab, setUseOnTab] = React.useState(false);
   const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
@@ -335,6 +338,20 @@ export function DemoApp() {
           'Ages are date-of-birth queries where the value represents years since today. ',
           'Enter a single age (e.g. 30) or a range like 21-26 to match contacts whose age falls within that span.',
         ),
+      );
+    }
+    return null;
+  }, []);
+
+  const renderNoResults = React.useCallback((ctx: { cursorContext: { type: string; fieldName?: string; partial: string }; partial: string }) => {
+    if (ctx.cursorContext.type === 'FIELD_VALUE' && ctx.cursorContext.fieldName) {
+      return React.createElement('span', { style: { fontStyle: 'italic', fontSize: '13px' } },
+        `No values matching "${ctx.partial}" for ${ctx.cursorContext.fieldName}`
+      );
+    }
+    if (ctx.cursorContext.type === 'FIELD_NAME' && ctx.partial) {
+      return React.createElement('span', { style: { fontStyle: 'italic', fontSize: '13px' } },
+        `No fields matching "${ctx.partial}"`
       );
     }
     return null;
@@ -440,6 +457,7 @@ export function DemoApp() {
                     navigationDelay: navDelay,
                     renderFieldHint,
                     renderHeader: showDropdownHeaders ? renderDropdownHeader : undefined,
+                    renderNoResults: showNoResults ? renderNoResults : undefined,
                   }}
                   features={{
                     multiline,
@@ -604,6 +622,7 @@ export function DemoApp() {
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />
               <OptionToggle label="Section headers" checked={showDropdownHeaders} onChange={setShowDropdownHeaders} theme={theme} />
+              <OptionToggle label="No results message" checked={showNoResults} onChange={setShowNoResults} theme={theme} />
               <OptionToggle label="Auto-select first" checked={autoSelect} onChange={setAutoSelect} theme={theme} />
               <OptionToggle label="Home/End keys" checked={homeEndKeys} onChange={setHomeEndKeys} theme={theme} />
               <OptionToggle label="Operator suggestions" checked={showOperators} onChange={setShowOperators} theme={theme} />

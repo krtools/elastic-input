@@ -749,19 +749,23 @@ export function ElasticInput(props: ElasticInputProps) {
             setSelectedSuggestionIndex((partial || autoSelect) ? 0 : -1);
             showDropdownAtPosition(mapped.length * 32, 300);
           } else {
-            // No async results — fall back to the sync hint (e.g. "Search companies...")
+            // No async results — try renderNoResults first, then fall back to sync hint
             const syncResult = engineRef.current.getSuggestions(stateRef.current.tokens, stateRef.current.cursorOffset);
-            const hintSuggestions = applyFieldHint(
-              syncResult.suggestions.filter(s => s.type === 'hint'),
-              syncResult.context,
-            );
-            if (hintSuggestions.length > 0) {
-              setSuggestions(hintSuggestions);
-              setSelectedSuggestionIndex((syncResult.context.partial || autoSelect) ? 0 : -1);
-              showDropdownAtPosition(hintSuggestions.length * 32, 300);
-            } else if (!tryShowNoResults(syncResult.context)) {
-              setShowDropdown(false);
-              setSuggestions([]);
+            if (tryShowNoResults(syncResult.context)) {
+              // Custom no-results message takes priority
+            } else {
+              const hintSuggestions = applyFieldHint(
+                syncResult.suggestions.filter(s => s.type === 'hint'),
+                syncResult.context,
+              );
+              if (hintSuggestions.length > 0) {
+                setSuggestions(hintSuggestions);
+                setSelectedSuggestionIndex((syncResult.context.partial || autoSelect) ? 0 : -1);
+                showDropdownAtPosition(hintSuggestions.length * 32, 300);
+              } else {
+                setShowDropdown(false);
+                setSuggestions([]);
+              }
             }
           }
         } catch (e) {

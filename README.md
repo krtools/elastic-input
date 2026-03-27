@@ -455,6 +455,39 @@ Pass `HighlightOptions` for matched-paren highlighting:
 buildHighlightedHTML(tokens, DEFAULT_COLORS, { cursorOffset: 5 });
 ```
 
+## Query Formatting
+
+Pretty-print messy or minified queries with `formatQuery` — a pure function (no React or DOM required):
+
+```typescript
+import { formatQuery } from 'elastic-input';
+
+formatQuery('(status:active OR status:lead) AND deal_value:>5000 AND NOT tags:churned');
+// (status:active OR status:lead)
+// AND deal_value:>5000
+// AND NOT tags:churned
+
+formatQuery('(  (status:active AND deal_value:>10000) OR (status:lead AND tags:enterprise)  ) AND created:[2024-01-01 TO 2024-12-31]');
+// (
+//   status:active AND deal_value:>10000
+//   OR status:lead AND tags:enterprise
+// )
+// AND created:[2024-01-01 TO 2024-12-31]
+```
+
+Accepts a raw query string or a pre-parsed `ASTNode`. Options control line-break threshold and indentation:
+
+```typescript
+import type { FormatQueryOptions } from 'elastic-input';
+
+formatQuery(query, { maxLineLength: 80, indent: '\t' });
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `maxLineLength` | `number` | `60` | Lines shorter than this stay inline |
+| `indent` | `string` | `'  '` (2 spaces) | Indent string per nesting level |
+
 ## Requirements
 
 ### Runtime (Browser)

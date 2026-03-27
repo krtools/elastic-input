@@ -185,6 +185,15 @@ export function AutocompleteDropdown({
           );
         }
 
+        // No-results indicator (custom content from renderNoResults)
+        if (suggestion.type === 'noResults') {
+          return (
+            <div key={i} className={cx('ei-dropdown-item', 'ei-dropdown-item--no-results', classNames?.dropdownItem)} style={{ ...itemStyle, cursor: 'default', opacity: 0.7 }}>
+              {suggestion.customContent}
+            </div>
+          );
+        }
+
         // Loading indicator
         if (suggestion.type === 'loading') {
           return (

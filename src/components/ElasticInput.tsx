@@ -207,6 +207,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderHistoryItem = dropdownConfig?.renderHistoryItem;
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
   const renderDropdownHeader = dropdownConfig?.renderHeader;
+  const renderNoResults = dropdownConfig?.renderNoResults;
   const autoSelect = dropdownConfig?.autoSelect ?? false;
   const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;
 
@@ -482,6 +483,26 @@ export function ElasticInput(props: ElasticInputProps) {
     });
   }, [renderFieldHint]);
 
+  /** Try to show a "no results" message via renderNoResults. Returns true if shown. */
+  const tryShowNoResults = React.useCallback((context: CursorContext): boolean => {
+    if (!renderNoResults) return false;
+    const content = renderNoResults({ cursorContext: context, partial: context.partial });
+    if (content == null) return false;
+    const noResultsSuggestion: Suggestion = {
+      text: '',
+      label: '',
+      type: 'noResults',
+      customContent: content,
+      replaceStart: 0,
+      replaceEnd: 0,
+    };
+    setSuggestions([noResultsSuggestion]);
+    setSelectedSuggestionIndex(-1);
+    setShowDatePicker(false);
+    showDropdownAtPosition(32, 300);
+    return true;
+  }, [renderNoResults]);
+
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
     if (!showOperators) {
@@ -613,10 +634,12 @@ export function ElasticInput(props: ElasticInputProps) {
         setAutocompleteContext(contextType);
         showDropdownAtPosition(newSuggestions.length * 32, 300);
       } else {
-        setShowDropdown(false);
-        setShowDatePicker(false);
-        setSuggestions([]);
         setAutocompleteContext(contextType);
+        if (!tryShowNoResults(result.context)) {
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+        }
       }
     } else {
       // First entry into an async context — show "Searching..." spinner.
@@ -736,7 +759,7 @@ export function ElasticInput(props: ElasticInputProps) {
               setSuggestions(hintSuggestions);
               setSelectedSuggestionIndex((syncResult.context.partial || autoSelect) ? 0 : -1);
               showDropdownAtPosition(hintSuggestions.length * 32, 300);
-            } else {
+            } else if (!tryShowNoResults(syncResult.context)) {
               setShowDropdown(false);
               setSuggestions([]);
             }
@@ -761,7 +784,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;

@@ -288,6 +288,10 @@ export interface DropdownConfig {
    *  dropdown is open and an item is already selected. When no item is selected
    *  (index = -1), the keys pass through for normal text cursor movement. @default false */
   homeEndKeys?: boolean;
+  /** Called when the engine returns zero suggestions. Return a React element to display
+   *  in the dropdown (e.g. "No results for …"), or null/undefined to hide the dropdown.
+   *  Not called during async loading (the spinner handles that). */
+  renderNoResults?: (context: { cursorContext: CursorContext; partial: string }) => React.ReactNode | null | undefined;
 }
 
 /**

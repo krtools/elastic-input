@@ -1401,6 +1401,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
 | `renderHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; see §4.9 |
+| `renderNoResults` | `(ctx: { cursorContext, partial }) => ReactNode` | — | Custom "no results" message when suggestions are empty; null hides the dropdown |
 | `autoSelect` | `boolean` | `false` | Pre-select the first suggestion even with an empty partial; see §7.10 |
 | `homeEndKeys` | `boolean` | `false` | Home/End navigate to first/last dropdown item when one is selected; see §7.10 |
 

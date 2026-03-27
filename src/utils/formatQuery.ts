@@ -11,6 +11,10 @@ export interface FormatQueryOptions {
   maxLineLength?: number;
   /** Indent string for each nesting level. @default '  ' (2 spaces) */
   indent?: string;
+  /** When set, replaces implicit AND (whitespace between terms) with this operator
+   *  string in the output. By default, implicit AND is preserved as whitespace.
+   *  @example 'AND' — turns `status:active name:john` into `status:active AND name:john` */
+  whitespaceOperator?: string;
 }
 
 /**
@@ -20,6 +24,7 @@ export interface FormatQueryOptions {
 export function formatQuery(input: string | ASTNode, options?: FormatQueryOptions): string {
   const maxLineLength = options?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
   const indent = options?.indent ?? DEFAULT_INDENT;
+  const whitespaceOperator = options?.whitespaceOperator;
   let ast: ASTNode | null;
   if (typeof input === 'string') {
     const tokens = new Lexer(input, { savedSearches: true, historySearch: true }).tokenize();
@@ -29,11 +34,17 @@ export function formatQuery(input: string | ASTNode, options?: FormatQueryOption
     ast = input;
   }
   if (!ast) return typeof input === 'string' ? input : '';
-  return printNode(ast, 0, maxLineLength, indent);
+  return printNode(ast, 0, maxLineLength, indent, whitespaceOperator);
+}
+
+/** Resolve the display operator for a BooleanExpr node. */
+function resolveOperator(node: BooleanExprNode, whitespaceOperator?: string): string {
+  if (node.implicit) return whitespaceOperator ?? '';
+  return node.operator;
 }
 
 /** Render a node to a single-line string (no newlines). */
-function inline(node: ASTNode): string {
+function inline(node: ASTNode, whitespaceOperator?: string): string {
   switch (node.type) {
     case 'FieldValue': {
       const val = node.quoted ? `"${node.value}"` : node.value;
@@ -66,30 +77,34 @@ function inline(node: ASTNode): string {
     case 'HistoryRef':
       return `!${node.ref}`;
     case 'Not':
-      return `NOT ${inline(node.expression)}`;
+      return `NOT ${inline(node.expression, whitespaceOperator)}`;
     case 'Group': {
-      let s = `(${inline(node.expression)})`;
+      let s = `(${inline(node.expression, whitespaceOperator)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
     case 'FieldGroup': {
-      let s = `${node.field}:(${inline(node.expression)})`;
+      let s = `${node.field}:(${inline(node.expression, whitespaceOperator)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
-    case 'BooleanExpr':
-      return `${inline(node.left)} ${node.operator} ${inline(node.right)}`;
+    case 'BooleanExpr': {
+      const op = resolveOperator(node, whitespaceOperator);
+      const sep = op ? ` ${op} ` : ' ';
+      return `${inline(node.left, whitespaceOperator)}${sep}${inline(node.right, whitespaceOperator)}`;
+    }
     case 'Error':
       return node.value;
   }
 }
 
 /** Flatten a chain of same-operator BooleanExpr into an array of operands. */
-function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; operands: ASTNode[] } {
+function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; implicit: boolean; operands: ASTNode[] } {
   const op = node.operator;
+  const implicit = !!node.implicit;
   const operands: ASTNode[] = [];
   const collect = (n: ASTNode) => {
-    if (n.type === 'BooleanExpr' && n.operator === op) {
+    if (n.type === 'BooleanExpr' && n.operator === op && !!n.implicit === implicit) {
       collect(n.left);
       collect(n.right);
     } else {
@@ -97,7 +112,7 @@ function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; operands
     }
   };
   collect(node);
-  return { operator: op, operands };
+  return { operator: op, implicit, operands };
 }
 
 /** Check if a node contains any Group/FieldGroup nodes (nested parens). */
@@ -118,32 +133,35 @@ function shouldBreakGroup(expr: ASTNode, maxLineLength: number): boolean {
 }
 
 /** Print a node at the given indentation depth. */
-function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: string): string {
+function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: string, whitespaceOperator?: string): string {
   const pad = indent.repeat(depth);
 
   switch (node.type) {
     case 'BooleanExpr': {
-      const { operator, operands } = flattenChain(node);
+      const { operator, implicit, operands } = flattenChain(node);
+      const displayOp = implicit ? (whitespaceOperator ?? '') : operator;
+      const sep = displayOp ? ` ${displayOp} ` : ' ';
       // Try inline first
-      const inlined = operands.map(o => inline(o)).join(` ${operator} `);
+      const inlined = operands.map(o => inline(o, whitespaceOperator)).join(sep);
       if (inlined.length <= maxLineLength) {
         return inlined;
       }
       // Multi-line: first operand, then each subsequent prefixed with the operator
       const lines = operands.map((operand, i) => {
-        const printed = printNode(operand, depth, maxLineLength, indent);
-        return i === 0 ? printed : `${pad}${operator} ${printed}`;
+        const printed = printNode(operand, depth, maxLineLength, indent, whitespaceOperator);
+        if (i === 0) return printed;
+        return displayOp ? `${pad}${displayOp} ${printed}` : `${pad}${printed}`;
       });
       return lines.join('\n');
     }
 
     case 'Group': {
       if (!shouldBreakGroup(node.expression, maxLineLength)) {
-        let s = `(${inline(node.expression)})`;
+        let s = `(${inline(node.expression, whitespaceOperator)})`;
         if (node.boost != null) s += `^${node.boost}`;
         return s;
       }
-      const inner = printNode(node.expression, depth + 1, maxLineLength, indent);
+      const inner = printNode(node.expression, depth + 1, maxLineLength, indent, whitespaceOperator);
       let s = `(\n${indentLines(inner, depth + 1, indent)}\n${pad})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
@@ -151,16 +169,16 @@ function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: 
 
     case 'FieldGroup': {
       // Field groups are always inline — they're inherently short
-      let s = `${node.field}:(${inline(node.expression)})`;
+      let s = `${node.field}:(${inline(node.expression, whitespaceOperator)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
 
     case 'Not':
-      return `NOT ${printNode(node.expression, depth, maxLineLength, indent)}`;
+      return `NOT ${printNode(node.expression, depth, maxLineLength, indent, whitespaceOperator)}`;
 
     default:
-      return inline(node);
+      return inline(node, whitespaceOperator);
   }
 }
 

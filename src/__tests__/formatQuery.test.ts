@@ -67,8 +67,17 @@ describe('formatQuery', () => {
     expect(formatQuery('NOT status:inactive')).toBe('NOT status:inactive');
   });
 
-  it('handles bare terms', () => {
-    expect(formatQuery('hello world')).toBe('hello AND world');
+  it('preserves implicit AND as whitespace by default', () => {
+    expect(formatQuery('hello world')).toBe('hello world');
+  });
+
+  it('replaces implicit AND with whitespaceOperator when set', () => {
+    expect(formatQuery('hello world', { whitespaceOperator: 'AND' })).toBe('hello AND world');
+    expect(formatQuery('hello world', { whitespaceOperator: '&&' })).toBe('hello && world');
+  });
+
+  it('does not replace explicit AND with whitespaceOperator', () => {
+    expect(formatQuery('hello AND world')).toBe('hello AND world');
   });
 
   it('handles comparison operators', () => {

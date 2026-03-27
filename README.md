@@ -487,6 +487,7 @@ formatQuery(query, { maxLineLength: 80, indent: '\t' });
 |--------|------|---------|-------------|
 | `maxLineLength` | `number` | `60` | Lines shorter than this stay inline |
 | `indent` | `string` | `'  '` (2 spaces) | Indent string per nesting level |
+| `whitespaceOperator` | `string` | — | Replace implicit AND (whitespace) with this operator (e.g. `'AND'`, `'&&'`) |
 
 ## Requirements
 

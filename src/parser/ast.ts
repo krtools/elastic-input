@@ -38,6 +38,8 @@ export interface BooleanExprNode {
   operator: 'AND' | 'OR';
   left: ASTNode;
   right: ASTNode;
+  /** True when the operator was inferred from whitespace (no explicit AND/OR token). */
+  implicit?: boolean;
   start: number;
   end: number;
 }

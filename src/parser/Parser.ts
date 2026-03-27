@@ -88,6 +88,7 @@ export class Parser {
           operator: 'AND',
           left: result,
           right,
+          implicit: true,
           start: result.start,
           end: right.end,
         };
@@ -185,6 +186,7 @@ export class Parser {
           operator: 'AND',
           left,
           right,
+          implicit: true,
           start: left.start,
           end: right.end,
         };

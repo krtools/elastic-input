@@ -2,14 +2,24 @@ import { ASTNode, BooleanExprNode } from '../parser/ast';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
 
-const INLINE_MAX_LENGTH = 60;
-const INDENT = '  ';
+const DEFAULT_MAX_LINE_LENGTH = 60;
+const DEFAULT_INDENT = '  ';
+
+/** Options for `formatQuery` pretty-printing. */
+export interface FormatQueryOptions {
+  /** Max length before a line is broken into multiple lines. @default 60 */
+  maxLineLength?: number;
+  /** Indent string for each nesting level. @default '  ' (2 spaces) */
+  indent?: string;
+}
 
 /**
  * Pretty-print an Elasticsearch query string.
  * Accepts a raw query string or a pre-parsed AST node.
  */
-export function formatQuery(input: string | ASTNode): string {
+export function formatQuery(input: string | ASTNode, options?: FormatQueryOptions): string {
+  const maxLineLength = options?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
+  const indent = options?.indent ?? DEFAULT_INDENT;
   let ast: ASTNode | null;
   if (typeof input === 'string') {
     const tokens = new Lexer(input, { savedSearches: true, historySearch: true }).tokenize();
@@ -19,7 +29,7 @@ export function formatQuery(input: string | ASTNode): string {
     ast = input;
   }
   if (!ast) return typeof input === 'string' ? input : '';
-  return printNode(ast, 0);
+  return printNode(ast, 0, maxLineLength, indent);
 }
 
 /** Render a node to a single-line string (no newlines). */
@@ -99,42 +109,42 @@ function containsGroups(node: ASTNode): boolean {
 }
 
 /** Decide whether a Group's content should be broken into multiple lines. */
-function shouldBreakGroup(expr: ASTNode): boolean {
+function shouldBreakGroup(expr: ASTNode, maxLineLength: number): boolean {
   const inlined = inline(expr);
-  if (inlined.length > INLINE_MAX_LENGTH) return true;
+  if (inlined.length > maxLineLength) return true;
   // Break if the group's content contains nested groups (parens inside parens)
   if (containsGroups(expr)) return true;
   return false;
 }
 
 /** Print a node at the given indentation depth. */
-function printNode(node: ASTNode, depth: number): string {
-  const pad = INDENT.repeat(depth);
+function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: string): string {
+  const pad = indent.repeat(depth);
 
   switch (node.type) {
     case 'BooleanExpr': {
       const { operator, operands } = flattenChain(node);
       // Try inline first
       const inlined = operands.map(o => inline(o)).join(` ${operator} `);
-      if (inlined.length <= INLINE_MAX_LENGTH) {
+      if (inlined.length <= maxLineLength) {
         return inlined;
       }
       // Multi-line: first operand, then each subsequent prefixed with the operator
       const lines = operands.map((operand, i) => {
-        const printed = printNode(operand, depth);
+        const printed = printNode(operand, depth, maxLineLength, indent);
         return i === 0 ? printed : `${pad}${operator} ${printed}`;
       });
       return lines.join('\n');
     }
 
     case 'Group': {
-      if (!shouldBreakGroup(node.expression)) {
+      if (!shouldBreakGroup(node.expression, maxLineLength)) {
         let s = `(${inline(node.expression)})`;
         if (node.boost != null) s += `^${node.boost}`;
         return s;
       }
-      const inner = printNode(node.expression, depth + 1);
-      let s = `(\n${indentLines(inner, depth + 1)}\n${pad})`;
+      const inner = printNode(node.expression, depth + 1, maxLineLength, indent);
+      let s = `(\n${indentLines(inner, depth + 1, indent)}\n${pad})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
@@ -147,7 +157,7 @@ function printNode(node: ASTNode, depth: number): string {
     }
 
     case 'Not':
-      return `NOT ${printNode(node.expression, depth)}`;
+      return `NOT ${printNode(node.expression, depth, maxLineLength, indent)}`;
 
     default:
       return inline(node);
@@ -155,8 +165,8 @@ function printNode(node: ASTNode, depth: number): string {
 }
 
 /** Ensure every line of a multi-line string has the given indentation. */
-function indentLines(text: string, depth: number): string {
-  const pad = INDENT.repeat(depth);
+function indentLines(text: string, depth: number, indent: string): string {
+  const pad = indent.repeat(depth);
   return text.split('\n').map(line => {
     // Don't double-indent lines that are already indented from a recursive call
     return line.startsWith(pad) ? line : pad + line;

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.6 — 2026-03-26
+
+### Features
+
+- **`dropdown.renderNoResults` callback** — Called when the autocomplete engine returns zero suggestions for a non-empty partial. Return a `ReactNode` to display a custom empty-state message in the dropdown, or `null` to fall back to the default hint. Receives `{ cursorContext, partial }`.
+- **Alt+Shift+F format query (`features.formatQuery`)** — Opt-in keyboard shortcut that pretty-prints the current query in-place using `formatQuery`. Gated behind `features.formatQuery: true`.
+- **`whitespaceOperator` option for `formatQuery`** — Controls how implicit AND (bare whitespace between terms) is rendered. By default implicit AND is preserved as whitespace; set `whitespaceOperator: 'AND'` or `'&&'` to make it explicit.
+- **Implicit AND preservation in `formatQuery`** — `formatQuery` now distinguishes implicit AND (term juxtaposition) from explicit `AND` keywords and preserves whitespace by default, preventing unwanted operator injection.
+
 ## 0.3.5 — 2026-03-26
 
 ### Features

@@ -749,10 +749,11 @@ export function ElasticInput(props: ElasticInputProps) {
             setSelectedSuggestionIndex((partial || autoSelect) ? 0 : -1);
             showDropdownAtPosition(mapped.length * 32, 300);
           } else {
-            // No async results — try renderNoResults first, then fall back to sync hint
+            // No async results — try renderNoResults (only with a non-empty partial),
+            // then fall back to the sync hint, then hide.
             const syncResult = engineRef.current.getSuggestions(stateRef.current.tokens, stateRef.current.cursorOffset);
-            if (tryShowNoResults(syncResult.context)) {
-              // Custom no-results message takes priority
+            if (partial && tryShowNoResults(syncResult.context)) {
+              // Custom no-results message shown
             } else {
               const hintSuggestions = applyFieldHint(
                 syncResult.suggestions.filter(s => s.type === 'hint'),
@@ -762,7 +763,7 @@ export function ElasticInput(props: ElasticInputProps) {
                 setSuggestions(hintSuggestions);
                 setSelectedSuggestionIndex((syncResult.context.partial || autoSelect) ? 0 : -1);
                 showDropdownAtPosition(hintSuggestions.length * 32, 300);
-              } else {
+              } else if (!tryShowNoResults(syncResult.context)) {
                 setShowDropdown(false);
                 setSuggestions([]);
               }

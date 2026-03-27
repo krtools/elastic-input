@@ -345,6 +345,9 @@ export function DemoApp() {
 
   const renderNoResults = React.useCallback((ctx: { cursorContext: { type: string; fieldName?: string; partial: string }; partial: string }) => {
     if (ctx.cursorContext.type === 'FIELD_VALUE' && ctx.cursorContext.fieldName) {
+      // Freeform fields — fall back to the hint instead of "no results"
+      const freeform = ['name', 'company', 'message', 'product', 'brand', 'request_id'];
+      if (freeform.includes(ctx.cursorContext.fieldName)) return null;
       return React.createElement('span', { style: { fontStyle: 'italic', fontSize: '13px' } },
         `No values matching "${ctx.partial}" for ${ctx.cursorContext.fieldName}`
       );

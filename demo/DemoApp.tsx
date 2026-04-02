@@ -3,7 +3,7 @@ import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
 import { CursorContext } from '../src/parser/Parser';
 import { ValidationError } from '../src/validation/Validator';
-import { ElasticInputAPI, FieldConfig, TabContext, TabActionResult } from '../src/types';
+import { ElasticInputAPI, FieldConfig, SuggestionItem, TabContext, TabActionResult } from '../src/types';
 import { DEFAULT_COLORS, DARK_COLORS } from '../src/constants';
 import {
   CRM_FIELDS, LOG_FIELDS, ECOMMERCE_FIELDS,
@@ -289,6 +289,9 @@ export function DemoApp() {
   // No-results message
   const [showNoResults, setShowNoResults] = React.useState(false);
 
+  // Type badge mode: 'default' | 'hidden' | 'custom'
+  const [typeBadgeMode, setTypeBadgeMode] = React.useState<'default' | 'hidden' | 'custom'>('default');
+
   // Tab override
   const [useOnTab, setUseOnTab] = React.useState(false);
   const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
@@ -461,6 +464,9 @@ export function DemoApp() {
                     renderFieldHint,
                     renderHeader: showDropdownHeaders ? renderDropdownHeader : undefined,
                     renderNoResults: showNoResults ? renderNoResults : undefined,
+                    renderType: typeBadgeMode === 'hidden' ? false
+                      : typeBadgeMode === 'custom' ? (type: string, _suggestion: SuggestionItem) => type.charAt(0).toUpperCase()
+                      : undefined,
                   }}
                   features={{
                     multiline,
@@ -625,6 +631,17 @@ export function DemoApp() {
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />
               <OptionToggle label="Section headers" checked={showDropdownHeaders} onChange={setShowDropdownHeaders} theme={theme} />
+              <OptionSelect
+                label="Type badge"
+                value={typeBadgeMode}
+                options={[
+                  { value: 'default' as const, label: 'Default' },
+                  { value: 'hidden' as const, label: 'Hidden' },
+                  { value: 'custom' as const, label: 'Initial only' },
+                ]}
+                onChange={setTypeBadgeMode}
+                theme={theme}
+              />
               <OptionToggle label="No results message" checked={showNoResults} onChange={setShowNoResults} theme={theme} />
               <OptionToggle label="Auto-select first" checked={autoSelect} onChange={setAutoSelect} theme={theme} />
               <OptionToggle label="Home/End keys" checked={homeEndKeys} onChange={setHomeEndKeys} theme={theme} />

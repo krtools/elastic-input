@@ -292,6 +292,12 @@ export interface DropdownConfig {
    *  in the dropdown (e.g. "No results for …"), or null/undefined to hide the dropdown.
    *  Not called during async loading (the spinner handles that). */
   renderNoResults?: (context: { cursorContext: CursorContext; partial: string }) => React.ReactNode | null | undefined;
+  /** Controls the type badge shown in dropdown items.
+   *  - `false` — hide the badge entirely
+   *  - `true` (default) — show the raw `suggestion.type` string
+   *  - callback `(type, suggestion) => ReactNode` — custom render per item; return null to hide
+   */
+  renderType?: boolean | ((type: string, suggestion: SuggestionItem) => React.ReactNode | null | undefined);
 }
 
 /**

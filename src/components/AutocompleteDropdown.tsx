@@ -13,7 +13,7 @@ if (typeof document !== 'undefined') {
     document.head.appendChild(style);
   }
 }
-import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch } from '../types';
+import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch, SuggestionItem } from '../types';
 import { CursorContext } from '../parser/Parser';
 import {
   mergeColors,
@@ -41,6 +41,8 @@ interface AutocompleteDropdownProps {
   cursorContext?: CursorContext | null;
   /** Ref callback to expose the dropdown list element for page-size calculations. */
   listRefCallback?: (el: HTMLDivElement | null) => void;
+  /** Controls the type badge in dropdown items. false=hide, true=default, callback=custom. */
+  renderType?: boolean | ((type: string, suggestion: SuggestionItem) => React.ReactNode | null | undefined);
   /** Custom class names for dropdown elements. */
   classNames?: {
     dropdown?: string;
@@ -86,6 +88,7 @@ export function AutocompleteDropdown({
   renderDropdownHeader,
   cursorContext,
   listRefCallback,
+  renderType,
   classNames,
 }: AutocompleteDropdownProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
@@ -313,9 +316,14 @@ export function AutocompleteDropdown({
             {suggestion.description && (
               <span className="ei-dropdown-item-desc" style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
             )}
-            {suggestion.type && suggestion.type !== 'hint' && (
-              <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{suggestion.type}</span>
-            )}
+            {renderType !== false && suggestion.type && suggestion.type !== 'hint' && (() => {
+              const content = typeof renderType === 'function'
+                ? renderType(suggestion.type!, { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
+                : suggestion.type;
+              return content != null ? (
+                <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{content}</span>
+              ) : null;
+            })()}
           </div>
         );
       })}

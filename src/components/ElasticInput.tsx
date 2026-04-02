@@ -208,6 +208,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
   const renderDropdownHeader = dropdownConfig?.renderHeader;
   const renderNoResults = dropdownConfig?.renderNoResults;
+  const renderType = dropdownConfig?.renderType;
   const autoSelect = dropdownConfig?.autoSelect ?? false;
   const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;
 
@@ -1795,6 +1796,7 @@ export function ElasticInput(props: ElasticInputProps) {
         renderDropdownHeader={renderDropdownHeader}
         cursorContext={cursorContext}
         listRefCallback={el => { dropdownListRef.current = el; }}
+        renderType={renderType}
         classNames={classNames ? { dropdown: classNames.dropdown, dropdownHeader: classNames.dropdownHeader, dropdownItem: classNames.dropdownItem } : undefined}
       />
 

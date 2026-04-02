@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { ValidationError } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
 import { mergeColors, mergeStyles, getSquigglyStyle } from '../styles/inlineStyles';
@@ -266,21 +267,24 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       {hoveredRect != null && (() => {
         const isWarning = hoveredRect.error.severity === 'warning';
         const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
-        const waveBottom = hoveredRect.top + hoveredRect.height + 2;
-        const lineTop = hoveredRect.top;
+        // Convert editor-relative coords to viewport-fixed for the portal
+        const editorRect = editorRef?.getBoundingClientRect();
+        const fixedLeft = (editorRect?.left ?? 0) + mousePos.x;
+        const waveBottomFixed = (editorRect?.top ?? 0) + hoveredRect.top + hoveredRect.height + 2;
+        const lineTopFixed = (editorRect?.top ?? 0) + hoveredRect.top;
         const spaceBelow = window.innerHeight - mousePos.clientY;
         const needsFlip = spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
-        const top = needsFlip
-          ? lineTop - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP
-          : waveBottom + TOOLTIP_GAP;
-        return (
+        const fixedTop = needsFlip
+          ? lineTopFixed - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP
+          : waveBottomFixed + TOOLTIP_GAP;
+        return ReactDOM.createPortal(
           <div
             ref={tooltipRef}
             className={cx('ei-tooltip', classNames?.tooltip)}
             style={{
-              position: 'absolute',
-              top: `${top}px`,
-              left: `${mousePos.x}px`,
+              position: 'fixed',
+              top: `${fixedTop}px`,
+              left: `${fixedLeft}px`,
               zIndex: mergedStyles.dropdownZIndex,
               backgroundColor: mergedColors.background,
               color: squigglyColor,
@@ -298,7 +302,8 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
             }}
           >
             {hoveredRect.error.message}
-          </div>
+          </div>,
+          document.body
         );
       })()}
     </>

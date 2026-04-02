@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.7 — 2026-04-02
+
+### Features
+
+- **`dropdown.renderType` option** — Controls the type badge in dropdown items. `false` hides it entirely, `true` (default) shows the raw type string, or pass a `(type, suggestion) => ReactNode` callback for per-item customization.
+- **`styles.lineHeight` option** — Configurable line height for the editor text and placeholder. Defaults to `'1.5'`.
+
 ## 0.3.6 — 2026-03-26
 
 ### Features

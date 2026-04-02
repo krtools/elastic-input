@@ -31,7 +31,7 @@ export function getEditableStyle(colors: Required<ColorConfig>, styles: Required
     outline: 'none',
     fontSize: styles.fontSize,
     fontFamily: styles.fontFamily,
-    lineHeight: '1.5',
+    lineHeight: styles.lineHeight,
     backgroundColor: colors.background,
     color: colors.text,
     caretColor: colors.cursor,
@@ -63,7 +63,7 @@ export function getPlaceholderStyle(colors: Required<ColorConfig>, styles: Requi
     pointerEvents: 'none',
     fontSize: styles.fontSize,
     fontFamily: styles.fontFamily,
-    lineHeight: '1.5',
+    lineHeight: styles.lineHeight,
     userSelect: 'none',
   };
 }

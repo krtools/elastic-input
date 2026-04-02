@@ -66,6 +66,7 @@ export const DARK_COLORS: Required<ColorConfig> = {
 export const DEFAULT_STYLES: Required<StyleConfig> = {
   fontFamily: "'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace",
   fontSize: '14px',
+  lineHeight: '1.5',
 
   inputMinHeight: '40px',
   inputPadding: '8px 12px',

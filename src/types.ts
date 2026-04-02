@@ -168,6 +168,8 @@ export interface StyleConfig {
   fontFamily?: string;
   /** Base font size for the input. */
   fontSize?: string;
+  /** Line height for the input text and placeholder. @default '1.5' */
+  lineHeight?: string;
   /** Minimum height of the input element. */
   inputMinHeight?: string;
   /** Padding inside the input element. */

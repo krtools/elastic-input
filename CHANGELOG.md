@@ -7,6 +7,7 @@
 - **Upgrade Vite to v8** — Aligns vite and vitest on a single `vite@8.0.3`, replacing the dual vite@5/vite@8 resolution that caused cross-platform lock file issues. Also upgrades `vite-plugin-dts` to v4.
 - **Switch demo deployment to GitHub Actions** — Replaces `gh-pages` branch deployment with an `actions/deploy-pages` workflow.
 - **Remove `@changesets/cli`** — Unused dependency and `.changeset/` directory removed.
+- **Include README.md in npm package** — The `files` array was missing README.md, so it was excluded from the published tarball.
 
 ## 0.3.8 — 2026-04-02
 

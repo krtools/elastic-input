@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.8 — 2026-04-02
+
+### Bug Fixes
+
+- **Validation tooltip clipped by overflow containers** — The error/warning tooltip now renders via a portal to `document.body` with `position: fixed`, preventing clipping by ancestor elements with `overflow: scroll/hidden/auto`.
+
 ## 0.3.7 — 2026-04-02
 
 ### Features

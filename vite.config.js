@@ -3,6 +3,9 @@ import dts from 'vite-plugin-dts';
 import path from 'path';
 
 export default defineConfig({
+  test: {
+    exclude: ['**/node_modules/**', '**/browser/**'],
+  },
   plugins: [
     dts({
       insertTypesEntry: true,

@@ -2,13 +2,17 @@
 
 ## 0.3.10 — 2026-04-06
 
+### Features
+
+- **Double-click selects word without trailing whitespace** — Double-clicking a word in the editor now selects only the word, not the word plus trailing space (browser default). This makes double-click + Delete/Backspace preserve adjacent spacing. Triple-click (select all) is unaffected.
+
 ### Bug Fixes
 
 - **Blur cancels in-flight async suggestions** — Blurring the input now aborts pending async fetches (field values, saved searches, history) and clears debounce/loading timers. Previously, async results arriving after blur would re-open the dropdown with incorrect positioning.
 
 ### Testing
 
-- **Vitest Browser Mode** — Added real-browser integration tests using Playwright. Covers field acceptance (Tab/Enter), async suggestion chaining, transient blur scenarios, and the blur-cancels-async fix. Run with `npm run test:browser` (headless) or `--browser.headless=false` for headed mode.
+- **Vitest Browser Mode** — Added real-browser integration tests using Playwright. Covers field acceptance (Tab/Enter), async suggestion chaining, transient blur scenarios, double-click word selection, and the blur-cancels-async fix. Run with `npm run test:browser` (headless) or `--browser.headless=false` for headed mode.
 
 ## 0.3.9 — 2026-04-02
 

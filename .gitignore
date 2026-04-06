@@ -11,3 +11,5 @@ coverage/
 .vite/
 .idea/
 .claude/
+.vitest-attachments/
+__screenshots__/

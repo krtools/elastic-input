@@ -1647,6 +1647,12 @@ export function ElasticInput(props: ElasticInputProps) {
     setIsFocused(false);
     setShowDropdown(false);
     setShowDatePicker(false);
+    setSuggestions([]);
+    // Cancel any in-flight async work so results don't pop up after blur
+    asyncActiveRef.current = false;
+    abortControllerRef.current?.abort();
+    if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+    if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
     // Set cursor to -1 so deferred display shows all errors when blurred
     setCursorOffset(-1);
     onBlurProp?.();

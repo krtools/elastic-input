@@ -1062,6 +1062,10 @@ When the input loses focus (blur), `cursorOffset` is set to `-1`, which causes a
 - Input focused, cursor at end of `status:bad` → error on "bad" hidden (cursor within range)
 - Input blurred → error on "bad" shown (cursorOffset = -1, outside all ranges)
 
+### 9.3.2 Blur Cancels In-Flight Async Suggestions
+
+When the input loses focus, any pending async suggestion fetch (field values, saved searches, history) is aborted. This prevents the dropdown from appearing on a blurred input with stale or mis-positioned results. The abort controller is signalled, debounce timers are cleared, and the loading delay timer is cancelled. See `ElasticInput.browser.test.tsx` "blur cancels async suggestions".
+
 ### 9.4 External Error Access
 
 Validation errors are accessible outside the component in two ways:

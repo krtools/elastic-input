@@ -12,6 +12,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'is_vip', label: 'VIP', type: 'boolean', description: 'Whether the contact is a VIP' },
   { name: 'tags', label: 'Tags', type: 'string', description: 'Contact tags' },
   { name: 'age', label: 'Age', type: 'string', description: 'Contact age (years since DOB)', placeholder: false },
+  { name: 'slow', label: 'Slow Field', type: 'string', description: 'Slow async fetch (3s delay)' },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)' },
 ];
 
@@ -111,6 +112,14 @@ const ALL_FIELD_VALUES: Record<string, string[]> = {
 
 export function mockFetchSuggestions(fieldName: string, partial: string): Promise<SuggestionItem[]> {
   if (fieldName === 'name') return Promise.resolve([]);
+
+  // Simulate a very slow endpoint for testing blur-cancels-async behavior
+  if (fieldName === 'slow') {
+    const values = ['alpha', 'bravo', 'charlie', 'delta', 'echo'];
+    const lower = partial.toLowerCase();
+    const filtered = values.filter(v => v.includes(lower)).map(v => ({ text: v, description: 'slow result' }));
+    return new Promise(resolve => setTimeout(() => resolve(filtered), 3000));
+  }
 
   // Simulate a broken endpoint for the "broken" demo field
   if (fieldName === 'broken') {

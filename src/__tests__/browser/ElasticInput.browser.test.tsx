@@ -199,6 +199,81 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('blur cancels async suggestions', () => {
+    it('blurring before async suggestions resolve prevents dropdown from appearing', async () => {
+      // Slow fetch — 500ms delay
+      const slowFetch = (fieldName: string, partial: string): Promise<SuggestionItem[]> => {
+        if (fieldName !== 'status') return Promise.resolve([]);
+        const lower = partial.toLowerCase();
+        return new Promise(resolve => setTimeout(() => resolve(
+          STATUS_VALUES.filter(v => v.includes(lower)).map(v => ({ text: v }))
+        ), 500));
+      };
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: slowFetch,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'stat');
+
+      // Wait for field dropdown, accept field
+      expect(await waitFor(dropdownVisible)).toBe(true);
+      await userEvent.keyboard('{ArrowDown}');
+      await userEvent.keyboard('{Enter}');
+      expect(await waitFor(() => editorText().includes(':'))).toBe(true);
+
+      // Blur immediately — before the 500ms async fetch resolves
+      editorEl.blur();
+      await new Promise(r => setTimeout(r, 50));
+
+      // Wait long enough for the fetch to have resolved if it wasn't cancelled
+      await new Promise(r => setTimeout(r, 800));
+
+      // Dropdown should NOT be visible
+      expect(dropdownVisible()).toBe(false);
+    });
+
+    it('blurring cancels loading spinner from appearing', async () => {
+      // Very slow fetch
+      const verySlowFetch = (_fieldName: string, _partial: string): Promise<SuggestionItem[]> => {
+        return new Promise(resolve => setTimeout(() => resolve([{ text: 'result' }]), 2000));
+      };
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: verySlowFetch,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'stat');
+
+      expect(await waitFor(dropdownVisible)).toBe(true);
+      await userEvent.keyboard('{ArrowDown}');
+      await userEvent.keyboard('{Tab}');
+      expect(await waitFor(() => editorText().includes(':'))).toBe(true);
+
+      // Blur before loading spinner or results appear
+      editorEl.blur();
+      await new Promise(r => setTimeout(r, 50));
+
+      // Wait and verify dropdown stays closed
+      await new Promise(r => setTimeout(r, 500));
+      expect(dropdownVisible()).toBe(false);
+    });
+  });
+
   describe('basic rendering', () => {
     it('renders with placeholder text', async () => {
       renderInto(

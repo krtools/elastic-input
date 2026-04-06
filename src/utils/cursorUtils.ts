@@ -2,7 +2,7 @@
  * Count character offset from the start of root to a specific DOM position,
  * treating <br> elements as single newline characters.
  */
-function countOffsetTo(root: Node, targetNode: Node, targetOffset: number): number {
+export function countOffsetTo(root: Node, targetNode: Node, targetOffset: number): number {
   let count = 0;
   let found = false;
 

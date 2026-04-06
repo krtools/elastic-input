@@ -15,7 +15,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
-import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange } from '../utils/cursorUtils';
+import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
@@ -1658,6 +1658,43 @@ export function ElasticInput(props: ElasticInputProps) {
     onBlurProp?.();
   }, [onBlurProp]);
 
+  // Double-click word selection: prevent the browser's default which includes
+  // trailing whitespace. We compute word boundaries ourselves and set a clean selection.
+  // We must also preventDefault on the subsequent mouseup, otherwise the browser's
+  // mouseup handler clears our selection (it sees no selection-in-progress since we
+  // prevented the mousedown from initiating one).
+  const dblClickHandledRef = React.useRef(false);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    if (e.detail !== 2 || !editorRef.current) return;
+    e.preventDefault();
+    dblClickHandledRef.current = true;
+
+    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+    if (!range) return;
+    const offset = countOffsetTo(editorRef.current, range.startContainer, range.startOffset);
+
+    const text = currentValueRef.current;
+    const isWordChar = (ch: string) => !/[\s:()[\]{}"<>!,;|&=~^+\-*/\\]/.test(ch);
+
+    let start = offset;
+    while (start > 0 && isWordChar(text[start - 1])) start--;
+
+    let end = offset;
+    while (end < text.length && isWordChar(text[end])) end++;
+
+    if (start < end) {
+      setSelectionCharRange(editorRef.current, start, end);
+    }
+  }, []);
+
+  const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
+    if (dblClickHandledRef.current) {
+      e.preventDefault();
+      dblClickHandledRef.current = false;
+    }
+  }, []);
+
   const handleClick = React.useCallback(() => {
     if (!editorRef.current) return;
     const selRange = getSelectionCharRange(editorRef.current);
@@ -1765,6 +1802,8 @@ export function ElasticInput(props: ElasticInputProps) {
         onInput={handleInput}
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onFocus={handleFocus}
         onBlur={handleBlur}
         onClick={handleClick}

@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig, SuggestionItem } from '../../types';
+import { findNodeAtOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
 
 afterEach(cleanup);
@@ -271,6 +272,131 @@ describe('ElasticInput browser tests', () => {
       // Wait and verify dropdown stays closed
       await new Promise(r => setTimeout(r, 500));
       expect(dropdownVisible()).toBe(false);
+    });
+  });
+
+  describe('double-click word selection', () => {
+    /**
+     * Simulate a click with a specific detail (click count) at a character offset
+     * within the editor. Uses getBoundingClientRect on a Range to find coordinates.
+     */
+    function clickAtOffset(editor: HTMLElement, charOffset: number, detail: number) {
+      const result = findNodeAtOffset(editor, charOffset);
+      if (!result) throw new Error(`No node at offset ${charOffset}`);
+
+      const range = document.createRange();
+      range.setStart(result.node, result.offset);
+      range.setEnd(result.node, result.offset);
+      const rect = range.getBoundingClientRect();
+      const x = rect.left + 1;
+      const y = rect.top + rect.height / 2;
+
+      const opts = { detail, clientX: x, clientY: y, bubbles: true, cancelable: true };
+      editor.dispatchEvent(new MouseEvent('mousedown', opts));
+      editor.dispatchEvent(new MouseEvent('mouseup', { ...opts }));
+      editor.dispatchEvent(new MouseEvent('click', { ...opts }));
+    }
+
+    function getSelectedText(): string {
+      const sel = window.getSelection();
+      return sel?.toString() ?? '';
+    }
+
+    it('double-click selects word without trailing whitespace', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'filter:value abc');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Double-click on "value" (offset 7 is middle of "value" in "filter:value abc")
+      clickAtOffset(editorEl, 9, 2);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Should select "value" without trailing space
+      expect(getSelectedText()).toBe('value');
+    });
+
+    it('double-click + backspace preserves adjacent space', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'filter:value abc');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Double-click on "value"
+      clickAtOffset(editorEl, 9, 2);
+      await new Promise(r => setTimeout(r, 50));
+
+      // Delete the selected word
+      await userEvent.keyboard('{Backspace}');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Space between "filter:" and "abc" should be preserved
+      expect(editorText()).toBe('filter: abc');
+    });
+
+    it('double-click works after triple-click (selection not cleared by mouseup)', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active lead');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Triple-click to select all
+      await editor.tripleClick();
+      await new Promise(r => setTimeout(r, 100));
+      expect(getSelectedText()).toContain('status:active lead');
+
+      // Now double-click on "active" (offset ~9)
+      clickAtOffset(editorEl, 9, 2);
+      await new Promise(r => setTimeout(r, 50));
+
+      expect(getSelectedText()).toBe('active');
+    });
+
+    it('triple-click selects entire content (browser default)', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'filter:value abc');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Triple-click via Playwright API — triggers real browser behavior
+      await editor.tripleClick();
+      await new Promise(r => setTimeout(r, 50));
+
+      const selected = getSelectedText();
+      // Triple-click selects the full line/paragraph
+      expect(selected).toContain('filter:value abc');
     });
   });
 

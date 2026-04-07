@@ -296,6 +296,9 @@ export function DemoApp() {
   const [useOnTab, setUseOnTab] = React.useState(false);
   const [tabActions, setTabActions] = React.useState<{ accept: boolean; blur: boolean; submit: boolean }>({ accept: true, blur: false, submit: false });
 
+  // Controlled value for reactivity testing
+  const [controlledValue, setControlledValue] = React.useState('');
+
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -315,6 +318,7 @@ export function DemoApp() {
   const handleChange = React.useCallback((query: string, ast: ASTNode | null) => {
     setLastQuery(query);
     setLastAST(ast);
+    setControlledValue(query);
   }, []);
 
   const handleTab = React.useCallback((ctx: TabContext): TabActionResult => {
@@ -368,6 +372,7 @@ export function DemoApp() {
     setLastQuery('');
     setLastAST(null);
     setSearchResult('');
+    setControlledValue('');
   }, []);
 
   const panelStyle: React.CSSProperties = {
@@ -443,6 +448,7 @@ export function DemoApp() {
                   fields={tab.fields}
                   colors={colors}
                   placeholder={tab.placeholder}
+                  value={controlledValue}
                   onSearch={handleSearch}
                   onChange={handleChange}
                   onValidationChange={setValidationErrors}
@@ -495,6 +501,7 @@ export function DemoApp() {
                   if (!api) return;
                   const formatted = formatQuery(api.getValue());
                   api.setValue(formatted);
+                  setControlledValue(formatted);
                 }}
               >
                 Format
@@ -591,7 +598,7 @@ export function DemoApp() {
                 <button
                   key={i}
                   title={ex.desc}
-                  onClick={() => inputApiRef.current?.setValue(ex.query)}
+                  onClick={() => { inputApiRef.current?.setValue(ex.query); setControlledValue(ex.query); }}
                   style={{
                     padding: '4px 10px',
                     fontSize: '12px',
@@ -616,6 +623,40 @@ export function DemoApp() {
         {/* Right: options panel */}
         {showOptions && (
           <div style={panelStyle}>
+            <OptionGroup label="props.value" theme={theme}>
+              <input
+                type="text"
+                value={controlledValue}
+                onChange={e => setControlledValue(e.target.value)}
+                placeholder="(empty)"
+                style={{
+                  width: '100%',
+                  padding: '4px 8px',
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: '4px',
+                  backgroundColor: theme.surface,
+                  color: theme.text,
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  boxSizing: 'border-box' as const,
+                }}
+              />
+              <button
+                onClick={() => setControlledValue('')}
+                style={{
+                  padding: '3px 10px',
+                  fontSize: '11px',
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: '4px',
+                  backgroundColor: theme.surface,
+                  color: theme.text,
+                  cursor: 'pointer',
+                }}
+              >
+                Clear
+              </button>
+            </OptionGroup>
+
             <OptionGroup label="Dropdown" theme={theme}>
               <OptionSelect
                 label="Open"

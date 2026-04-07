@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.13 — 2026-04-07
+
+### Bug Fixes
+
+- **Controlled value prop not clearing editor DOM** — When a parent component cleared the `value` prop (e.g. `setValue('')`), the placeholder appeared but the old text remained in the editor. The paren-match effect was reading stale tokens from `stateRef` after `processInput` had already cleared the editor, then rebuilding the old highlighted HTML. `processInput` now syncs `stateRef.current.tokens` synchronously so effects in the same flush see the correct value.
+
+### Demo
+
+- Added **props.value** control to the demo sidebar — a text input and Clear button for testing controlled value reactivity.
+
 ## 0.3.12 — 2026-04-07
 
 ### Bug Fixes

@@ -412,6 +412,7 @@ export function ElasticInput(props: ElasticInputProps) {
       setValidationErrors([]);
       setIsEmpty(text.length === 0);
       setSuggestions([]);
+      stateRef.current.tokens = [];
       setShowDropdown(false);
       setShowDatePicker(false);
       if (editorRef.current) {
@@ -461,6 +462,10 @@ export function ElasticInput(props: ElasticInputProps) {
       setCursorOffset(offset);
       setSelectionEnd(offset);
 
+      // Update stateRef synchronously so other effects in the same flush
+      // (e.g. paren-match) see the correct tokens instead of stale state.
+      stateRef.current.tokens = newTokens;
+
       if (updateDropdown) {
         updateSuggestionsRef.current(newTokens, offset);
       }
@@ -469,6 +474,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setAst(newAst);
       setValidationErrors(newErrors);
       setIsEmpty(text.length === 0);
+      // Update stateRef synchronously (same reason as above)
+      stateRef.current.tokens = newTokens;
     }
 
     if (onChange) onChange(text, newAst);

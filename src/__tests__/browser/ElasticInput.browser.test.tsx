@@ -448,6 +448,127 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('controlled value reactivity', () => {
+    // Mirrors the demo's exact pattern: useState + value prop + onChange
+    function ControlledWrapper({ fields }: { fields: FieldConfig[] }) {
+      const [value, setValue] = React.useState('');
+      return React.createElement('div', null,
+        React.createElement(ElasticInput, {
+          fields,
+          value,
+          onChange: (q: string) => setValue(q),
+        }),
+        React.createElement('button', {
+          id: 'clear-btn',
+          onClick: () => setValue(''),
+        }, 'Clear'),
+        React.createElement('div', { id: 'state-value' }, value),
+      );
+    }
+
+    it('clicking Clear after typing empties the editor', async () => {
+      renderInto(React.createElement(ControlledWrapper, { fields: FIELDS }));
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active');
+      await new Promise(r => setTimeout(r, 150));
+
+      // Verify text landed
+      expect(editorEl.textContent).toBe('status:active');
+      // Verify parent state is in sync
+      expect(document.getElementById('state-value')!.textContent).toBe('status:active');
+
+      // Click Clear button (like the demo sidebar)
+      const clearBtn = page.elementLocator(document.getElementById('clear-btn')!);
+      await clearBtn.click();
+      await new Promise(r => setTimeout(r, 150));
+
+      // Parent state should be empty
+      expect(document.getElementById('state-value')!.textContent).toBe('');
+      // Editor DOM should be empty too
+      expect(editorEl.textContent).toBe('');
+    });
+
+    it('clicking Clear after typing empties the editor (with fetchSuggestions)', async () => {
+      // Closer to the demo: includes fetchSuggestions, multiple onChange state updates
+      function DemoLikeWrapper({ fields }: { fields: FieldConfig[] }) {
+        const [value, setValue] = React.useState('');
+        const [lastQuery, setLastQuery] = React.useState('');
+        const [lastAST, setLastAST] = React.useState<any>(null);
+        const handleChange = React.useCallback((q: string, ast: any) => {
+          setLastQuery(q);
+          setLastAST(ast);
+          setValue(q);
+        }, []);
+        return React.createElement('div', null,
+          React.createElement(ElasticInput, {
+            fields,
+            value,
+            onChange: handleChange,
+            fetchSuggestions: mockFetchSuggestions,
+            dropdown: { open: 'input' as const },
+          }),
+          React.createElement('button', {
+            id: 'clear-btn',
+            onClick: () => { setValue(''); setLastQuery(''); setLastAST(null); },
+          }, 'Clear'),
+          React.createElement('div', { id: 'state-value' }, value),
+        );
+      }
+
+      renderInto(React.createElement(DemoLikeWrapper, { fields: FIELDS }));
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active');
+      await new Promise(r => setTimeout(r, 300));
+
+      expect(editorEl.textContent).toBe('status:active');
+      expect(document.getElementById('state-value')!.textContent).toBe('status:active');
+
+      // Click Clear
+      const clearBtn = page.elementLocator(document.getElementById('clear-btn')!);
+      await clearBtn.click();
+      await new Promise(r => setTimeout(r, 200));
+
+      expect(document.getElementById('state-value')!.textContent).toBe('');
+      expect(editorEl.textContent).toBe('');
+    });
+
+    it('typing in sidebar input updates the editor', async () => {
+      // Wrapper with an external text input that drives the value
+      function SidebarWrapper({ fields }: { fields: FieldConfig[] }) {
+        const [value, setValue] = React.useState('');
+        return React.createElement('div', null,
+          React.createElement(ElasticInput, {
+            fields,
+            value,
+            onChange: (q: string) => setValue(q),
+          }),
+          React.createElement('input', {
+            id: 'sidebar-input',
+            type: 'text',
+            value,
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value),
+          }),
+        );
+      }
+
+      renderInto(React.createElement(SidebarWrapper, { fields: FIELDS }));
+
+      const sidebarInput = page.elementLocator(document.getElementById('sidebar-input')!);
+      await sidebarInput.click();
+      await userEvent.type(sidebarInput, 'level:error');
+      await new Promise(r => setTimeout(r, 150));
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      expect(editorEl.textContent).toBe('level:error');
+    });
+  });
+
   describe('blur with parentheses', () => {
     it('typing "a" allows blur when clicking outside', async () => {
       renderInto(

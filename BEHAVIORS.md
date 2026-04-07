@@ -1080,6 +1080,10 @@ When the input loses focus, any pending async suggestion fetch (field values, sa
 
 When the input loses focus, the paren-matching effect re-renders highlighted HTML to clear paren highlights. Previously, this also restored the caret position via `setCaretCharOffset`, which calls `Selection.addRange()` — re-focusing the contentEditable and trapping focus. Now, caret restoration is skipped when the editor is not focused. The same guard is applied in `applyHighlight` (called from `processInput`) to prevent controlled `value` prop updates or initial mount from stealing focus. See `ElasticInput.browser.test.tsx` "blur with parentheses".
 
+### 9.3.4 Controlled Value Prop Clears Editor DOM
+
+When the `value` prop changes (e.g. parent calls `setState('')`), the controlled-value effect calls `processInput` which clears the editor's `innerHTML` via `applyHighlight`. However, the paren-match effect (which runs in the same React effect flush) reads tokens from `stateRef.current.tokens`. Since `setTokens` is asynchronous, the paren-match effect could see stale tokens and rebuild the old highlighted HTML, overwriting the cleared editor. Fix: `processInput` now updates `stateRef.current.tokens` synchronously so all effects in the same flush see the correct token count. See `ElasticInput.browser.test.tsx` "controlled value reactivity".
+
 ### 9.4 External Error Access
 
 Validation errors are accessible outside the component in two ways:

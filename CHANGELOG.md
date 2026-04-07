@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.12 — 2026-04-07
+
+### Bug Fixes
+
+- **Parentheses in input prevent blur** — Typing text with parentheses (e.g. `(a)`) and then clicking outside the input would trap focus. The paren-matching highlight effect and `applyHighlight` were restoring the caret position via `Selection.addRange()` after the editor was blurred, which re-focused the contentEditable. Caret restoration is now skipped when the editor is not focused.
+
 ## 0.3.11 — 2026-04-06
 
 ### Features

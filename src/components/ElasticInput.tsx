@@ -395,7 +395,11 @@ export function ElasticInput(props: ElasticInputProps) {
     if (!editorRef.current) return;
     const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
     editorRef.current.innerHTML = html;
-    setCaretCharOffset(editorRef.current, offset);
+    // Only restore caret when the editor is focused — setting a selection range
+    // on a blurred contentEditable re-focuses it.
+    if (document.activeElement === editorRef.current) {
+      setCaretCharOffset(editorRef.current, offset);
+    }
   }, [colors]);
 
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
@@ -1115,10 +1119,14 @@ export function ElasticInput(props: ElasticInputProps) {
     if (matchKey === prevParenMatchRef.current && !colorsChanged) return;
     prevParenMatchRef.current = matchKey;
 
-    const savedOffset = getCaretCharOffset(editorRef.current);
+    const savedOffset = isFocused ? getCaretCharOffset(editorRef.current) : -1;
     const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token, fieldTypeMap });
     editorRef.current.innerHTML = html;
-    setCaretCharOffset(editorRef.current, savedOffset);
+    // Only restore caret when focused — setting a selection range on a blurred
+    // contentEditable re-focuses it, which prevents the user from clicking away.
+    if (isFocused && savedOffset >= 0) {
+      setCaretCharOffset(editorRef.current, savedOffset);
+    }
   }, [cursorOffset, selectionEnd, isFocused, colors]);
 
   // --- Event handlers ---

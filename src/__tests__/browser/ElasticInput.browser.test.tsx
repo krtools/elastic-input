@@ -400,6 +400,100 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('mount does not steal focus', () => {
+    it('mounting with a pre-existing value does not focus the editor', async () => {
+      // Focus something else first
+      const button = document.createElement('button');
+      button.textContent = 'Other';
+      document.body.appendChild(button);
+      button.focus();
+      expect(document.activeElement).toBe(button);
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          value: 'status:active AND level:error',
+        }),
+      );
+
+      // Wait for mount + processInput to complete
+      await new Promise(r => setTimeout(r, 200));
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      expect(document.activeElement).not.toBe(editorEl);
+
+      button.remove();
+    });
+
+    it('mounting with a value containing parentheses does not focus the editor', async () => {
+      const button = document.createElement('button');
+      button.textContent = 'Other';
+      document.body.appendChild(button);
+      button.focus();
+      expect(document.activeElement).toBe(button);
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          value: '(status:active OR status:inactive)',
+        }),
+      );
+
+      await new Promise(r => setTimeout(r, 200));
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      expect(document.activeElement).not.toBe(editorEl);
+
+      button.remove();
+    });
+  });
+
+  describe('blur with parentheses', () => {
+    it('typing "a" allows blur when clicking outside', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'a');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Click outside the editor to blur
+      document.body.click();
+      editorEl.blur();
+      await new Promise(r => setTimeout(r, 100));
+
+      expect(document.activeElement).not.toBe(editorEl);
+    });
+
+    it('typing "(a)" allows blur when clicking outside', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, '(a)');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Click outside the editor to blur
+      document.body.click();
+      editorEl.blur();
+      await new Promise(r => setTimeout(r, 100));
+
+      expect(document.activeElement).not.toBe(editorEl);
+    });
+  });
+
   describe('basic rendering', () => {
     it('renders with placeholder text', async () => {
       renderInto(

@@ -1076,6 +1076,10 @@ When the input loses focus (blur), `cursorOffset` is set to `-1`, which causes a
 
 When the input loses focus, any pending async suggestion fetch (field values, saved searches, history) is aborted. This prevents the dropdown from appearing on a blurred input with stale or mis-positioned results. The abort controller is signalled, debounce timers are cleared, and the loading delay timer is cancelled. See `ElasticInput.browser.test.tsx` "blur cancels async suggestions".
 
+### 9.3.3 Blur Not Blocked by Paren Highlighting
+
+When the input loses focus, the paren-matching effect re-renders highlighted HTML to clear paren highlights. Previously, this also restored the caret position via `setCaretCharOffset`, which calls `Selection.addRange()` — re-focusing the contentEditable and trapping focus. Now, caret restoration is skipped when the editor is not focused. The same guard is applied in `applyHighlight` (called from `processInput`) to prevent controlled `value` prop updates or initial mount from stealing focus. See `ElasticInput.browser.test.tsx` "blur with parentheses".
+
 ### 9.4 External Error Access
 
 Validation errors are accessible outside the component in two ways:

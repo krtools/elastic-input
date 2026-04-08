@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.3 — 2026-04-08
+
+### Features
+
+- **`styles.dropdownItemContentGap`** — Configurable gap between content elements inside dropdown items (label, type badge, description). Defaults to `'8px'`.
+- **`SavedSearch.date`** — Optional date string on saved searches. When present, the item renders in a two-row layout (like history) with the date displayed alongside the description.
+
+### Internal
+
+- **Refactor dropdown item rendering** — Extracted shared `itemProps()`, `typeBadge()`, and merged history/saved-search two-row layout into a single code path. Net -58 lines.
+
 ## 0.4.2 — 2026-04-08
 
 ### Bug Fixes

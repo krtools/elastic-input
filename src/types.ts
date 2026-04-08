@@ -66,10 +66,8 @@ export interface SavedSearch {
   name: string;
   /** The query string this saved search expands to. */
   query: string;
-  /** Optional description shown in the autocomplete dropdown. */
+  /** Optional description shown below the name in the autocomplete dropdown (e.g. a date, category, or summary). */
   description?: string;
-  /** Optional date string displayed alongside the description (e.g. "2024-01-15"). */
-  date?: string;
 }
 
 /** A previous search query that users can reference with `!` syntax. */

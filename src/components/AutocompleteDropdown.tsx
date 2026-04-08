@@ -264,36 +264,29 @@ export function AutocompleteDropdown({
           }
         }
 
-        // Two-row layout — history items, and saved searches with a date
-        const isHistory = suggestion.type === 'history';
-        const savedSearchDate = suggestion.type === 'savedSearch' && suggestion.sourceData ? (suggestion.sourceData as SavedSearch).date : undefined;
-        if (isHistory || savedSearchDate) {
-          const typeModifier = isHistory ? 'ei-dropdown-item--history' : 'ei-dropdown-item--saved-search';
-          // History: show tooltip when label differs from raw query
+        // Two-row layout — history and saved searches with a description
+        const isTwoRow = (suggestion.type === 'history' || suggestion.type === 'savedSearch') && suggestion.description != null;
+        if (isTwoRow) {
+          const typeModifier = suggestion.type === 'history' ? 'ei-dropdown-item--history' : 'ei-dropdown-item--saved-search';
+          // Show tooltip when label differs from the inserted text
           let title: string | undefined;
-          if (isHistory) {
-            const rawQuery = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
-              ? suggestion.text.slice(1, -1) : suggestion.text;
-            if (suggestion.label !== rawQuery) title = suggestion.text;
-          }
+          const rawText = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
+            ? suggestion.text.slice(1, -1) : suggestion.text;
+          if (suggestion.label !== rawText) title = suggestion.text;
 
           return (
             <div {...itemProps(typeModifier, twoRowStyle, title)}>
               <span className="ei-dropdown-item-label" style={{
                 ...getDropdownItemLabelStyle(isSelected),
                 width: '100%',
-                ...(isHistory ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', whiteSpace: 'normal', wordBreak: 'break-all' as const } : {}),
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden', whiteSpace: 'normal', wordBreak: 'break-all' as const,
               }}>
                 {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
               </span>
               <span style={secondRowStyle}>
-                {suggestion.description != null && (
-                  <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
-                )}
-                {savedSearchDate && (
-                  <span className="ei-dropdown-item-date" style={{ ...getDropdownItemDescStyle(isSelected), marginLeft: 'auto', whiteSpace: 'nowrap' }}>{savedSearchDate}</span>
-                )}
-                {typeBadge(isHistory ? { marginLeft: 'auto' } : undefined)}
+                <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
+                {typeBadge({ marginLeft: 'auto' })}
               </span>
             </div>
           );

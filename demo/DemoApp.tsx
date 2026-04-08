@@ -438,6 +438,7 @@ export function DemoApp() {
 
   // Feature options
   const [multiline, setMultiline] = React.useState(true);
+  const [collapseOnBlur, setCollapseOnBlur] = React.useState(false);
   const [smartSelectAll, setSmartSelectAll] = React.useState(true);
   const [expandSelection, setExpandSelection] = React.useState(true);
   const [wildcardWrap, setWildcardWrap] = React.useState(true);
@@ -625,7 +626,7 @@ export function DemoApp() {
           {/* Search section */}
           <div style={styles.searchSection}>
             <div style={styles.searchRow}>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <ElasticInput
                   fields={tab.fields}
                   colors={colors}
@@ -668,6 +669,7 @@ export function DemoApp() {
                   onTab={useOnTab ? handleTab : undefined}
                   inputRef={api => { inputApiRef.current = api; }}
                   plainModeLength={2000}
+                  collapseOnBlur={collapseOnBlur}
                 />
               </div>
               <button
@@ -886,6 +888,7 @@ export function DemoApp() {
 
             <OptionGroup label="Features" theme={theme}>
               <OptionToggle label="Multiline" checked={multiline} onChange={setMultiline} theme={theme} />
+              <OptionToggle label="Collapse on blur" checked={collapseOnBlur} onChange={setCollapseOnBlur} theme={theme} />
               <OptionToggle label="Smart Ctrl+A" checked={smartSelectAll} onChange={setSmartSelectAll} theme={theme} />
               <OptionToggle label="Expand selection" checked={expandSelection} onChange={setExpandSelection} theme={theme} />
               <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />

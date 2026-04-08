@@ -38,6 +38,7 @@ export function getEditableStyle(colors: Required<ColorConfig>, styles: Required
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
+    overflow: 'auto',
     cursor: 'text',
   };
 }

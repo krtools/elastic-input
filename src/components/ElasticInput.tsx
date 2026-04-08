@@ -182,6 +182,7 @@ export function ElasticInput(props: ElasticInputProps) {
     interceptPaste,
     defaultField: defaultFieldProp,
     trailingSpaceOnAccept = true,
+    collapseOnBlur = false,
   } = props;
 
   // Normalize defaultField prop
@@ -1169,6 +1170,31 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [cursorOffset, selectionEnd, isFocused, colors]);
 
+  // collapseOnBlur: swap <br> ↔ space when collapsed state changes
+  const isCollapsed = collapseOnBlur && !isFocused;
+  const prevCollapsedRef = React.useRef(isCollapsed);
+  React.useEffect(() => {
+    if (!editorRef.current) return;
+    const wasCollapsed = prevCollapsedRef.current;
+    prevCollapsedRef.current = isCollapsed;
+    if (wasCollapsed === isCollapsed) return;
+    if (isCollapsed) {
+      // Collapsing: replace <br> with spaces so everything flows on one line
+      editorRef.current.innerHTML = editorRef.current.innerHTML.replace(/<br\s*\/?>/gi, ' ');
+    } else {
+      // Expanding: rebuild HTML with proper <br> tags
+      const toks = stateRef.current.tokens;
+      if (toks.length > 0) {
+        const offset = isFocused ? getCaretCharOffset(editorRef.current) : -1;
+        const html = buildHighlightedHTML(toks, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
+        editorRef.current.innerHTML = html;
+        if (isFocused && offset >= 0) {
+          setCaretCharOffset(editorRef.current, offset);
+        }
+      }
+    }
+  }, [isCollapsed, colors]);
+
   // --- Event handlers ---
 
   const handleInput = React.useCallback(() => {
@@ -1839,10 +1865,15 @@ export function ElasticInput(props: ElasticInputProps) {
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(stylesProp);
   const containerStyle = getInputContainerStyle(mergedColors, style);
-  const editableStyle = {
+  const editableStyle: React.CSSProperties = {
     ...getEditableStyle(mergedColors, mergedStyleConfig),
     ...(isFocused ? getEditableFocusStyle(mergedStyleConfig) : {}),
   };
+  if (isCollapsed) {
+    editableStyle.whiteSpace = 'nowrap';
+    editableStyle.overflow = 'hidden';
+    editableStyle.textOverflow = 'ellipsis';
+  }
   const placeholderStyle = getPlaceholderStyle(mergedColors, mergedStyleConfig);
 
   return (

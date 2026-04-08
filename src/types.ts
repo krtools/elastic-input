@@ -532,4 +532,7 @@ export interface ElasticInputProps {
    *  Useful for search inputs where the user continues typing; disable for cell/spreadsheet
    *  inputs where each cell holds a single value. @default true */
   trailingSpaceOnAccept?: boolean;
+  /** When true, the input collapses to a single line when unfocused and expands on focus.
+   *  Useful for compact layouts where the full query is only needed during editing. @default false */
+  collapseOnBlur?: boolean;
 }

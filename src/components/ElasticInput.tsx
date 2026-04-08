@@ -280,6 +280,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const typingGroupTimerRef = React.useRef<any>(null);
 
 
+  const rafIdsRef = React.useRef<Set<number>>(new Set());
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const highlightTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const navDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -384,7 +385,8 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
     // Caret-following: defer to rAF so caret rect is fresh
-    requestAnimationFrame(() => {
+    const id = requestAnimationFrame(() => {
+      rafIdsRef.current.delete(id);
       if (kind === 'datePicker') {
         setShowDatePicker(true);
       } else {
@@ -394,6 +396,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const pos = rect ? getDropdownPosition(rect, cappedHeight, width) : null;
       setDropdownPosition(pos);
     });
+    rafIdsRef.current.add(id);
   }, [dropdownAlignToInput, computeDropdownPosition, dropdownMaxHeightPx]);
 
   // Threshold: above this token count, debounce the expensive innerHTML replacement
@@ -908,7 +911,8 @@ export function ElasticInput(props: ElasticInputProps) {
     // Deferred callback — runs after state batch
     if (thenDo) {
       // Use rAF to let React flush the state updates first
-      requestAnimationFrame(() => thenDo(newTokens, newAst));
+      const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
+      rafIdsRef.current.add(id);
     }
   }, [colors, onChange, onValidationChange]);
 
@@ -918,9 +922,15 @@ export function ElasticInput(props: ElasticInputProps) {
     afterAccept?: (newValue: string, newAst: ASTNode | null) => void,
   ) => {
     if (!suggestion) return;
-    // Mark as navigation so 'input'-mode gating prevents dropdown from re-opening
-    dropdownTriggerRef.current = 'navigation';
     const s = stateRef.current;
+    const ctx = s.autocompleteContext;
+    // For complete terms (values, saved searches, history), mark as navigation so
+    // 'input'-mode gating prevents the dropdown from re-opening after acceptance.
+    // For field names, keep the trigger as 'input' so value suggestions appear.
+    const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
+    if (isCompleteTerm) {
+      dropdownTriggerRef.current = 'navigation';
+    }
 
     // Special hint items (#, !) — insert the trigger char and show suggestions
     if (suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!')) {
@@ -953,8 +963,6 @@ export function ElasticInput(props: ElasticInputProps) {
     const before = currentValueRef.current.slice(0, replaceStart);
     const after = currentValueRef.current.slice(replaceEnd);
 
-    const ctx = s.autocompleteContext;
-    const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
     let trailingSpace = '';
     let finalAfter = after;
     if (isCompleteTerm && trailingSpaceOnAccept) {
@@ -1063,6 +1071,8 @@ export function ElasticInput(props: ElasticInputProps) {
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
       if (navDelayTimerRef.current) clearTimeout(navDelayTimerRef.current);
       if (loadingDelayTimerRef.current) clearTimeout(loadingDelayTimerRef.current);
+      rafIdsRef.current.forEach(id => cancelAnimationFrame(id));
+      rafIdsRef.current.clear();
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -1669,7 +1679,8 @@ export function ElasticInput(props: ElasticInputProps) {
     setIsFocused(true);
     onFocusProp?.();
     // Defer suggestion update so isFocused state is committed
-    requestAnimationFrame(() => {
+    const id = requestAnimationFrame(() => {
+      rafIdsRef.current.delete(id);
       if (editorRef.current) {
         const toks = stateRef.current.tokens;
         const offset = toks.length > 0 ? getCaretCharOffset(editorRef.current) : 0;
@@ -1679,6 +1690,7 @@ export function ElasticInput(props: ElasticInputProps) {
         triggerSuggestionsFromNavigation(toks, offset);
       }
     });
+    rafIdsRef.current.add(id);
   }, [handleInput, triggerSuggestionsFromNavigation, onFocusProp]);
 
   const handleBlur = React.useCallback(() => {

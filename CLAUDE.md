@@ -12,10 +12,11 @@ npm test             # Run all tests (vitest run)
 npm run test:watch   # Watch mode
 npx vitest run src/__tests__/Lexer.test.ts          # Single test file
 npx vitest run -t "flags unknown fields"            # Single test by name
+npm run test:browser # Browser integration tests (Playwright)
 npx tsc --noEmit     # Type check without emitting
 ```
 
-**After every change**, run all three: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. TypeScript errors and build failures are not caught by vitest alone.
+**After every change**, run all four: `npx tsc --noEmit`, `npx vitest run`, `npm run test:browser`, `npx vite build`. TypeScript errors, browser regressions, and build failures are not caught by vitest alone.
 
 ## Architecture
 

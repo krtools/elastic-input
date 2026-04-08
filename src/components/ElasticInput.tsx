@@ -1528,11 +1528,23 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    // Shift+Enter inserts a newline when multiline is enabled
+    // Shift+Enter inserts a newline when multiline is enabled.
+    // Insert the <br> in the DOM first so the caret moves to the new line,
+    // then compute the text directly (getPlainText returns '' for <br>-only
+    // DOM due to the browser artifact guard).
     if (e.key === 'Enter' && e.shiftKey && multiline) {
       e.preventDefault();
       insertLineBreakAtCursor();
-      handleInput();
+      const cursorPos = editorRef.current ? getCaretCharOffset(editorRef.current) : currentValueRef.current.length + 1;
+      const prev = currentValueRef.current;
+      const newText = prev.slice(0, cursorPos - 1) + '\n' + prev.slice(cursorPos - 1);
+      currentValueRef.current = newText;
+      expandSelRef.current = null;
+      if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
+      dropdownTriggerRef.current = 'input';
+      undoStackRef.current.push({ value: newText, cursorPos });
+      processInput(newText, true);
+      if (editorRef.current) scrollEditorToCaret(editorRef.current);
       return;
     }
 

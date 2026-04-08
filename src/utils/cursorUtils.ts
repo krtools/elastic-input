@@ -28,7 +28,9 @@ export function countOffsetTo(root: Node, targetNode: Node, targetOffset: number
     }
 
     if (node.nodeName === 'BR') {
-      count += 1;
+      if (!(node as HTMLElement).hasAttribute?.('data-sentinel')) {
+        count += 1;
+      }
       return false;
     }
 
@@ -116,6 +118,10 @@ export function findNodeAtOffset(
     }
 
     if (node.nodeName === 'BR') {
+      // Skip sentinel <br> — it's not part of the text model
+      if ((node as HTMLElement).hasAttribute?.('data-sentinel')) {
+        return null;
+      }
       if (currentOffset + 1 >= targetOffset) {
         // Position after the <br> — place cursor at start of next sibling
         const parentNode = node.parentNode;

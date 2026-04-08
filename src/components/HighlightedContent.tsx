@@ -129,7 +129,7 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
     }
   }
 
-  return tokens.map((token, tokenIndex) => {
+  let html = tokens.map((token, tokenIndex) => {
     const colorKey = TOKEN_COLOR_MAP[token.type] || 'text';
     let color = colors[colorKey] || colors.text;
 
@@ -182,6 +182,16 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
     const tokenClass = `ei-token ei-token--${TOKEN_CLASS_MAP[token.type]}${options?.tokenClassName ? ' ' + options.tokenClassName : ''}`;
     return `<span class="${tokenClass}" style="color:${color};font-weight:${fontWeight};${extraStyle}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
   }).join('');
+
+  // A trailing <br> in contentEditable doesn't create a visible empty line —
+  // the browser treats it as a "line terminator" only. Append a sentinel <br>
+  // so the caret can be placed on the new line and the editor grows in height.
+  // The data-sentinel attribute tells getPlainText to skip it.
+  if (html.endsWith('<br>')) {
+    html += '<br data-sentinel>';
+  }
+
+  return html;
 }
 
 function escapeHTML(text: string): string {

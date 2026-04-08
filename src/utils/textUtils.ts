@@ -70,7 +70,10 @@ export function getPlainText(element: HTMLElement): string {
     if (node.nodeType === Node.TEXT_NODE) {
       parts.push(node.textContent || '');
     } else if (node.nodeName === 'BR') {
-      parts.push('\n');
+      // Skip sentinel <br> appended by buildHighlightedHTML for trailing newlines
+      if (!(node as HTMLElement).hasAttribute?.('data-sentinel')) {
+        parts.push('\n');
+      }
     } else {
       for (let i = 0; i < node.childNodes.length; i++) {
         walk(node.childNodes[i]);

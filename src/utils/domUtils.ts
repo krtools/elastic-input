@@ -79,8 +79,16 @@ export function getCaretRect(): DOMRect | null {
   const range = sel.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
-  // If range rect has zero dimensions (e.g., empty line), use a fallback
-  if (rect.width === 0 && rect.height === 0) {
+  // Use a zero-width-space probe when the range rect is unreliable:
+  // 1. Zero dimensions (empty line, empty container)
+  // 2. Caret right after a <br> — browsers report the rect at the <br>'s
+  //    line rather than the new line the caret is visually on
+  const needsProbe = (rect.width === 0 && rect.height === 0) ||
+    (range.collapsed && range.startContainer.nodeType === Node.ELEMENT_NODE &&
+     range.startOffset > 0 &&
+     range.startContainer.childNodes[range.startOffset - 1]?.nodeName === 'BR');
+
+  if (needsProbe) {
     const span = document.createElement('span');
     span.textContent = '\u200b'; // zero-width space
     range.insertNode(span);

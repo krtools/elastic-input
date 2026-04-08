@@ -615,6 +615,74 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('dropdown follows caret on Shift+Enter', () => {
+    function getDropdownTop(): number | null {
+      const el = document.querySelector(DROPDOWN) as HTMLElement | null;
+      if (!el) return null;
+      const top = el.style.top;
+      return top ? parseFloat(top) : null;
+    }
+
+    it('repositions dropdown when Shift+Enter is pressed in an empty input', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+
+      // Dropdown should be visible with field suggestions
+      expect(await waitFor(dropdownVisible)).toBe(true);
+      await new Promise(r => setTimeout(r, 100));
+      const topBefore = getDropdownTop();
+      expect(topBefore).not.toBeNull();
+
+      // Shift+Enter to add a newline
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await new Promise(r => setTimeout(r, 200));
+
+      // Dropdown should still be visible and repositioned lower
+      expect(dropdownVisible()).toBe(true);
+      const topAfter = getDropdownTop();
+      expect(topAfter).not.toBeNull();
+      expect(topAfter!).toBeGreaterThan(topBefore!);
+    });
+
+    it('repositions dropdown when Shift+Enter is pressed after a value', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: mockFetchSuggestions,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'hello ');
+      await new Promise(r => setTimeout(r, 100));
+
+      // After 'hello ' cursor is in whitespace — open='always' shows operator/field suggestions
+      expect(await waitFor(dropdownVisible)).toBe(true);
+      const topBefore = getDropdownTop();
+      expect(topBefore).not.toBeNull();
+
+      // Shift+Enter to add a newline
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await new Promise(r => setTimeout(r, 200));
+
+      expect(dropdownVisible()).toBe(true);
+      const topAfter = getDropdownTop();
+      expect(topAfter).not.toBeNull();
+      expect(topAfter!).toBeGreaterThan(topBefore!);
+    });
+  });
+
   describe('basic rendering', () => {
     it('renders with placeholder text', async () => {
       renderInto(

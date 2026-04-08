@@ -13,7 +13,7 @@ import {
 import { formatQuery } from '../src/utils/formatQuery';
 import { lightTheme, darkTheme, getAppStyles } from './styles';
 
-type TabId = 'crm' | 'logs' | 'ecommerce';
+type TabId = 'crm' | 'logs' | 'ecommerce' | 'spreadsheet';
 
 interface TabConfig {
   id: TabId;
@@ -26,6 +26,7 @@ const TABS: TabConfig[] = [
   { id: 'crm', label: 'CRM Search', fields: CRM_FIELDS, placeholder: 'Search contacts... e.g. status:active AND deal_value:>5000' },
   { id: 'logs', label: 'Log Explorer', fields: LOG_FIELDS, placeholder: 'Search logs... e.g. level:ERROR AND service:api-gateway' },
   { id: 'ecommerce', label: 'E-Commerce', fields: ECOMMERCE_FIELDS, placeholder: 'Search products... e.g. category:electronics AND price:<100' },
+  { id: 'spreadsheet', label: 'Spreadsheet', fields: CRM_FIELDS, placeholder: '' },
 ];
 
 // --- Example queries per tab ---
@@ -137,6 +138,7 @@ const EXAMPLE_QUERIES: Record<TabId, ExampleQuery[]> = {
       query: '*phone* AND category:electronics',
       desc: 'Leading wildcard triggers slow-query warning' },
   ],
+  spreadsheet: [],
 };
 
 // --- Options panel helpers ---
@@ -234,6 +236,181 @@ function OptionGroup({ label, children, theme }: { label: string; children: Reac
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '5px' }}>
         {children}
+      </div>
+    </div>
+  );
+}
+
+// --- Spreadsheet demo ---
+
+interface SpreadsheetColumn {
+  field: string;
+  label: string;
+  type: 'string' | 'number' | 'date';
+  placeholder: string;
+}
+
+const SPREADSHEET_COLUMNS: SpreadsheetColumn[] = [
+  { field: 'status', label: 'Status', type: 'string', placeholder: 'active, lead...' },
+  { field: 'deal_value', label: 'Deal Value', type: 'number', placeholder: '>5000' },
+  { field: 'created', label: 'Created', type: 'date', placeholder: '2024-01-01' },
+];
+
+const SPREADSHEET_ROWS = 3;
+
+function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
+  const [cells, setCells] = React.useState<string[][]>(
+    () => Array.from({ length: SPREADSHEET_ROWS }, () => SPREADSHEET_COLUMNS.map(() => ''))
+  );
+
+  const handleCellChange = React.useCallback((row: number, col: number, value: string) => {
+    setCells(prev => {
+      const next = prev.map(r => [...r]);
+      next[row][col] = value;
+      return next;
+    });
+  }, []);
+
+  const headerStyle: React.CSSProperties = {
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    color: theme.textSecondary,
+    backgroundColor: theme.surface,
+    borderBottom: `2px solid ${theme.border}`,
+    textAlign: 'left',
+  };
+
+  const cellStyle: React.CSSProperties = {
+    padding: '4px',
+    borderBottom: `1px solid ${theme.border}`,
+    borderRight: `1px solid ${theme.border}`,
+    verticalAlign: 'top',
+  };
+
+  const rowNumStyle: React.CSSProperties = {
+    ...cellStyle,
+    width: '36px',
+    textAlign: 'center',
+    fontSize: '12px',
+    color: theme.textSecondary,
+    backgroundColor: theme.surface,
+    fontFamily: 'monospace',
+    verticalAlign: 'middle',
+  };
+
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <div style={{
+        marginBottom: '16px',
+        padding: '12px 16px',
+        borderRadius: '8px',
+        backgroundColor: theme.surface,
+        border: `1px solid ${theme.border}`,
+        fontSize: '13px',
+        lineHeight: 1.6,
+        color: theme.textSecondary,
+      }}>
+        Each cell is an <code style={{ backgroundColor: theme.codeBg, padding: '1px 5px', borderRadius: '3px', fontSize: '12px' }}>ElasticInput</code> with{' '}
+        <code style={{ backgroundColor: theme.codeBg, padding: '1px 5px', borderRadius: '3px', fontSize: '12px' }}>defaultField</code> set to the column.
+        Bare terms autocomplete as values of that field — the Status column shows value suggestions,
+        Deal Value validates as a number, and Created opens a date picker.
+        You can still type <code style={{ backgroundColor: theme.codeBg, padding: '1px 5px', borderRadius: '3px', fontSize: '12px' }}>field:value</code> to override.
+      </div>
+
+      <div style={{
+        border: `1px solid ${theme.border}`,
+        borderRadius: '8px',
+        overflow: 'hidden',
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr>
+              <th style={{ ...headerStyle, width: '36px', borderRight: `1px solid ${theme.border}` }}>#</th>
+              {SPREADSHEET_COLUMNS.map((col, i) => (
+                <th key={col.field} style={{
+                  ...headerStyle,
+                  borderRight: i < SPREADSHEET_COLUMNS.length - 1 ? `1px solid ${theme.border}` : undefined,
+                }}>
+                  {col.label}
+                  <span style={{ fontWeight: 400, opacity: 0.6, marginLeft: '6px', textTransform: 'none', letterSpacing: 0 }}>
+                    ({col.type})
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: SPREADSHEET_ROWS }, (_, row) => (
+              <tr key={row}>
+                <td style={rowNumStyle}>{row + 1}</td>
+                {SPREADSHEET_COLUMNS.map((col, colIdx) => (
+                  <td key={col.field} style={{
+                    ...cellStyle,
+                    borderRight: colIdx < SPREADSHEET_COLUMNS.length - 1 ? `1px solid ${theme.border}` : undefined,
+                  }}>
+                    <ElasticInput
+                      fields={CRM_FIELDS}
+                      defaultField={col.field}
+                      colors={{
+                        ...colors,
+                        background: 'transparent',
+                      }}
+                      styles={{
+                        fontSize: '13px',
+                        lineHeight: '1.4',
+                        inputMinHeight: '28px',
+                        inputPadding: '4px 8px',
+                        inputBorderWidth: '0px',
+                        inputBorderRadius: '0px',
+                        inputFocusBorderColor: 'transparent',
+                        inputFocusShadow: 'none',
+                        dropdownMinWidth: '180px',
+                        dropdownMaxWidth: '300px',
+                      }}
+                      placeholder={col.placeholder}
+                      value={cells[row][colIdx]}
+                      onChange={(q) => handleCellChange(row, colIdx, q)}
+                      fetchSuggestions={mockFetchSuggestions}
+                      validateValue={demoValidateValue}
+                      features={{ multiline: false }}
+                      dropdown={{ showOperators: false }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{
+        marginTop: '12px',
+        padding: '10px 16px',
+        borderRadius: '8px',
+        backgroundColor: theme.surface,
+        border: `1px solid ${theme.border}`,
+        fontSize: '12px',
+        fontFamily: 'monospace',
+        color: theme.textSecondary,
+        lineHeight: 1.8,
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '13px', color: theme.text }}>Cell Values</div>
+        {cells.map((row, r) => (
+          <div key={r}>
+            Row {r + 1}:{' '}
+            {SPREADSHEET_COLUMNS.map((col, c) => (
+              <span key={col.field}>
+                <span style={{ color: theme.accent }}>{col.field}</span>
+                {':'}
+                <span style={{ color: theme.text }}>{row[c] || '(empty)'}</span>
+                {c < SPREADSHEET_COLUMNS.length - 1 ? '  |  ' : ''}
+              </span>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -440,6 +617,11 @@ export function DemoApp() {
             ))}
           </div>
 
+          {activeTab === 'spreadsheet' ? (
+            <SpreadsheetDemo theme={theme} colors={colors} />
+          ) : (
+          <React.Fragment>
+
           {/* Search section */}
           <div style={styles.searchSection}>
             <div style={styles.searchRow}>
@@ -618,6 +800,7 @@ export function DemoApp() {
               ))}
             </div>
           </div>
+          </React.Fragment>)}
         </div>
 
         {/* Right: options panel */}

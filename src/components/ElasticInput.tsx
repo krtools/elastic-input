@@ -570,6 +570,12 @@ export function ElasticInput(props: ElasticInputProps) {
           return;
         }
       }
+      if (dropdownMode === 'input' && dropdownTriggerRef.current !== 'input' && dropdownTriggerRef.current !== 'ctrlSpace') {
+        setShowDropdown(false);
+        setShowDatePicker(false);
+        setSuggestions([]);
+        return;
+      }
     }
 
     // Determine if this context will trigger an async fetch
@@ -911,6 +917,8 @@ export function ElasticInput(props: ElasticInputProps) {
     afterAccept?: (newValue: string, newAst: ASTNode | null) => void,
   ) => {
     if (!suggestion) return;
+    // Mark as navigation so 'input'-mode gating prevents dropdown from re-opening
+    dropdownTriggerRef.current = 'navigation';
     const s = stateRef.current;
 
     // Special hint items (#, !) — insert the trigger char and show suggestions
@@ -1777,6 +1785,8 @@ export function ElasticInput(props: ElasticInputProps) {
   }, [interceptPaste, doPaste]);
 
   const handleDateSelect = React.useCallback((dateStr: string) => {
+    // Mark as navigation so 'input'-mode gating prevents date picker from re-opening
+    dropdownTriggerRef.current = 'navigation';
     const s = stateRef.current;
     // Use the replacement range captured when the date picker was opened,
     // so we always replace the right token regardless of where the cursor

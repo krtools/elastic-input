@@ -354,10 +354,7 @@ function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
                     <ElasticInput
                       fields={CRM_FIELDS}
                       defaultField={col.field}
-                      colors={{
-                        ...colors,
-                        background: 'transparent',
-                      }}
+                      colors={colors}
                       styles={{
                         fontSize: '13px',
                         lineHeight: '1.4',
@@ -365,8 +362,8 @@ function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
                         inputPadding: '4px 8px',
                         inputBorderWidth: '0px',
                         inputBorderRadius: '0px',
-                        inputFocusBorderColor: 'transparent',
-                        inputFocusShadow: 'none',
+                        inputFocusBorderColor: theme.accent,
+                        inputFocusShadow: `inset 0 0 0 1px ${theme.accent}`,
                         dropdownMinWidth: '180px',
                         dropdownMaxWidth: '300px',
                       }}
@@ -376,7 +373,11 @@ function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
                       fetchSuggestions={mockFetchSuggestions}
                       validateValue={demoValidateValue}
                       features={{ multiline: false }}
-                      dropdown={{ showOperators: false }}
+                      dropdown={{
+                        showOperators: false,
+                        open: 'input',
+                        onNavigation: false,
+                      }}
                     />
                   </td>
                 ))}

@@ -495,17 +495,24 @@ export function ElasticInput(props: ElasticInputProps) {
     if (onValidationChange) onValidationChange(newErrors);
   }, [colors, onChange, onValidationChange, applyHighlight, plainModeLength]);
 
-  // Apply renderFieldHint to hint suggestions when in a field value context
-  const applyFieldHint = React.useCallback((suggestions: Suggestion[], context: { type: string; fieldName?: string; partial: string }) => {
+  // Apply renderFieldHint in a field value context. If a hint suggestion already
+  // exists it gets customContent replaced; otherwise a new hint is injected at the top.
+  const applyFieldHint = React.useCallback((suggestions: Suggestion[], context: { type: string; fieldName?: string; partial: string; start?: number; end?: number }) => {
     if (!renderFieldHint || context.type !== 'FIELD_VALUE' || !context.fieldName) return suggestions;
     const resolved = engineRef.current.resolveField(context.fieldName);
     if (!resolved) return suggestions;
-    return suggestions.map(s => {
-      if (s.type !== 'hint') return s;
-      const custom = renderFieldHint(resolved, context.partial);
-      if (custom == null) return s;
-      return { ...s, customContent: custom };
-    });
+    const custom = renderFieldHint(resolved, context.partial);
+    if (custom == null) return suggestions;
+
+    const hasHint = suggestions.some(s => s.type === 'hint');
+    if (hasHint) {
+      return suggestions.map(s => s.type === 'hint' ? { ...s, customContent: custom } : s);
+    }
+    // No existing hint — inject one at the top
+    return [
+      { text: '', label: '', type: 'hint' as const, customContent: custom, replaceStart: context.start ?? 0, replaceEnd: context.end ?? 0 },
+      ...suggestions,
+    ];
   }, [renderFieldHint]);
 
   /** Try to show a "no results" message via renderNoResults. Returns true if shown. */

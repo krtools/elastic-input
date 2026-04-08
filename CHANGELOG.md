@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.2 — 2026-04-08
+
+### Bug Fixes
+
+- **`renderType` not applying to history suggestions** — History items had their own early-return render path that hardcoded the type badge as `"history"`, bypassing the `renderType` prop. Now respects `renderType`: `false` hides it, a function receives `'history'`, default shows `"history"`.
+
+### CI
+
+- **Cache Playwright browsers** — Playwright browser binaries are now cached between CI runs, reducing install time from ~13 minutes to seconds on cache hit.
+
 ## 0.4.1 — 2026-04-08
 
 ### Bug Fixes

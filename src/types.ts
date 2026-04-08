@@ -528,4 +528,8 @@ export interface ElasticInputProps {
    * Pass a string for the common case, or a `DefaultFieldConfig` object for options.
    */
   defaultField?: string | DefaultFieldConfig;
+  /** Whether accepting a suggestion appends a trailing space after the inserted text.
+   *  Useful for search inputs where the user continues typing; disable for cell/spreadsheet
+   *  inputs where each cell holds a single value. @default true */
+  trailingSpaceOnAccept?: boolean;
 }

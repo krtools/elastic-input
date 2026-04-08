@@ -181,6 +181,7 @@ export function ElasticInput(props: ElasticInputProps) {
     plainModeLength,
     interceptPaste,
     defaultField: defaultFieldProp,
+    trailingSpaceOnAccept = true,
   } = props;
 
   // Normalize defaultField prop
@@ -956,7 +957,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
     let trailingSpace = '';
     let finalAfter = after;
-    if (isCompleteTerm) {
+    if (isCompleteTerm && trailingSpaceOnAccept) {
       if (after.length === 0) {
         trailingSpace = ' ';
       } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
@@ -978,7 +979,7 @@ export function ElasticInput(props: ElasticInputProps) {
         updateSuggestionsFromTokens(newTokens, newCursorPos);
       }
     });
-  }, [applyNewValue, updateSuggestionsFromTokens, onSearch]);
+  }, [applyNewValue, updateSuggestionsFromTokens, onSearch, trailingSpaceOnAccept]);
 
   // --- Lifecycle ---
 
@@ -1801,13 +1802,15 @@ export function ElasticInput(props: ElasticInputProps) {
     // Add trailing space when cursor would end up at or near the end of input
     let trailingSpace = '';
     let finalAfter = after;
-    if (after.length === 0) {
-      // Nothing after — add space
-      trailingSpace = ' ';
-    } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
-      // Only unescaped whitespace after — trim and add single space
-      trailingSpace = ' ';
-      finalAfter = '';
+    if (trailingSpaceOnAccept) {
+      if (after.length === 0) {
+        // Nothing after — add space
+        trailingSpace = ' ';
+      } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
+        // Only unescaped whitespace after — trim and add single space
+        trailingSpace = ' ';
+        finalAfter = '';
+      }
     }
 
     const newValue = before + dateStr + trailingSpace + finalAfter;
@@ -1817,7 +1820,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (editorRef.current) editorRef.current.focus();
       updateSuggestionsFromTokens(newTokens, newCursorPos);
     });
-  }, [applyNewValue, updateSuggestionsFromTokens]);
+  }, [applyNewValue, updateSuggestionsFromTokens, trailingSpaceOnAccept]);
 
   // --- Render ---
 
@@ -1853,7 +1856,7 @@ export function ElasticInput(props: ElasticInputProps) {
       />
 
       {isEmpty && !isFocused ? (
-        <div className={cx('ei-placeholder', classNames?.placeholder)} style={placeholderStyle}>{placeholder || 'Search...'}</div>
+        <div className={cx('ei-placeholder', classNames?.placeholder)} style={placeholderStyle}>{placeholder}</div>
       ) : null}
 
       <ValidationSquiggles

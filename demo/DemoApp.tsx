@@ -247,13 +247,12 @@ interface SpreadsheetColumn {
   field: string;
   label: string;
   type: 'string' | 'number' | 'date';
-  placeholder: string;
 }
 
 const SPREADSHEET_COLUMNS: SpreadsheetColumn[] = [
-  { field: 'status', label: 'Status', type: 'string', placeholder: 'active, lead...' },
-  { field: 'deal_value', label: 'Deal Value', type: 'number', placeholder: '>5000' },
-  { field: 'created', label: 'Created', type: 'date', placeholder: '2024-01-01' },
+  { field: 'status', label: 'Status', type: 'string' },
+  { field: 'deal_value', label: 'Deal Value', type: 'number' },
+  { field: 'created', label: 'Created', type: 'date' },
 ];
 
 const SPREADSHEET_ROWS = 3;
@@ -367,12 +366,12 @@ function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
                         dropdownMinWidth: '180px',
                         dropdownMaxWidth: '300px',
                       }}
-                      placeholder={col.placeholder}
                       value={cells[row][colIdx]}
                       onChange={(q) => handleCellChange(row, colIdx, q)}
                       fetchSuggestions={mockFetchSuggestions}
                       validateValue={demoValidateValue}
                       features={{ multiline: false }}
+                      trailingSpaceOnAccept={false}
                       dropdown={{
                         showOperators: false,
                         open: 'input',

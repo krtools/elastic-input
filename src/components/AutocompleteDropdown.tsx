@@ -303,6 +303,43 @@ export function AutocompleteDropdown({
           }
         }
 
+        // Saved search with date — two-row layout like history
+        if (suggestion.type === 'savedSearch' && suggestion.sourceData && (suggestion.sourceData as SavedSearch).date) {
+          const savedSearch = suggestion.sourceData as SavedSearch;
+          return (
+            <div
+              key={i}
+              className={cx('ei-dropdown-item', 'ei-dropdown-item--saved-search', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
+              style={{ ...itemStyle, flexDirection: 'column', alignItems: 'flex-start' }}
+              onClick={() => onSelect(suggestion)}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
+              }}
+            >
+              <span className="ei-dropdown-item-label" style={{ ...getDropdownItemLabelStyle(isSelected), width: '100%' }}>
+                {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: mergedStyles.dropdownItemContentGap, width: '100%' }}>
+                {suggestion.description != null && (
+                  <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
+                )}
+                <span className="ei-dropdown-item-date" style={{ ...getDropdownItemDescStyle(isSelected), marginLeft: 'auto', whiteSpace: 'nowrap' }}>{savedSearch.date}</span>
+                {renderType !== false && (() => {
+                  const content = typeof renderType === 'function'
+                    ? renderType('savedSearch', { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
+                    : 'savedSearch';
+                  return content != null ? (
+                    <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{content}</span>
+                  ) : null;
+                })()}
+              </span>
+            </div>
+          );
+        }
+
         const itemTypeModifier = suggestion.type === 'savedSearch' ? 'ei-dropdown-item--saved-search' : undefined;
         return (
           <div

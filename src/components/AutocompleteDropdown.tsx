@@ -265,7 +265,14 @@ export function AutocompleteDropdown({
                     {suggestion.description != null && (
                       <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
                     )}
-                    <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>history</span>
+                    {renderType !== false && (() => {
+                      const content = typeof renderType === 'function'
+                        ? renderType('history', { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
+                        : 'history';
+                      return content != null ? (
+                        <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>{content}</span>
+                      ) : null;
+                    })()}
                   </span>
                 </>
               )}

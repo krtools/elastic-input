@@ -152,14 +152,42 @@ export function AutocompleteDropdown({
         const isSelected = i === selectedIndex;
         const itemStyle = getDropdownItemStyle(isSelected, mergedColors, mergedStyles);
 
+        // --- Helpers shared across item types ---
+
+        const itemProps = (typeModifier?: string, extraStyle?: React.CSSProperties, title?: string) => ({
+          key: i,
+          className: cx('ei-dropdown-item', typeModifier, isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem),
+          style: { ...itemStyle, ...extraStyle },
+          title,
+          onClick: () => onSelect(suggestion),
+          onMouseEnter: (e: React.MouseEvent) => {
+            (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
+          },
+          onMouseLeave: (e: React.MouseEvent) => {
+            (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
+          },
+        });
+
+        const typeBadge = (extraStyle?: React.CSSProperties) => {
+          if (renderType === false || !suggestion.type || suggestion.type === 'hint') return null;
+          const content = typeof renderType === 'function'
+            ? renderType(suggestion.type, { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
+            : suggestion.type;
+          return content != null ? (
+            <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), ...extraStyle }}>{content}</span>
+          ) : null;
+        };
+
+        const twoRowStyle = { flexDirection: 'column' as const, alignItems: 'flex-start' as const };
+        const secondRowStyle = { display: 'flex' as const, alignItems: 'center' as const, gap: mergedStyles.dropdownItemContentGap, width: '100%' };
+
+        // --- Item type branches ---
+
         // Special hint items (#saved-search, !history) — clickable to insert the trigger char
         if (suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!')) {
           return (
             <div
-              key={i}
-              className={cx('ei-dropdown-item', 'ei-dropdown-item--hint', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
-              style={{ ...itemStyle, opacity: isSelected ? 1 : 0.7 }}
-              onClick={() => onSelect(suggestion)}
+              {...itemProps('ei-dropdown-item--hint', { opacity: isSelected ? 1 : 0.7 })}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
                 (e.currentTarget as HTMLElement).style.opacity = '1';
@@ -222,152 +250,66 @@ export function AutocompleteDropdown({
           );
         }
 
-        // History items — custom renderer or default vertical 2-line layout
-        if (suggestion.type === 'history') {
-          const customContent = renderHistoryItem && suggestion.sourceData
-            ? renderHistoryItem(suggestion.sourceData as HistoryEntry, isSelected)
-            : null;
-
-          const rawQuery = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
-            ? suggestion.text.slice(1, -1)
-            : suggestion.text;
-          const hasExplicitLabel = suggestion.label !== rawQuery;
-
-          return (
-            <div
-              key={i}
-              className={cx('ei-dropdown-item', 'ei-dropdown-item--history', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
-              style={{ ...itemStyle, flexDirection: 'column', alignItems: 'flex-start' }}
-              title={hasExplicitLabel ? suggestion.text : undefined}
-              onClick={() => onSelect(suggestion)}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
-              }}
-            >
-              {customContent != null ? customContent : (
-                <>
-                  <span className="ei-dropdown-item-label" style={{
-                    ...getDropdownItemLabelStyle(isSelected),
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                    whiteSpace: 'normal',
-                    wordBreak: 'break-all',
-                    width: '100%',
-                  }}>
-                    {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: mergedStyles.dropdownItemContentGap, width: '100%' }}>
-                    {suggestion.description != null && (
-                      <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
-                    )}
-                    {renderType !== false && (() => {
-                      const content = typeof renderType === 'function'
-                        ? renderType('history', { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
-                        : 'history';
-                      return content != null ? (
-                        <span className="ei-dropdown-item-type" style={{ ...getDropdownItemTypeStyle(isSelected, mergedStyles), marginLeft: 'auto' }}>{content}</span>
-                      ) : null;
-                    })()}
-                  </span>
-                </>
-              )}
-            </div>
-          );
+        // Custom renderers for history / saved search (bypass default layout)
+        if (suggestion.type === 'history' && renderHistoryItem && suggestion.sourceData) {
+          const customContent = renderHistoryItem(suggestion.sourceData as HistoryEntry, isSelected);
+          if (customContent != null) {
+            return <div {...itemProps('ei-dropdown-item--history', twoRowStyle)}>{customContent}</div>;
+          }
         }
-
-        // Saved search items — custom renderer or default layout
         if (suggestion.type === 'savedSearch' && renderSavedSearchItem && suggestion.sourceData) {
           const customContent = renderSavedSearchItem(suggestion.sourceData as SavedSearch, isSelected);
           if (customContent != null) {
-            return (
-              <div
-                key={i}
-                className={cx('ei-dropdown-item', 'ei-dropdown-item--saved-search', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
-                style={itemStyle}
-                onClick={() => onSelect(suggestion)}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
-                }}
-              >
-                {customContent}
-              </div>
-            );
+            return <div {...itemProps('ei-dropdown-item--saved-search')}>{customContent}</div>;
           }
         }
 
-        // Saved search with date — two-row layout like history
-        if (suggestion.type === 'savedSearch' && suggestion.sourceData && (suggestion.sourceData as SavedSearch).date) {
-          const savedSearch = suggestion.sourceData as SavedSearch;
+        // Two-row layout — history items, and saved searches with a date
+        const isHistory = suggestion.type === 'history';
+        const savedSearchDate = suggestion.type === 'savedSearch' && suggestion.sourceData ? (suggestion.sourceData as SavedSearch).date : undefined;
+        if (isHistory || savedSearchDate) {
+          const typeModifier = isHistory ? 'ei-dropdown-item--history' : 'ei-dropdown-item--saved-search';
+          // History: show tooltip when label differs from raw query
+          let title: string | undefined;
+          if (isHistory) {
+            const rawQuery = suggestion.text.startsWith('(') && suggestion.text.endsWith(')')
+              ? suggestion.text.slice(1, -1) : suggestion.text;
+            if (suggestion.label !== rawQuery) title = suggestion.text;
+          }
+
           return (
-            <div
-              key={i}
-              className={cx('ei-dropdown-item', 'ei-dropdown-item--saved-search', isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
-              style={{ ...itemStyle, flexDirection: 'column', alignItems: 'flex-start' }}
-              onClick={() => onSelect(suggestion)}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
-              }}
-            >
-              <span className="ei-dropdown-item-label" style={{ ...getDropdownItemLabelStyle(isSelected), width: '100%' }}>
+            <div {...itemProps(typeModifier, twoRowStyle, title)}>
+              <span className="ei-dropdown-item-label" style={{
+                ...getDropdownItemLabelStyle(isSelected),
+                width: '100%',
+                ...(isHistory ? { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden', whiteSpace: 'normal', wordBreak: 'break-all' as const } : {}),
+              }}>
                 {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
               </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: mergedStyles.dropdownItemContentGap, width: '100%' }}>
+              <span style={secondRowStyle}>
                 {suggestion.description != null && (
                   <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
                 )}
-                <span className="ei-dropdown-item-date" style={{ ...getDropdownItemDescStyle(isSelected), marginLeft: 'auto', whiteSpace: 'nowrap' }}>{savedSearch.date}</span>
-                {renderType !== false && (() => {
-                  const content = typeof renderType === 'function'
-                    ? renderType('savedSearch', { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
-                    : 'savedSearch';
-                  return content != null ? (
-                    <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{content}</span>
-                  ) : null;
-                })()}
+                {savedSearchDate && (
+                  <span className="ei-dropdown-item-date" style={{ ...getDropdownItemDescStyle(isSelected), marginLeft: 'auto', whiteSpace: 'nowrap' }}>{savedSearchDate}</span>
+                )}
+                {typeBadge(isHistory ? { marginLeft: 'auto' } : undefined)}
               </span>
             </div>
           );
         }
 
+        // Default single-row layout (fields, values, operators, saved searches without date)
         const itemTypeModifier = suggestion.type === 'savedSearch' ? 'ei-dropdown-item--saved-search' : undefined;
         return (
-          <div
-            key={i}
-            className={cx('ei-dropdown-item', itemTypeModifier, isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem)}
-            style={itemStyle}
-            onClick={() => onSelect(suggestion)}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : 'transparent';
-            }}
-          >
+          <div {...itemProps(itemTypeModifier)}>
             <span className="ei-dropdown-item-label" style={getDropdownItemLabelStyle(isSelected)}>
               {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
             </span>
             {suggestion.description && (
               <span className="ei-dropdown-item-desc" style={getDropdownItemDescStyle(isSelected)}>{suggestion.description}</span>
             )}
-            {renderType !== false && suggestion.type && suggestion.type !== 'hint' && (() => {
-              const content = typeof renderType === 'function'
-                ? renderType(suggestion.type!, { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
-                : suggestion.type;
-              return content != null ? (
-                <span className="ei-dropdown-item-type" style={getDropdownItemTypeStyle(isSelected, mergedStyles)}>{content}</span>
-              ) : null;
-            })()}
+            {typeBadge()}
           </div>
         );
       })}

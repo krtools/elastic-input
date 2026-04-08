@@ -729,7 +729,7 @@ export function ElasticInput(props: ElasticInputProps) {
             if (controller.signal.aborted) return;
             mapped = fetched.map(s => ({
               text: '#' + s.name,
-              label: s.name,
+              label: s.label || s.name,
               description: s.description || s.query,
               type: 'savedSearch',
               replaceStart: start,

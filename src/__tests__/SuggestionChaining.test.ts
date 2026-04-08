@@ -411,7 +411,7 @@ describe('Tab vs Enter behavior for field value selection', () => {
   it('Tab on saved search at end appends space', () => {
     const engine = new AutocompleteEngine(
       FIELDS,
-      [{ id: '1', name: 'vip-active', query: 'status:active AND is_vip:true' }],
+      [{ name: 'vip-active', query: 'status:active AND is_vip:true' }],
       [], 10
     );
     const result = getSuggestions(engine, '#vip', undefined, ALL_FEATURES);
@@ -441,7 +441,7 @@ describe('Tab vs Enter behavior for field value selection', () => {
   it('Enter on saved search does NOT submit', () => {
     const engine = new AutocompleteEngine(
       FIELDS,
-      [{ id: '1', name: 'vip-active', query: 'status:active AND is_vip:true' }],
+      [{ name: 'vip-active', query: 'status:active AND is_vip:true' }],
       [], 10
     );
     const result = getSuggestions(engine, '#vip', undefined, ALL_FEATURES);

@@ -16,9 +16,9 @@ const FIELDS: FieldConfig[] = [
 ];
 
 const SAVED_SEARCHES: SavedSearch[] = [
-  { id: '1', name: 'vip-active', query: 'status:active AND is_vip:true', description: 'Active VIPs' },
-  { id: '2', name: 'high-value', query: 'price:>10000', description: 'Expensive items' },
-  { id: '3', name: 'recent-errors', query: 'level:ERROR', description: 'Recent errors' },
+  { name: 'vip-active', query: 'status:active AND is_vip:true', description: 'Active VIPs' },
+  { name: 'high-value', query: 'price:>10000', description: 'Expensive items' },
+  { name: 'recent-errors', query: 'level:ERROR', description: 'Recent errors' },
 ];
 
 const HISTORY: HistoryEntry[] = [

@@ -296,7 +296,7 @@ export class AutocompleteEngine {
       .slice(0, this.maxSuggestions)
       .map(s => ({
         text: '#' + s.name,
-        label: s.name,
+        label: s.label || s.name,
         description: s.description || s.query,
         type: 'savedSearch',
         replaceStart: start,

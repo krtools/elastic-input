@@ -60,11 +60,9 @@ export interface FieldConfig {
 
 /** A saved/named search that users can reference with `#name` syntax. */
 export interface SavedSearch {
-  /** The `#` trigger name (e.g. `vip-active` → user types `#vip-active`). */
-  name: string;
-  /** The query string this saved search expands to. */
+  /** The saved search reference including the `#` prefix (e.g. `#vip-active`). Inserted as-is on acceptance. */
   query: string;
-  /** Optional display label in the autocomplete dropdown. Falls back to `name`. */
+  /** Optional display label in the autocomplete dropdown. Falls back to `query`. */
   label?: string;
   /** Optional description shown below the label (e.g. date, category). Rendered as-is. */
   description?: React.ReactNode;

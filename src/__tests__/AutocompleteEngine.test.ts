@@ -16,9 +16,9 @@ const FIELDS: FieldConfig[] = [
 ];
 
 const SAVED_SEARCHES: SavedSearch[] = [
-  { name: 'vip-active', query: 'status:active AND is_vip:true', description: 'Active VIPs' },
-  { name: 'high-value', query: 'price:>10000', description: 'Expensive items' },
-  { name: 'recent-errors', query: 'level:ERROR', description: 'Recent errors' },
+  { query: '#vip-active', description: 'Active VIPs' },
+  { query: '#high-value', description: 'Expensive items' },
+  { query: '#recent-errors', description: 'Recent errors' },
 ];
 
 const HISTORY: HistoryEntry[] = [
@@ -268,16 +268,16 @@ describe('AutocompleteEngine', () => {
   describe('saved search suggestions', () => {
     it('suggests saved searches for #', () => {
       const labels = suggestionLabels('#');
-      expect(labels).toContain('vip-active');
-      expect(labels).toContain('high-value');
-      expect(labels).toContain('recent-errors');
+      expect(labels).toContain('#vip-active');
+      expect(labels).toContain('#high-value');
+      expect(labels).toContain('#recent-errors');
     });
 
     it('returns all saved searches regardless of partial (filtering is caller responsibility)', () => {
       const labels = suggestionLabels('#vip');
-      expect(labels).toContain('vip-active');
-      expect(labels).toContain('high-value');
-      expect(labels).toContain('recent-errors');
+      expect(labels).toContain('#vip-active');
+      expect(labels).toContain('#high-value');
+      expect(labels).toContain('#recent-errors');
     });
 
     it('includes # in suggestion text', () => {

@@ -728,9 +728,9 @@ export function ElasticInput(props: ElasticInputProps) {
             const fetched: SavedSearch[] = await savedSearches(partial);
             if (controller.signal.aborted) return;
             mapped = fetched.map(s => ({
-              text: '#' + s.name,
-              label: s.label || s.name,
-              description: s.description || s.query,
+              text: s.query,
+              label: s.label || s.query,
+              description: s.description,
               type: 'savedSearch',
               replaceStart: start,
               replaceEnd: end,

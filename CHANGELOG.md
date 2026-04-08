@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.1 — 2026-04-08
+
+### Bug Fixes
+
+- **Value suggestions not shown after field acceptance in `open="input"` mode** — Accepting a field name (e.g. `status:`) with Enter or Tab set the dropdown trigger to `'navigation'`, which caused the `open="input"` gate to block value suggestions from appearing. The trigger is now only set to `'navigation'` for complete terms (values, saved searches, history), not field names.
+
+- **State update on unmounted component** — Pending `requestAnimationFrame` callbacks (dropdown positioning, post-accept suggestion updates, focus handler) were not cancelled on unmount, causing React warnings. All rAF IDs are now tracked and cancelled in the cleanup effect.
+
+### Build
+
+- **Browser tests in prepack** — `npm run test:browser` (Playwright) now runs as part of `prepack`, ensuring browser integration tests pass before publish.
+
 ## 0.4.0 — 2026-04-08
 
 ### Features

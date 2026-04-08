@@ -1,6 +1,6 @@
 {
   "name": "elastic-input",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Syntax-aware smart autocomplete input for Elastic query syntax",
   "license": "MIT",
   "repository": {
@@ -44,7 +44,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "vitest run --config vitest.browser.config.ts",
-    "prepack": "npx tsc --noEmit && npm test && vite build"
+    "prepack": "npx tsc --noEmit && npm test && npm run test:browser && vite build"
   },
   "browserslist": [
     "Chrome >= 115",

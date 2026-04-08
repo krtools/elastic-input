@@ -41,15 +41,16 @@ export class Validator {
     }
   }
 
-  validate(ast: ASTNode | null, validateValueFn?: ValidateValueFn, parseDateFn?: ParseDateFn): ValidationError[] {
+  validate(ast: ASTNode | null, validateValueFn?: ValidateValueFn, parseDateFn?: ParseDateFn, defaultField?: string): ValidationError[] {
     if (!ast) return [];
     const errors: ValidationError[] = [];
-    this.walkNode(ast, errors, validateValueFn, parseDateFn);
+    const dfConfig = defaultField ? this.fields.get(defaultField) : undefined;
+    this.walkNode(ast, errors, validateValueFn, parseDateFn, dfConfig);
     this.checkAmbiguousPrecedence(ast, errors);
     return errors;
   }
 
-  private walkNode(node: ASTNode, errors: ValidationError[], validateValueFn?: ValidateValueFn, parseDateFn?: ParseDateFn): void {
+  private walkNode(node: ASTNode, errors: ValidationError[], validateValueFn?: ValidateValueFn, parseDateFn?: ParseDateFn, dfConfig?: FieldConfig): void {
     switch (node.type) {
       case 'BareTerm': {
         // Validate modifiers on bare terms
@@ -74,12 +75,39 @@ export class Validator {
             end: node.end,
           });
         }
-        // Custom validator for bare terms
+        // Type-specific validation when defaultField is set
+        if (dfConfig && node.value !== '') {
+          let error: string | null = null;
+          switch (dfConfig.type) {
+            case 'number':
+              error = validateNumber(node.value);
+              break;
+            case 'date':
+              error = validateDate(node.value, parseDateFn);
+              break;
+            case 'boolean':
+              if (node.value !== 'true' && node.value !== 'false') {
+                error = `Expected "true" or "false", got "${node.value}"`;
+              }
+              break;
+            case 'ip':
+              if (!/^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/.test(node.value) && !node.value.includes('*')) {
+                error = `"${node.value}" is not a valid IP address`;
+              }
+              break;
+          }
+          if (error) {
+            errors.push({ message: error, start: node.start, end: node.end, field: dfConfig.name });
+          }
+        }
+        // Custom validator for bare terms — include field info when defaultField is set
         if (validateValueFn && node.value !== '') {
           const result = normalizeValidateResult(validateValueFn({
             value: node.value,
             position: 'bare_term',
             quoted: node.quoted,
+            fieldName: dfConfig?.name,
+            fieldConfig: dfConfig,
           }));
           if (result) {
             errors.push({
@@ -224,7 +252,7 @@ export class Validator {
       case 'FieldGroup': {
         // * as field name means all fields — skip field-specific validation
         if (node.field === '*') {
-          this.walkNode(node.expression, errors, validateValueFn, parseDateFn);
+          this.walkNode(node.expression, errors, validateValueFn, parseDateFn, dfConfig);
         } else {
           const groupField = this.fields.get(node.field);
           if (!groupField) {
@@ -249,12 +277,12 @@ export class Validator {
       }
 
       case 'BooleanExpr':
-        this.walkNode(node.left, errors, validateValueFn, parseDateFn);
-        this.walkNode(node.right, errors, validateValueFn, parseDateFn);
+        this.walkNode(node.left, errors, validateValueFn, parseDateFn, dfConfig);
+        this.walkNode(node.right, errors, validateValueFn, parseDateFn, dfConfig);
         break;
 
       case 'Group':
-        this.walkNode(node.expression, errors, validateValueFn, parseDateFn);
+        this.walkNode(node.expression, errors, validateValueFn, parseDateFn, dfConfig);
         if (node.boost !== undefined && node.boost <= 0) {
           errors.push({
             message: `Boost value must be positive (got ${node.boost})`,
@@ -265,7 +293,7 @@ export class Validator {
         break;
 
       case 'Not':
-        this.walkNode(node.expression, errors, validateValueFn, parseDateFn);
+        this.walkNode(node.expression, errors, validateValueFn, parseDateFn, dfConfig);
         break;
 
       case 'Error':

@@ -390,6 +390,15 @@ export interface ClassNamesConfig {
   datePicker?: string;
 }
 
+/** Configuration for the `defaultField` prop when options beyond the field name are needed. */
+export interface DefaultFieldConfig {
+  /** The field name to use for bare terms. Must match a `FieldConfig.name` in the `fields` array. */
+  name: string;
+  /** When true, field-name suggestions appear below value suggestions for bare terms,
+   *  allowing the user to discover field overrides. @default false */
+  showFieldSuggestions?: boolean;
+}
+
 /** Field definitions — either a static array or an async loader function. */
 export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
 
@@ -510,4 +519,13 @@ export interface ElasticInputProps {
    * ```
    */
   interceptPaste?: (text: string, event: React.ClipboardEvent) => string | null | Promise<string | null>;
+  /**
+   * Field name (or config) to use as the implicit field for bare (unfielded) terms.
+   * When set, bare terms autocomplete as values of this field (instead of field names),
+   * `fetchSuggestions` is called for bare terms, and type-specific validation applies.
+   * Explicit `field:value` syntax still overrides this. Mirrors Elasticsearch's `default_field`.
+   *
+   * Pass a string for the common case, or a `DefaultFieldConfig` object for options.
+   */
+  defaultField?: string | DefaultFieldConfig;
 }

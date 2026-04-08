@@ -861,4 +861,109 @@ describe('Incomplete expression errors', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0].message).toBe('Missing value after "status:"');
   });
+
+  describe('defaultField validation', () => {
+    function validateWithDefault(input: string, defaultField: string, validateValueFn?: ValidateValueFn) {
+      const tokens = new Lexer(input).tokenize();
+      const ast = new Parser(tokens).parse();
+      return new Validator(FIELDS).validate(ast, validateValueFn, undefined, defaultField);
+    }
+
+    it('flags invalid date bare term when defaultField is a date field', () => {
+      const errors = validateWithDefault('notadate', 'created');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('is not a valid date');
+      expect(errors[0].field).toBe('created');
+    });
+
+    it('accepts valid date bare term when defaultField is a date field', () => {
+      const errors = validateWithDefault('2024-01-01', 'created');
+      expect(errors).toHaveLength(0);
+    });
+
+    it('accepts now-relative date syntax', () => {
+      const errors = validateWithDefault('now-7d', 'created');
+      expect(errors).toHaveLength(0);
+    });
+
+    it('flags invalid number bare term when defaultField is a number field', () => {
+      const errors = validateWithDefault('abc', 'price');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].field).toBe('price');
+    });
+
+    it('accepts valid number bare term', () => {
+      const errors = validateWithDefault('42', 'price');
+      expect(errors).toHaveLength(0);
+    });
+
+    it('flags invalid boolean bare term', () => {
+      const errors = validateWithDefault('maybe', 'is_vip');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('Expected "true" or "false"');
+      expect(errors[0].field).toBe('is_vip');
+    });
+
+    it('accepts valid boolean bare term', () => {
+      expect(validateWithDefault('true', 'is_vip')).toHaveLength(0);
+      expect(validateWithDefault('false', 'is_vip')).toHaveLength(0);
+    });
+
+    it('flags invalid IP bare term', () => {
+      const errors = validateWithDefault('notanip', 'ip');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].field).toBe('ip');
+    });
+
+    it('accepts valid IP bare term', () => {
+      expect(validateWithDefault('192.168.1.1', 'ip')).toHaveLength(0);
+    });
+
+    it('accepts wildcard IP bare term', () => {
+      expect(validateWithDefault('192.168.*', 'ip')).toHaveLength(0);
+    });
+
+    it('does not type-validate bare terms without defaultField', () => {
+      const errors = validate('notadate');
+      expect(errors).toHaveLength(0);
+    });
+
+    it('does not interfere with explicit field:value validation', () => {
+      // Explicit field:value uses its own field, not defaultField
+      const errors = validateWithDefault('price:abc', 'created');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].field).toBe('price');
+    });
+
+    it('passes field info to validateValueFn for bare terms', () => {
+      const spy = vi.fn(() => null);
+      validateWithDefault('hello', 'status', spy);
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+        value: 'hello',
+        position: 'bare_term',
+        fieldName: 'status',
+        fieldConfig: expect.objectContaining({ name: 'status', type: 'string' }),
+      }));
+    });
+
+    it('does not pass field info to validateValueFn without defaultField', () => {
+      const calls: ValidateValueContext[] = [];
+      const spy: ValidateValueFn = (ctx) => { calls.push(ctx); return null; };
+      validate('hello', spy);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].fieldName).toBeUndefined();
+      expect(calls[0].fieldConfig).toBeUndefined();
+    });
+
+    it('validates multiple bare terms in a boolean expression', () => {
+      const errors = validateWithDefault('abc AND def', 'price');
+      // Both 'abc' and 'def' are invalid numbers
+      expect(errors).toHaveLength(2);
+    });
+
+    it('validates bare terms inside groups', () => {
+      const errors = validateWithDefault('(abc OR def)', 'price');
+      expect(errors).toHaveLength(2);
+    });
+  });
 });

@@ -29,6 +29,8 @@ export class AutocompleteEngine {
   private searchHistory: HistoryEntry[];
   private maxSuggestions: number;
   private options: AutocompleteOptions;
+  private defaultFieldName?: string;
+  private defaultFieldShowFieldSuggs = false;
 
   constructor(
     fields: FieldConfig[],
@@ -68,9 +70,32 @@ export class AutocompleteEngine {
     this.searchHistory = history;
   }
 
+  /** Set the default field for bare terms. When set, bare terms autocomplete as values of this field. */
+  setDefaultField(config: { name: string; showFieldSuggestions: boolean } | undefined): void {
+    this.defaultFieldName = config?.name;
+    this.defaultFieldShowFieldSuggs = config?.showFieldSuggestions ?? false;
+  }
+
   getSuggestions(tokens: Token[], cursorOffset: number): AutocompleteResult {
-    const context = Parser.getCursorContext(tokens, cursorOffset);
+    let context = Parser.getCursorContext(tokens, cursorOffset);
     const range = getReplacementRange(context.token, cursorOffset, tokens);
+
+    // When defaultField is set, remap bare terms to field-value context
+    if (this.defaultFieldName && (context.type === 'FIELD_NAME' || context.type === 'EMPTY')) {
+      context = { ...context, type: 'FIELD_VALUE', fieldName: this.defaultFieldName };
+
+      const field = this.resolveField(this.defaultFieldName);
+      if (field?.type === 'date') {
+        return { suggestions: [], showDatePicker: true, dateFieldName: field.name, context };
+      }
+
+      const valueSuggs = this.getValueSuggestions(field, context.partial, range.start, range.end);
+      if (this.defaultFieldShowFieldSuggs) {
+        const fieldSuggs = this.getFieldSuggestions(context.partial, range.start, range.end);
+        return { suggestions: [...valueSuggs, ...fieldSuggs], showDatePicker: false, context };
+      }
+      return { suggestions: valueSuggs, showDatePicker: false, context };
+    }
 
     switch (context.type) {
       case 'FIELD_NAME':
@@ -139,7 +164,7 @@ export class AutocompleteEngine {
     }
   }
 
-  private getFieldSuggestions(partial: string, start: number, end: number): Suggestion[] {
+  getFieldSuggestions(partial: string, start: number, end: number): Suggestion[] {
     const lower = partial.toLowerCase();
     const scored = this.fields
       .map(f => {

@@ -576,6 +576,24 @@ When typing a bare quoted phrase (not after a colon), **no suggestions appear**.
 
 - **Tests:** `AutocompleteEngine.test.ts` → "typing a bare double-quote shows no suggestions", "typing an unclosed quoted phrase shows no suggestions", "typing a closed quoted phrase shows no suggestions", "quote after a field:value pair shows no field suggestions", "unclosed quote after field:value shows no suggestions", "quoted value AFTER colon still shows field value suggestions", "bare single-quote is treated as regular text", "single-quoted phrase is treated as regular text"
 
+### 4.11 Default Field (`defaultField` prop)
+
+When `defaultField` is set, bare (unfielded) terms are treated as values of the named field for autocomplete, async fetch, and validation. This mirrors Elasticsearch's `default_field` query parameter.
+
+The autocomplete engine remaps `FIELD_NAME` and `EMPTY` cursor contexts to `FIELD_VALUE` with `fieldName` set to the default field. This means:
+
+- **Date field** → date picker appears on focus / bare input
+- **Boolean field** → `true` / `false` suggestions
+- **String/number/ip field** → value hints + `fetchSuggestions(defaultField, partial)` is called
+- **Validation** → bare terms are type-checked against the default field (e.g. date format, number format)
+
+Explicit `field:value` syntax is unaffected — the parser returns `FIELD_VALUE` with the explicit field name, bypassing the remap.
+
+The prop accepts a string (`defaultField="created"`) or an object with options:
+- `showFieldSuggestions` (default `false`): when `true`, field-name suggestions appear below value suggestions, helping users discover field overrides. For date fields, the date picker takes over regardless.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "defaultField" describe block; `Validator.test.ts` → "defaultField validation" describe block
+
 ---
 
 ## 5. Replacement Ranges
@@ -1405,6 +1423,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
 | `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Set to `0` to disable. |
 | `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Intercept paste before insertion; see §7.14 |
+| `defaultField` | `string \| DefaultFieldConfig` | — | Implicit field for bare terms; see §4.11 |
 
 #### `DropdownConfig` Sub-Properties
 

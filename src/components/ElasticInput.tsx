@@ -180,7 +180,14 @@ export function ElasticInput(props: ElasticInputProps) {
     parseDate: parseDateProp,
     plainModeLength,
     interceptPaste,
+    defaultField: defaultFieldProp,
   } = props;
+
+  // Normalize defaultField prop
+  const defaultFieldConfig = typeof defaultFieldProp === 'string'
+    ? { name: defaultFieldProp, showFieldSuggestions: false }
+    : defaultFieldProp ? { showFieldSuggestions: false, ...defaultFieldProp } : undefined;
+  const defaultFieldName = defaultFieldConfig?.name;
 
   // Dropdown config
   const dropdownOpen: DropdownOpenProp = dropdownConfig?.open ?? dropdownConfig?.mode ?? 'always';
@@ -298,6 +305,7 @@ export function ElasticInput(props: ElasticInputProps) {
       { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     )
   );
+  engineRef.current.setDefaultField(defaultFieldConfig);
   const validatorRef = React.useRef(new Validator(initialFields));
   const validateValueRef = React.useRef(validateValue);
   validateValueRef.current = validateValue;
@@ -435,7 +443,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -757,6 +765,11 @@ export function ElasticInput(props: ElasticInputProps) {
           mapped = mapped.slice(0, effectiveMaxSuggestions);
 
           if (mapped.length > 0) {
+            // When showFieldSuggestions is enabled, append field suggestions after async values
+            if (defaultFieldConfig?.showFieldSuggestions) {
+              const fieldSuggs = engineRef.current.getFieldSuggestions(partial, start, end);
+              mapped = [...mapped, ...fieldSuggs].slice(0, effectiveMaxSuggestions);
+            }
             setSuggestions(mapped);
             setSelectedSuggestionIndex((partial || autoSelect) ? 0 : -1);
             showDropdownAtPosition(mapped.length * 32, 300);
@@ -865,7 +878,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token, fieldTypeMap });
@@ -978,6 +991,7 @@ export function ElasticInput(props: ElasticInputProps) {
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     );
+    engineRef.current.setDefaultField(defaultFieldConfig);
     validatorRef.current = new Validator(resolvedFields);
     // Re-load sync data arrays for new engine
     if (Array.isArray(savedSearches)) {
@@ -1216,7 +1230,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
+    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
@@ -1348,7 +1362,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
-        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp)];
+        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;

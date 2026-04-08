@@ -48,6 +48,7 @@ export type {
   DropdownOpenProp,
   FeaturesConfig,
   ClassNamesConfig,
+  DefaultFieldConfig,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

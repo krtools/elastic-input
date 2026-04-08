@@ -717,4 +717,101 @@ describe('AutocompleteEngine', () => {
       expect(result.showDatePicker).toBe(false);
     });
   });
+
+  describe('defaultField', () => {
+    function getWithDefault(input: string, defaultField: string, showFieldSuggestions = false, cursorOffset?: number) {
+      const engine = new AutocompleteEngine(FIELDS, [], [], 10);
+      engine.setDefaultField({ name: defaultField, showFieldSuggestions });
+      const tokens = new Lexer(input).tokenize();
+      return engine.getSuggestions(tokens, cursorOffset ?? input.length);
+    }
+
+    it('remaps empty input to FIELD_VALUE for a string field', () => {
+      const result = getWithDefault('', 'status');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.context.fieldName).toBe('status');
+      expect(result.showDatePicker).toBe(false);
+    });
+
+    it('remaps bare term to FIELD_VALUE for a string field', () => {
+      const result = getWithDefault('act', 'status');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.context.fieldName).toBe('status');
+      expect(result.context.partial).toBe('act');
+      // Should not contain field name suggestions
+      expect(result.suggestions.every(s => !s.text.endsWith(':'))).toBe(true);
+    });
+
+    it('shows date picker for a date defaultField on empty input', () => {
+      const result = getWithDefault('', 'created');
+      expect(result.showDatePicker).toBe(true);
+      expect(result.dateFieldName).toBe('created');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.context.fieldName).toBe('created');
+    });
+
+    it('shows date picker for a date defaultField on bare term', () => {
+      const result = getWithDefault('2024', 'created');
+      expect(result.showDatePicker).toBe(true);
+      expect(result.dateFieldName).toBe('created');
+    });
+
+    it('shows boolean suggestions for a boolean defaultField', () => {
+      const result = getWithDefault('', 'is_vip');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.suggestions.map(s => s.text)).toEqual(['true', 'false']);
+    });
+
+    it('filters boolean suggestions by partial', () => {
+      const result = getWithDefault('tr', 'is_vip');
+      expect(result.suggestions.map(s => s.text)).toEqual(['true']);
+    });
+
+    it('shows value hint for a number defaultField', () => {
+      const result = getWithDefault('', 'price');
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.suggestions.some(s => s.type === 'hint' && s.label === 'Enter a number')).toBe(true);
+    });
+
+    it('does not interfere with explicit field:value syntax', () => {
+      const result = getWithDefault('level:err', 'created');
+      // Parser returns FIELD_VALUE with fieldName='level', not 'created'
+      expect(result.context.type).toBe('FIELD_VALUE');
+      expect(result.context.fieldName).toBe('level');
+      expect(result.showDatePicker).toBe(false);
+    });
+
+    it('does not remap when defaultField is not set', () => {
+      const engine = new AutocompleteEngine(FIELDS, [], [], 10);
+      const tokens = new Lexer('act').tokenize();
+      const result = engine.getSuggestions(tokens, 3);
+      expect(result.context.type).toBe('FIELD_NAME');
+      expect(result.suggestions.some(s => s.text.endsWith(':'))).toBe(true);
+    });
+
+    describe('showFieldSuggestions', () => {
+      it('includes field suggestions below value suggestions when enabled', () => {
+        const result = getWithDefault('', 'status', true);
+        expect(result.context.type).toBe('FIELD_VALUE');
+        // Should contain both value-type suggestions and field suggestions (ending with ':')
+        const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));
+        expect(fieldSuggs.length).toBeGreaterThan(0);
+      });
+
+      it('does not include field suggestions when disabled (default)', () => {
+        const result = getWithDefault('', 'status', false);
+        const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));
+        expect(fieldSuggs.length).toBe(0);
+      });
+
+      it('filters field suggestions by partial', () => {
+        const result = getWithDefault('pr', 'status', true);
+        const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));
+        // 'pr' should match 'price:'
+        expect(fieldSuggs.some(s => s.text === 'price:')).toBe(true);
+        // Should not include non-matching fields
+        expect(fieldSuggs.every(s => s.label.toLowerCase().includes('pr') || s.text.toLowerCase().includes('pr'))).toBe(true);
+      });
+    });
+  });
 });

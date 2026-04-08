@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-04-08
+
+### Features
+
+- **`defaultField` prop** — Sets an implicit field for bare (unfielded) terms, mirroring Elasticsearch's `default_field` parameter. When set, bare terms autocomplete as values of that field (showing date picker, boolean list, or value suggestions as appropriate) instead of field-name suggestions. Explicit `field:value` syntax still overrides. Pass a string for the common case, or `{ name, showFieldSuggestions }` to also show field names below value suggestions for discovery. Includes type-specific validation for bare terms (date format, number, boolean, IP) and passes field context to `validateValue`.
+- **`trailingSpaceOnAccept` prop** — Controls whether accepting a suggestion or date inserts a trailing space after the value. Defaults to `true`. Set to `false` for spreadsheet/cell-style inputs where compact values are preferred.
+- **No default placeholder** — The component no longer renders a default "Search..." placeholder. A placeholder only appears when the `placeholder` prop is explicitly provided.
+
+### Demo
+
+- Added **Spreadsheet** demo tab showing `defaultField` in a 3×3 table grid where each column targets a different field (Status, Deal Value, Created).
+
 ## 0.3.13 — 2026-04-07
 
 ### Bug Fixes

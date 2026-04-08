@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — 2026-04-08
+
+### Features
+
+- **`collapseOnBlur` prop** — When `true`, the input collapses to a single line when unfocused and expands on focus. Useful for compact layouts where the full query is only needed during editing. Multiline `<br>` elements are replaced with spaces on blur and restored on focus.
+- **Flex-friendly layout** — The container now uses `display: flex; flex-direction: column` instead of `inline-block`, and the editor has `flex: 1`. This lets the input work as a flex child where the parent determines height (editor scrolls when content overflows). Unconstrained layouts (default search bar, spreadsheet cells) are unaffected.
+- **Caret scroll tracking** — The editor auto-scrolls to keep the caret visible after every input event (typing, Shift+Enter newlines). Prevents the caret from moving below the visible area in height-constrained scrollable inputs.
+
 ## 0.5.0 — 2026-04-08
 
 ### Breaking Changes

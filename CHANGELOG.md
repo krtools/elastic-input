@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — 2026-04-08
+
+### Enhancements
+
+- **`renderFieldHint` works for any field** — Previously only customized hint suggestions that already existed (number/ip defaults or custom placeholder). Now fires for any field in value position — if no hint exists, one is injected at the top of the suggestion list.
+
 ## 0.6.0 — 2026-04-08
 
 ### Features

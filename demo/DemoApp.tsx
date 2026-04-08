@@ -525,6 +525,17 @@ export function DemoApp() {
         ),
       );
     }
+    if (field.name === 'phone') {
+      const isValid = !partial || /^[\d\-\+\(\)\s]+$/.test(partial);
+      return React.createElement('div', { style: { padding: '4px 0' } },
+        !isValid && React.createElement('div', { style: { color: '#e5534b', fontSize: '12px', marginBottom: '4px' } },
+          '\u26A0 Only digits, spaces, +, -, (, ) are allowed',
+        ),
+        React.createElement('div', { style: { fontSize: '12px', lineHeight: 1.5, opacity: 0.85 } },
+          'Enter a phone number — e.g. +1 (555) 123-4567, 555-0100, or 15551234567',
+        ),
+      );
+    }
     return null;
   }, []);
 

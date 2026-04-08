@@ -202,6 +202,8 @@ export interface StyleConfig {
   dropdownItemPadding?: string;
   /** Font size for dropdown item text. */
   dropdownItemFontSize?: string;
+  /** Gap between content elements inside a dropdown item (label, type badge, description). @default '8px' */
+  dropdownItemContentGap?: string;
   /** Background color for type badges (unselected). */
   typeBadgeBg?: string;
   /** Background color for type badges (selected row). */

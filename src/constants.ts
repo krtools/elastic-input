@@ -85,6 +85,7 @@ export const DEFAULT_STYLES: Required<StyleConfig> = {
   dropdownZIndex: 99999,
   dropdownItemPadding: '6px 12px',
   dropdownItemFontSize: '13px',
+  dropdownItemContentGap: '8px',
 
   typeBadgeBg: '#eef1f5',
   typeBadgeSelectedBg: 'rgba(255,255,255,0.2)',

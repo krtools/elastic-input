@@ -261,7 +261,7 @@ export function AutocompleteDropdown({
                   }}>
                     {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: mergedStyles.dropdownItemContentGap, width: '100%' }}>
                     {suggestion.description != null && (
                       <span className="ei-dropdown-item-desc" style={{ ...getDropdownItemDescStyle(isSelected), flex: 1 }}>{suggestion.description}</span>
                     )}

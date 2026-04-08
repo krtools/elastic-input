@@ -98,7 +98,7 @@ export function getDropdownItemStyle(
     color: isSelected ? '#ffffff' : colors.text,
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: styles.dropdownItemContentGap,
     lineHeight: '1.4',
   };
 }

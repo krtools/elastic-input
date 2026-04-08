@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-04-08
+
+### Bug Fixes
+
+- **Dropdown follows caret on Shift+Enter** — The dropdown now repositions to the new line after pressing Shift+Enter, including when the input was previously empty. Fixed three underlying issues: `getPlainText` treating `<br>`-only DOM as empty, `getCaretRect` reporting the wrong line after `<br>`, and trailing `<br>` not creating a visible empty line in contentEditable (fixed via sentinel `<br>`).
+
 ## 0.6.1 — 2026-04-08
 
 ### Enhancements

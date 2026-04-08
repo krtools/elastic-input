@@ -14,7 +14,8 @@ export function mergeStyles(custom?: StyleConfig): Required<StyleConfig> {
 export function getInputContainerStyle(colors: Required<ColorConfig>, customStyle?: React.CSSProperties): React.CSSProperties {
   return {
     position: 'relative',
-    display: 'inline-block',
+    display: 'flex',
+    flexDirection: 'column',
     width: '100%',
     ...customStyle,
   };
@@ -22,6 +23,7 @@ export function getInputContainerStyle(colors: Required<ColorConfig>, customStyl
 
 export function getEditableStyle(colors: Required<ColorConfig>, styles: Required<StyleConfig>): React.CSSProperties {
   return {
+    flex: 1,
     minHeight: styles.inputMinHeight,
     padding: styles.inputPadding,
     borderWidth: styles.inputBorderWidth,

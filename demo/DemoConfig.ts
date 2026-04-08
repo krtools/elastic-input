@@ -140,10 +140,10 @@ export function mockFetchSuggestions(fieldName: string, partial: string): Promis
 }
 
 export const SAMPLE_SAVED_SEARCHES: SavedSearch[] = [
-  { id: '1', name: 'vip-active', query: 'status:active AND is_vip:true', description: 'All active VIP contacts' },
-  { id: '2', name: 'high-value', query: 'deal_value:>10000', description: 'Deals over $10k' },
-  { id: '3', name: 'recent-errors', query: 'level:ERROR AND timestamp:>now-1h', description: 'Errors in last hour' },
-  { id: '4', name: 'stale-leads', query: 'status:lead AND last_contact:<now-30d', description: 'Leads not contacted in 30 days' },
+  { id: '1', name: 'vip-active', query: 'status:active AND is_vip:true', description: 'Mar 15, 2026' },
+  { id: '2', name: 'high-value', query: 'deal_value:>10000', description: 'Mar 8, 2026' },
+  { id: '3', name: 'recent-errors', query: 'level:ERROR AND timestamp:>now-1h', description: 'Feb 20, 2026' },
+  { id: '4', name: 'stale-leads', query: 'status:lead AND last_contact:<now-30d', description: 'Jan 5, 2026' },
 ];
 
 export const SAMPLE_HISTORY: HistoryEntry[] = [

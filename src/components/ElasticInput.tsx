@@ -16,7 +16,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
-import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCursor, insertLineBreakAtCursor } from '../utils/domUtils';
+import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
@@ -1250,11 +1250,14 @@ export function ElasticInput(props: ElasticInputProps) {
       if (!charBefore || charBefore.trim() === '') {
         processInput(text, false);
         closeDropdown();
+        if (editorRef.current) scrollEditorToCaret(editorRef.current);
         return;
       }
     }
 
     processInput(text, true);
+
+    if (editorRef.current) scrollEditorToCaret(editorRef.current);
   }, [processInput, dropdownOpenIsCallback, dropdownMode, closeDropdown]);
 
   const handleCompositionStart = React.useCallback(() => {

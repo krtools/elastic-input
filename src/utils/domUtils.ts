@@ -40,6 +40,38 @@ export function insertLineBreakAtCursor(): void {
   sel.addRange(range);
 }
 
+/**
+ * Scroll the editor so the caret is visible within its scrollable area.
+ */
+export function scrollEditorToCaret(editor: HTMLElement): void {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+
+  const range = sel.getRangeAt(0);
+  let rect = range.getBoundingClientRect();
+
+  // For empty lines the range rect is zero-sized; use a temp span
+  if (rect.width === 0 && rect.height === 0) {
+    const span = document.createElement('span');
+    span.textContent = '\u200b';
+    range.insertNode(span);
+    rect = span.getBoundingClientRect();
+    span.parentNode?.removeChild(span);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  const editorRect = editor.getBoundingClientRect();
+  const caretTop = rect.top - editorRect.top + editor.scrollTop;
+  const caretBottom = rect.bottom - editorRect.top + editor.scrollTop;
+
+  if (caretBottom > editor.scrollTop + editor.clientHeight) {
+    editor.scrollTop = caretBottom - editor.clientHeight;
+  } else if (caretTop < editor.scrollTop) {
+    editor.scrollTop = caretTop;
+  }
+}
+
 export function getCaretRect(): DOMRect | null {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return null;

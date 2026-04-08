@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-04-08
+
+### Breaking Changes
+
+- **`SavedSearch` simplified** — Removed `id` and `name` fields. The `query` field now includes the `#` prefix (e.g. `#vip-active`) and is inserted as-is on acceptance. Added optional `label` (falls back to `query`) and changed `description` to `React.ReactNode`. The shape now matches `HistoryEntry`: `{ query, label?, description? }`.
+
+### Improvements
+
+- **Unified dropdown layout for history and saved searches** — Both types now use the same two-row layout when `description` is present (label on row 1, description + type badge on row 2) and collapse to a single-row layout when no description is provided. Line-clamp, word-break, and title tooltip behavior is shared.
+
 ## 0.4.3 — 2026-04-08
 
 ### Features

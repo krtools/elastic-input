@@ -143,7 +143,7 @@ export const SAMPLE_SAVED_SEARCHES: SavedSearch[] = [
   { query: '#vip-active', description: 'Mar 15, 2026' },
   { query: '#high-value', description: 'Mar 8, 2026' },
   { query: '#recent-errors', description: 'Feb 20, 2026' },
-  { query: '#stale-leads', description: 'Jan 5, 2026' },
+  { query: '#stale-leads' },
 ];
 
 export const SAMPLE_HISTORY: HistoryEntry[] = [
@@ -155,7 +155,7 @@ export const SAMPLE_HISTORY: HistoryEntry[] = [
   { query: '-(is_vip:true AND status:churned)', label: 'Exclude churned VIPs', description: '4 days ago' },
   { query: '(tags:enterprise OR deal_value:>10000)^2', label: 'Boosted enterprise/high-value', description: '5 days ago' },
   { query: '"quick brown fox"', label: 'Exact phrase search', description: '6 days ago' },
-  { query: 'status:inactive', label: 'Inactive contacts', description: '1 week ago' },
+  { query: 'status:inactive', label: 'Inactive contacts' },
 ];
 
 export function mockFetchSavedSearches(partial: string): Promise<SavedSearch[]> {

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.0 — 2026-04-09
+
+### Breaking Changes
+
+- **`formatQuery` preserves source operator form by default** — `&&`, `||`, `-`, and other operator variants are no longer normalized to `AND`/`OR`/`NOT`. The output matches what the user wrote. To force a specific style, use the new `andOperator`, `orOperator`, and `notOperator` options (e.g. `{ andOperator: 'AND', orOperator: 'OR', notOperator: 'NOT' }` restores the old behavior).
+
+### Features
+
+- **`features.formatQuery` accepts `FormatQueryOptions`** — Pass an options object instead of `true` to customize Alt+Shift+F formatting (e.g. `features: { formatQuery: { andOperator: '&&' } }`).
+- **`andOperator` / `orOperator` / `notOperator` in `FormatQueryOptions`** — Force all boolean operators to a specific output form. When unset, the original source form is preserved. Prefix-style operators (`-`, `!`) attach directly; keyword-style operators (`NOT`, `AND`) get a space separator.
+- **`sourceOperator` on AST nodes** — `BooleanExprNode` and `NotNode` now include a `sourceOperator` field capturing the original token text (`'&&'`, `'AND'`, `'||'`, `'OR'`, `'NOT'`, `'-'`, etc.).
+
+### Bug Fixes
+
+- **Alt+Shift keyboard shortcuts on macOS** — Alt+Shift+F (format query) and Alt+Shift+Arrow (expand selection) now use `e.code` (physical key) instead of `e.key`, fixing macOS where Alt (Option) produces special characters.
+
 ## 0.6.4 — 2026-04-09
 
 ### Bug Fixes

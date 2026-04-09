@@ -1331,9 +1331,11 @@ export function ElasticInput(props: ElasticInputProps) {
     if (e.defaultPrevented) return;
 
     const s = stateRef.current;
+    // Physical key code — immune to Alt/Option character remapping on macOS
+    const code = (e.nativeEvent as KeyboardEvent).code;
 
     // Alt+Shift+F — format query (opt-in via features.formatQuery)
-    if (enableFormatQuery && e.key === 'F' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    if (enableFormatQuery && code === 'KeyF' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       const formatted = formatQuery(currentValueRef.current, formatQueryOptions);
       if (formatted !== currentValueRef.current) {
@@ -1472,8 +1474,8 @@ export function ElasticInput(props: ElasticInputProps) {
     }
 
     // Alt+Shift+Right/Left: expand/shrink selection through AST hierarchy
-    if (expandSelection && e.altKey && e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && editorRef.current) {
-      const isExpand = e.key === 'ArrowRight';
+    if (expandSelection && e.altKey && e.shiftKey && (code === 'ArrowRight' || code === 'ArrowLeft') && editorRef.current) {
+      const isExpand = code === 'ArrowRight';
       let state = expandSelRef.current;
 
       if (!state) {

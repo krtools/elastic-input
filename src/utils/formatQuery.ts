@@ -15,6 +15,15 @@ export interface FormatQueryOptions {
    *  string in the output. By default, implicit AND is preserved as whitespace.
    *  @example 'AND' — turns `status:active name:john` into `status:active AND name:john` */
   whitespaceOperator?: string;
+  /** Override for explicit AND operators in the output. @default 'AND'
+   *  @example '&&' — turns `status:active AND name:john` into `status:active && name:john` */
+  andOperator?: string;
+  /** Override for explicit OR operators in the output. @default 'OR'
+   *  @example '||' — turns `status:active OR name:john` into `status:active || name:john` */
+  orOperator?: string;
+  /** Override for NOT prefix in the output. @default 'NOT'
+   *  @example '!' — turns `NOT status:active` into `! status:active` */
+  notOperator?: string;
 }
 
 /**
@@ -24,7 +33,12 @@ export interface FormatQueryOptions {
 export function formatQuery(input: string | ASTNode, options?: FormatQueryOptions): string {
   const maxLineLength = options?.maxLineLength ?? DEFAULT_MAX_LINE_LENGTH;
   const indent = options?.indent ?? DEFAULT_INDENT;
-  const whitespaceOperator = options?.whitespaceOperator;
+  const opMap: OpMap = {
+    whitespace: options?.whitespaceOperator,
+    and: options?.andOperator ?? 'AND',
+    or: options?.orOperator ?? 'OR',
+    not: options?.notOperator ?? 'NOT',
+  };
   let ast: ASTNode | null;
   if (typeof input === 'string') {
     const tokens = new Lexer(input, { savedSearches: true, historySearch: true }).tokenize();
@@ -34,17 +48,25 @@ export function formatQuery(input: string | ASTNode, options?: FormatQueryOption
     ast = input;
   }
   if (!ast) return typeof input === 'string' ? input : '';
-  return printNode(ast, 0, maxLineLength, indent, whitespaceOperator);
+  return printNode(ast, 0, maxLineLength, indent, opMap);
+}
+
+/** Internal operator map resolved from FormatQueryOptions. */
+interface OpMap {
+  whitespace?: string;
+  and: string;
+  or: string;
+  not: string;
 }
 
 /** Resolve the display operator for a BooleanExpr node. */
-function resolveOperator(node: BooleanExprNode, whitespaceOperator?: string): string {
-  if (node.implicit) return whitespaceOperator ?? '';
-  return node.operator;
+function resolveOperator(node: BooleanExprNode, ops: OpMap): string {
+  if (node.implicit) return ops.whitespace ?? '';
+  return node.operator === 'AND' ? ops.and : ops.or;
 }
 
 /** Render a node to a single-line string (no newlines). */
-function inline(node: ASTNode, whitespaceOperator?: string): string {
+function inline(node: ASTNode, ops: OpMap): string {
   switch (node.type) {
     case 'FieldValue': {
       const val = node.quoted ? `"${node.value}"` : node.value;
@@ -77,21 +99,21 @@ function inline(node: ASTNode, whitespaceOperator?: string): string {
     case 'HistoryRef':
       return `!${node.ref}`;
     case 'Not':
-      return `NOT ${inline(node.expression, whitespaceOperator)}`;
+      return `${ops.not} ${inline(node.expression, ops)}`;
     case 'Group': {
-      let s = `(${inline(node.expression, whitespaceOperator)})`;
+      let s = `(${inline(node.expression, ops)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
     case 'FieldGroup': {
-      let s = `${node.field}:(${inline(node.expression, whitespaceOperator)})`;
+      let s = `${node.field}:(${inline(node.expression, ops)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
     case 'BooleanExpr': {
-      const op = resolveOperator(node, whitespaceOperator);
+      const op = resolveOperator(node, ops);
       const sep = op ? ` ${op} ` : ' ';
-      return `${inline(node.left, whitespaceOperator)}${sep}${inline(node.right, whitespaceOperator)}`;
+      return `${inline(node.left, ops)}${sep}${inline(node.right, ops)}`;
     }
     case 'Error':
       return node.value;
@@ -123,9 +145,11 @@ function containsGroups(node: ASTNode): boolean {
   return false;
 }
 
+const DEFAULT_OPS: OpMap = { and: 'AND', or: 'OR', not: 'NOT' };
+
 /** Decide whether a Group's content should be broken into multiple lines. */
 function shouldBreakGroup(expr: ASTNode, maxLineLength: number): boolean {
-  const inlined = inline(expr);
+  const inlined = inline(expr, DEFAULT_OPS);
   if (inlined.length > maxLineLength) return true;
   // Break if the group's content contains nested groups (parens inside parens)
   if (containsGroups(expr)) return true;
@@ -133,22 +157,22 @@ function shouldBreakGroup(expr: ASTNode, maxLineLength: number): boolean {
 }
 
 /** Print a node at the given indentation depth. */
-function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: string, whitespaceOperator?: string): string {
+function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: string, ops: OpMap): string {
   const pad = indent.repeat(depth);
 
   switch (node.type) {
     case 'BooleanExpr': {
       const { operator, implicit, operands } = flattenChain(node);
-      const displayOp = implicit ? (whitespaceOperator ?? '') : operator;
+      const displayOp = implicit ? (ops.whitespace ?? '') : (operator === 'AND' ? ops.and : ops.or);
       const sep = displayOp ? ` ${displayOp} ` : ' ';
       // Try inline first
-      const inlined = operands.map(o => inline(o, whitespaceOperator)).join(sep);
+      const inlined = operands.map(o => inline(o, ops)).join(sep);
       if (inlined.length <= maxLineLength) {
         return inlined;
       }
       // Multi-line: first operand, then each subsequent prefixed with the operator
       const lines = operands.map((operand, i) => {
-        const printed = printNode(operand, depth, maxLineLength, indent, whitespaceOperator);
+        const printed = printNode(operand, depth, maxLineLength, indent, ops);
         if (i === 0) return printed;
         return displayOp ? `${pad}${displayOp} ${printed}` : `${pad}${printed}`;
       });
@@ -157,11 +181,11 @@ function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: 
 
     case 'Group': {
       if (!shouldBreakGroup(node.expression, maxLineLength)) {
-        let s = `(${inline(node.expression, whitespaceOperator)})`;
+        let s = `(${inline(node.expression, ops)})`;
         if (node.boost != null) s += `^${node.boost}`;
         return s;
       }
-      const inner = printNode(node.expression, depth + 1, maxLineLength, indent, whitespaceOperator);
+      const inner = printNode(node.expression, depth + 1, maxLineLength, indent, ops);
       let s = `(\n${indentLines(inner, depth + 1, indent)}\n${pad})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
@@ -169,16 +193,16 @@ function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: 
 
     case 'FieldGroup': {
       // Field groups are always inline — they're inherently short
-      let s = `${node.field}:(${inline(node.expression, whitespaceOperator)})`;
+      let s = `${node.field}:(${inline(node.expression, ops)})`;
       if (node.boost != null) s += `^${node.boost}`;
       return s;
     }
 
     case 'Not':
-      return `NOT ${printNode(node.expression, depth, maxLineLength, indent, whitespaceOperator)}`;
+      return `${ops.not} ${printNode(node.expression, depth, maxLineLength, indent, ops)}`;
 
     default:
-      return inline(node, whitespaceOperator);
+      return inline(node, ops);
   }
 }
 

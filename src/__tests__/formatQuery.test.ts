@@ -109,4 +109,31 @@ describe('formatQuery', () => {
   it('preserves field group boost', () => {
     expect(formatQuery('status:(active OR lead)^3')).toBe('status:(active OR lead)^3');
   });
+
+  it('andOperator replaces explicit AND', () => {
+    expect(formatQuery('status:active AND name:John', { andOperator: '&&' })).toBe('status:active && name:John');
+  });
+
+  it('orOperator replaces explicit OR', () => {
+    expect(formatQuery('status:active OR name:John', { orOperator: '||' })).toBe('status:active || name:John');
+  });
+
+  it('notOperator replaces NOT prefix', () => {
+    expect(formatQuery('NOT status:active', { notOperator: '!' })).toBe('! status:active');
+  });
+
+  it('normalizes && and || from input to configured operators', () => {
+    // Parser normalizes && → AND and || → OR in the AST.
+    // andOperator/orOperator control how they come out.
+    expect(formatQuery('a && b || c', { andOperator: '&&', orOperator: '||' })).toBe('a && b || c');
+    expect(formatQuery('a && b || c')).toBe('a AND b OR c');
+  });
+
+  it('all operator options work together', () => {
+    expect(formatQuery('NOT a AND b OR c', {
+      andOperator: '&&',
+      orOperator: '||',
+      notOperator: '!',
+    })).toBe('! a && b || c');
+  });
 });

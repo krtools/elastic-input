@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4 — 2026-04-09
+
+### Bug Fixes
+
+- **Backspace no longer clears entire input when content is only newlines** — Pressing Backspace after inserting multiple newlines via Shift+Enter cleared the entire input instead of removing one newline. `getPlainText` returned `''` for `<br>`-only DOM because `textContent` is empty (browsers leave an artifact `<br>` in empty contentEditable divs, and real newline `<br>` elements are indistinguishable). Backspace/Delete in newline-only content is now intercepted in the keydown handler and computed directly, matching the Shift+Enter pattern.
+- **Dropdown description no longer truncated when `alignToInput=true`** — The description element in dropdown items had a hardcoded `maxWidth: 200px` that prevented it from using available space when the dropdown was wider (e.g. aligned to a wide input container). Replaced with `flexShrink`/`minWidth` so the flex layout determines the constraint naturally.
+
 ## 0.6.3 — 2026-04-08
 
 ### Bug Fixes

@@ -120,7 +120,8 @@ export function getDropdownItemDescStyle(isSelected: boolean): React.CSSProperti
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    maxWidth: '200px',
+    flexShrink: 1,
+    minWidth: 0,
   };
 }
 

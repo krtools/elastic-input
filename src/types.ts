@@ -3,6 +3,7 @@ import { ASTNode } from './parser/ast';
 import { CursorContext } from './parser/Parser';
 import { Suggestion } from './autocomplete/suggestionTypes';
 import { ValidationError } from './validation/Validator';
+import { FormatQueryOptions } from './utils/formatQuery';
 
 /** Supported field types for search fields. Determines validation rules and autocomplete behavior. */
 export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'ip';
@@ -314,8 +315,10 @@ export interface FeaturesConfig {
   expandSelection?: boolean;
   /** Pressing `*` with a single value token selected wraps it in wildcards. @default false */
   wildcardWrap?: boolean;
-  /** Enable Alt+Shift+F to pretty-print the query in-place using `formatQuery`. @default false */
-  formatQuery?: boolean;
+  /** Enable Alt+Shift+F to pretty-print the query in-place using `formatQuery`.
+   *  Pass `true` to enable with defaults, or a `FormatQueryOptions` object to
+   *  customize `maxLineLength`, `indent`, and `whitespaceOperator`. @default false */
+  formatQuery?: boolean | FormatQueryOptions;
   /** Enable `#name` saved-search syntax and autocomplete. When false, `#` is a regular character. @default false */
   savedSearches?: boolean;
   /** Enable `!query` history-search syntax and autocomplete. When false, `!` is a regular character. @default false */

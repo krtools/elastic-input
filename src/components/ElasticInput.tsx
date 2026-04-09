@@ -226,7 +226,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
-  const enableFormatQuery = featuresConfig?.formatQuery ?? false;
+  const formatQueryConfig = featuresConfig?.formatQuery;
+  const enableFormatQuery = !!formatQueryConfig;
+  const formatQueryOptions = typeof formatQueryConfig === 'object' ? formatQueryConfig : undefined;
   const lexerOptions = React.useMemo(() => ({
     savedSearches: enableSavedSearches,
     historySearch: enableHistorySearch,
@@ -1333,7 +1335,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // Alt+Shift+F — format query (opt-in via features.formatQuery)
     if (enableFormatQuery && e.key === 'F' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
-      const formatted = formatQuery(currentValueRef.current);
+      const formatted = formatQuery(currentValueRef.current, formatQueryOptions);
       if (formatted !== currentValueRef.current) {
         applyNewValue(formatted, formatted.length);
       }

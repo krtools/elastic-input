@@ -829,7 +829,7 @@ export class Parser {
         break;
       }
 
-      if (currentToken && (currentToken.type === TokenType.VALUE || currentToken.type === TokenType.QUOTED_VALUE)) {
+      if (currentToken && (currentToken.type === TokenType.VALUE || currentToken.type === TokenType.QUOTED_VALUE || currentToken.type === TokenType.WILDCARD)) {
         const partial = currentToken.type === TokenType.QUOTED_VALUE
           ? currentToken.value.slice(1, currentToken.value.endsWith('"') || currentToken.value.endsWith("'") ? -1 : undefined)
           : currentToken.value;
@@ -839,7 +839,7 @@ export class Parser {
     }
 
     // Currently typing a value after a field:
-    if (currentToken?.type === TokenType.VALUE || currentToken?.type === TokenType.QUOTED_VALUE) {
+    if (currentToken?.type === TokenType.VALUE || currentToken?.type === TokenType.QUOTED_VALUE || currentToken?.type === TokenType.WILDCARD) {
       // Check if preceded by a colon or comparison op (possibly with colon before it)
       const currentIdx = tokens.indexOf(currentToken);
       for (let i = currentIdx - 1; i >= 0; i--) {

@@ -683,6 +683,51 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('wildcard value acceptance preserves colon', () => {
+    it('accepting a quoted suggestion for a wildcard partial keeps the colon', async () => {
+      // fetchSuggestions returns a quoted value for the special-char match
+      const fetch = (fieldName: string, partial: string): Promise<SuggestionItem[]> => {
+        if (fieldName !== 'code') return Promise.resolve([]);
+        const items = [{ text: '"?N"', label: '?N' }];
+        return Promise.resolve(
+          items.filter(i => i.label.toLowerCase().includes(partial.toLowerCase()))
+        );
+      };
+
+      const FIELDS_WITH_CODE: FieldConfig[] = [
+        ...FIELDS,
+        { name: 'code', label: 'Code', type: 'string' },
+      ];
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS_WITH_CODE,
+          fetchSuggestions: fetch,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'code:?N');
+      await new Promise(r => setTimeout(r, 200));
+
+      // Dropdown should show the ?N suggestion
+      expect(await waitFor(() => dropdownText().includes('?N'))).toBe(true);
+
+      // Accept the suggestion
+      await userEvent.keyboard('{ArrowDown}');
+      await userEvent.keyboard('{Tab}');
+      await new Promise(r => setTimeout(r, 100));
+
+      // Should be code:"?N", NOT code"?N"
+      const text = editorText();
+      expect(text).toContain('code:');
+      expect(text).toBe('code:"?N" ');
+    });
+  });
+
   describe('basic rendering', () => {
     it('renders with placeholder text', async () => {
       renderInto(

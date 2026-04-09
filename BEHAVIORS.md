@@ -126,7 +126,7 @@ The `-`/`+` prefix operators recognize `[` and `{` as valid following characters
 Words containing `?` are tokenized as `WILDCARD`, just like `*`. This supports Elasticsearch's single-character wildcard syntax.
 
 - `qu?ck` → `WILDCARD("qu?ck")`
-- `field:qu?ck` → `FIELD_NAME`, `COLON`, `WILDCARD`
+- `field:qu?ck` → `FIELD_NAME`, `COLON`, `WILDCARD` — cursor context correctly identifies the wildcard as a `FIELD_VALUE` with the wildcard text as the partial
 - `?ello` → `WILDCARD("?ello")`
 - Combined `te?t*` → `WILDCARD`
 - **Tests:** `Lexer.test.ts` → "single-char wildcard (?)" suite (4 tests)

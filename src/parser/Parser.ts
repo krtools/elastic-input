@@ -136,6 +136,7 @@ export class Parser {
         operator: 'OR',
         left,
         right,
+        sourceOperator: orToken.value,
         start: left.start,
         end: right.end,
       };
@@ -170,6 +171,7 @@ export class Parser {
           operator: 'AND',
           left,
           right,
+          sourceOperator: andToken.value,
           start: left.start,
           end: right.end,
         };
@@ -214,6 +216,7 @@ export class Parser {
       return {
         type: 'Not',
         expression: expr,
+        sourceOperator: notToken.value,
         start: notToken.start,
         end: expr.end,
       };
@@ -403,6 +406,7 @@ export class Parser {
         return {
           type: 'Not',
           expression: expr,
+          sourceOperator: prefixToken.value,
           start: prefixToken.start,
           end: expr.end,
         };

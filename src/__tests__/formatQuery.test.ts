@@ -118,15 +118,26 @@ describe('formatQuery', () => {
     expect(formatQuery('status:active OR name:John', { orOperator: '||' })).toBe('status:active || name:John');
   });
 
-  it('notOperator replaces NOT prefix', () => {
-    expect(formatQuery('NOT status:active', { notOperator: '!' })).toBe('! status:active');
+  it('preserves NOT source form by default', () => {
+    expect(formatQuery('NOT status:active')).toBe('NOT status:active');
+    expect(formatQuery('-status:active')).toBe('-status:active');
   });
 
-  it('normalizes && and || from input to configured operators', () => {
-    // Parser normalizes && → AND and || → OR in the AST.
-    // andOperator/orOperator control how they come out.
-    expect(formatQuery('a && b || c', { andOperator: '&&', orOperator: '||' })).toBe('a && b || c');
-    expect(formatQuery('a && b || c')).toBe('a AND b OR c');
+  it('notOperator overrides NOT source form', () => {
+    expect(formatQuery('NOT status:active', { notOperator: '!' })).toBe('!status:active');
+    expect(formatQuery('-status:active', { notOperator: 'NOT' })).toBe('NOT status:active');
+  });
+
+  it('preserves source operators by default', () => {
+    // && and || are preserved as-is when no override is set
+    expect(formatQuery('a && b || c')).toBe('a && b || c');
+    expect(formatQuery('a AND b OR c')).toBe('a AND b OR c');
+  });
+
+  it('andOperator/orOperator override source form', () => {
+    // Force normalization to a specific style
+    expect(formatQuery('a && b || c', { andOperator: 'AND', orOperator: 'OR' })).toBe('a AND b OR c');
+    expect(formatQuery('a AND b OR c', { andOperator: '&&', orOperator: '||' })).toBe('a && b || c');
   });
 
   it('all operator options work together', () => {
@@ -134,6 +145,6 @@ describe('formatQuery', () => {
       andOperator: '&&',
       orOperator: '||',
       notOperator: '!',
-    })).toBe('! a && b || c');
+    })).toBe('!a && b || c');
   });
 });

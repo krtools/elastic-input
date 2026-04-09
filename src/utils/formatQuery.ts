@@ -15,14 +15,17 @@ export interface FormatQueryOptions {
    *  string in the output. By default, implicit AND is preserved as whitespace.
    *  @example 'AND' — turns `status:active name:john` into `status:active AND name:john` */
   whitespaceOperator?: string;
-  /** Override for explicit AND operators in the output. @default 'AND'
-   *  @example '&&' — turns `status:active AND name:john` into `status:active && name:john` */
+  /** Force all explicit AND operators to this string. By default, the original
+   *  source form is preserved (e.g. `&&` stays `&&`, `AND` stays `AND`).
+   *  @example '&&' — normalizes all AND operators to `&&` */
   andOperator?: string;
-  /** Override for explicit OR operators in the output. @default 'OR'
-   *  @example '||' — turns `status:active OR name:john` into `status:active || name:john` */
+  /** Force all explicit OR operators to this string. By default, the original
+   *  source form is preserved (e.g. `||` stays `||`, `OR` stays `OR`).
+   *  @example '||' — normalizes all OR operators to `||` */
   orOperator?: string;
-  /** Override for NOT prefix in the output. @default 'NOT'
-   *  @example '!' — turns `NOT status:active` into `! status:active` */
+  /** Force all NOT prefixes to this string. By default, the original
+   *  source form is preserved (e.g. `NOT` stays `NOT`, `-` stays `-`).
+   *  @example '!' — normalizes all NOT operators to `!` */
   notOperator?: string;
 }
 
@@ -35,9 +38,9 @@ export function formatQuery(input: string | ASTNode, options?: FormatQueryOption
   const indent = options?.indent ?? DEFAULT_INDENT;
   const opMap: OpMap = {
     whitespace: options?.whitespaceOperator,
-    and: options?.andOperator ?? 'AND',
-    or: options?.orOperator ?? 'OR',
-    not: options?.notOperator ?? 'NOT',
+    and: options?.andOperator,
+    or: options?.orOperator,
+    not: options?.notOperator,
   };
   let ast: ASTNode | null;
   if (typeof input === 'string') {
@@ -51,18 +54,28 @@ export function formatQuery(input: string | ASTNode, options?: FormatQueryOption
   return printNode(ast, 0, maxLineLength, indent, opMap);
 }
 
-/** Internal operator map resolved from FormatQueryOptions. */
+/** Internal operator map resolved from FormatQueryOptions. undefined = preserve source. */
 interface OpMap {
   whitespace?: string;
-  and: string;
-  or: string;
-  not: string;
+  and?: string;
+  or?: string;
+  not?: string;
 }
 
 /** Resolve the display operator for a BooleanExpr node. */
 function resolveOperator(node: BooleanExprNode, ops: OpMap): string {
   if (node.implicit) return ops.whitespace ?? '';
-  return node.operator === 'AND' ? ops.and : ops.or;
+  if (node.operator === 'AND') return ops.and ?? node.sourceOperator ?? 'AND';
+  return ops.or ?? node.sourceOperator ?? 'OR';
+}
+
+/** Resolve the display NOT operator and separator for a Not node.
+ *  Prefix operators like `-` attach directly; keyword operators like `NOT` need a space. */
+function resolveNot(node: { sourceOperator?: string }, ops: OpMap): { op: string; sep: string } {
+  const op = ops.not ?? node.sourceOperator ?? 'NOT';
+  // Prefix-style operators (-, !) attach directly; keyword-style (NOT, not) need a space
+  const sep = /^[a-zA-Z]/.test(op) ? ' ' : '';
+  return { op, sep };
 }
 
 /** Render a node to a single-line string (no newlines). */
@@ -98,8 +111,10 @@ function inline(node: ASTNode, ops: OpMap): string {
       return `#${node.name}`;
     case 'HistoryRef':
       return `!${node.ref}`;
-    case 'Not':
-      return `${ops.not} ${inline(node.expression, ops)}`;
+    case 'Not': {
+      const { op: notOp, sep: notSep } = resolveNot(node, ops);
+      return `${notOp}${notSep}${inline(node.expression, ops)}`;
+    }
     case 'Group': {
       let s = `(${inline(node.expression, ops)})`;
       if (node.boost != null) s += `^${node.boost}`;
@@ -121,7 +136,7 @@ function inline(node: ASTNode, ops: OpMap): string {
 }
 
 /** Flatten a chain of same-operator BooleanExpr into an array of operands. */
-function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; implicit: boolean; operands: ASTNode[] } {
+function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; implicit: boolean; sourceOperator?: string; operands: ASTNode[] } {
   const op = node.operator;
   const implicit = !!node.implicit;
   const operands: ASTNode[] = [];
@@ -134,7 +149,7 @@ function flattenChain(node: BooleanExprNode): { operator: 'AND' | 'OR'; implicit
     }
   };
   collect(node);
-  return { operator: op, implicit, operands };
+  return { operator: op, implicit, sourceOperator: node.sourceOperator, operands };
 }
 
 /** Check if a node contains any Group/FieldGroup nodes (nested parens). */
@@ -162,8 +177,12 @@ function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: 
 
   switch (node.type) {
     case 'BooleanExpr': {
-      const { operator, implicit, operands } = flattenChain(node);
-      const displayOp = implicit ? (ops.whitespace ?? '') : (operator === 'AND' ? ops.and : ops.or);
+      const { operator, implicit, sourceOperator, operands } = flattenChain(node);
+      const displayOp = implicit
+        ? (ops.whitespace ?? '')
+        : operator === 'AND'
+          ? (ops.and ?? sourceOperator ?? 'AND')
+          : (ops.or ?? sourceOperator ?? 'OR');
       const sep = displayOp ? ` ${displayOp} ` : ' ';
       // Try inline first
       const inlined = operands.map(o => inline(o, ops)).join(sep);
@@ -198,8 +217,10 @@ function printNode(node: ASTNode, depth: number, maxLineLength: number, indent: 
       return s;
     }
 
-    case 'Not':
-      return `${ops.not} ${printNode(node.expression, depth, maxLineLength, indent, ops)}`;
+    case 'Not': {
+      const { op: notOp, sep: notSep } = resolveNot(node, ops);
+      return `${notOp}${notSep}${printNode(node.expression, depth, maxLineLength, indent, ops)}`;
+    }
 
     default:
       return inline(node, ops);

@@ -12,6 +12,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'is_vip', label: 'VIP', type: 'boolean', description: 'Whether the contact is a VIP' },
   { name: 'tags', label: 'Tags', type: 'string', description: 'Contact tags' },
   { name: 'age', label: 'Age', type: 'string', description: 'Contact age (years since DOB)', placeholder: false },
+  { name: 'code', label: 'Code', type: 'string', description: 'Internal code (may contain special chars)' },
   { name: 'slow', label: 'Slow Field', type: 'string', description: 'Slow async fetch (3s delay)' },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)' },
 ];
@@ -105,6 +106,7 @@ const ALL_FIELD_VALUES: Record<string, string[]> = {
   level: ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'],
   service: ['api-gateway', 'auth-service', 'user-service', 'payment-service', 'notification-service'],
   category: ['electronics', 'clothing', 'books', 'home', 'sports', 'toys'],
+  code: ['A1', '?N', 'B+', 'C#', 'X/Y', 'N/A', '100%', '$REF', 'OK'],
   company: MOCK_COMPANIES,
   brand: MOCK_BRANDS,
   sku: MOCK_SKUS,
@@ -130,9 +132,15 @@ export function mockFetchSuggestions(fieldName: string, partial: string): Promis
   if (!items) return Promise.resolve([]);
 
   const lower = partial.toLowerCase();
+  // Characters that are special in Elasticsearch query_string syntax and need
+  // the value to be double-quoted to be treated as literals.
+  const NEEDS_QUOTING = /[?*+!(){}[\]^"~\\:\/&|#$%]|\s/;
   const filtered = items
     .filter(item => item.toLowerCase().includes(lower))
-    .map(item => ({ text: item, description: `${fieldName} match` }));
+    .map(item => {
+      const text = NEEDS_QUOTING.test(item) ? `"${item}"` : item;
+      return { text, label: item, description: `${fieldName} match` };
+    });
 
   // Simulate network delay — longer for async-only fields, shorter for enum fields
   const delay = (fieldName === 'company' || fieldName === 'brand') ? 800 : 150;

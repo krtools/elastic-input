@@ -822,7 +822,9 @@ When `features.multiline` is enabled (default: `true`), Shift+Enter inserts a li
 - Plain Enter still submits (or accepts a suggestion if the dropdown is open)
 - When `features.multiline` is `false`, Shift+Enter has no special behavior (falls through to default Enter handling)
 
-- **Tests:** `multiline.test.ts` → "parses multiline queries correctly", "validates multiline queries same as single-line"
+- **Backspace/Delete in newline-only content:** When the editor contains only newlines (no text — `textContent` is empty), Backspace and Delete are handled in the keydown handler rather than relying on native browser behavior + `handleInput`. This is necessary because `getPlainText` cannot distinguish browser-artifact `<br>` from intentional newline `<br>` elements when `textContent` is empty. The handler computes the new text directly from `currentValueRef`, matching the Shift+Enter pattern.
+
+- **Tests:** `multiline.test.ts` → "parses multiline queries correctly", "validates multiline queries same as single-line"; `ElasticInput.browser.test.tsx` → "removes one newline instead of clearing entire input", "backspace from single newline clears to empty"
 
 ### 7.9 Arrow Keys — Navigate / Move Cursor
 

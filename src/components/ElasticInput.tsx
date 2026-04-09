@@ -1548,6 +1548,40 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Backspace/Delete in newline-only content: handle manually because
+    // getPlainText returns '' for <br>-only DOM (the textContent guard
+    // can't distinguish browser-artifact <br> from intentional newlines).
+    if ((e.key === 'Backspace' || e.key === 'Delete') && editorRef.current && !editorRef.current.textContent) {
+      const text = currentValueRef.current;
+      if (!text) return; // already empty
+      const { start, end } = getSelectionCharRange(editorRef.current);
+      let newText: string;
+      let newCursor: number;
+      if (start !== end) {
+        newText = text.slice(0, start) + text.slice(end);
+        newCursor = start;
+      } else if (e.key === 'Backspace' && start > 0) {
+        newText = text.slice(0, start - 1) + text.slice(start);
+        newCursor = start - 1;
+      } else if (e.key === 'Delete' && start < text.length) {
+        newText = text.slice(0, start) + text.slice(start + 1);
+        newCursor = start;
+      } else {
+        return; // at boundary
+      }
+      e.preventDefault();
+      currentValueRef.current = newText;
+      expandSelRef.current = null;
+      if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
+      dropdownTriggerRef.current = 'input';
+      undoStackRef.current.push({ value: newText, cursorPos: newCursor });
+      // Move caret in old DOM so processInput reads the correct offset
+      setCaretCharOffset(editorRef.current, newCursor);
+      processInput(newText, true);
+      if (editorRef.current) scrollEditorToCaret(editorRef.current);
+      return;
+    }
+
     keyConsumedByDropdownRef.current = false;
     if (s.showDropdown && s.suggestions.length > 0) {
       switch (e.key) {

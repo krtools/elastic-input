@@ -728,6 +728,64 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('backspace in newline-only content', () => {
+    it('removes one newline instead of clearing entire input', async () => {
+      let lastValue = '';
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          onChange: (q: string) => { lastValue = q; },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+
+      // Insert 3 newlines via Shift+Enter
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await new Promise(r => setTimeout(r, 150));
+
+      expect(lastValue).toBe('\n\n\n');
+
+      // Backspace should remove only one newline
+      await userEvent.keyboard('{Backspace}');
+      await new Promise(r => setTimeout(r, 150));
+
+      expect(lastValue).toBe('\n\n');
+      // Editor should still have <br> elements (not empty)
+      const brs = editorEl.querySelectorAll('br:not([data-sentinel])');
+      expect(brs.length).toBeGreaterThan(0);
+    });
+
+    it('backspace from single newline clears to empty', async () => {
+      let lastValue = '';
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          onChange: (q: string) => { lastValue = q; },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+
+      // Insert 1 newline
+      await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+      await new Promise(r => setTimeout(r, 150));
+      expect(lastValue).toBe('\n');
+
+      // Backspace should clear to empty
+      await userEvent.keyboard('{Backspace}');
+      await new Promise(r => setTimeout(r, 150));
+
+      expect(lastValue).toBe('');
+    });
+  });
+
   describe('basic rendering', () => {
     it('renders with placeholder text', async () => {
       renderInto(

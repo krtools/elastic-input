@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 — 2026-04-08
+
+### Bug Fixes
+
+- **Wildcard values no longer eat the colon on suggestion accept** — Typing `code:?N` and accepting a suggestion produced `code"?N"` instead of `code:"?N"`. The cursor context now correctly recognizes WILDCARD tokens as field values after a colon.
+
 ## 0.6.2 — 2026-04-08
 
 ### Bug Fixes

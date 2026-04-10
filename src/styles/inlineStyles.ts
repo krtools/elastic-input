@@ -58,16 +58,22 @@ export function getPlaceholderStyle(colors: Required<ColorConfig>, styles: Requi
   const topPad = paddingParts[0] || '8px';
   const leftPad = paddingParts.length >= 4 ? paddingParts[3] : paddingParts.length >= 2 ? paddingParts[1] : topPad;
 
+  const rightPad = paddingParts.length >= 4 ? paddingParts[1] : paddingParts.length >= 2 ? paddingParts[1] : topPad;
+
   return {
     position: 'absolute',
     top: topPad,
     left: leftPad,
+    right: rightPad,
     color: colors.placeholder,
     pointerEvents: 'none',
     fontSize: styles.fontSize,
     fontFamily: styles.fontFamily,
     lineHeight: styles.lineHeight,
     userSelect: 'none',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   };
 }
 

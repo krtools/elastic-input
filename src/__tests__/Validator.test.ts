@@ -966,4 +966,111 @@ describe('Incomplete expression errors', () => {
       expect(errors).toHaveLength(2);
     });
   });
+
+  describe('error types', () => {
+    it('parser errors have SYNTAX_ERROR type', () => {
+      // Unmatched closing paren produces a parser Error node
+      const errors = validate(')');
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('unknown fields have UNKNOWN_FIELD type', () => {
+      const errors = validate('bogus:value');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('UNKNOWN_FIELD');
+    });
+
+    it('unknown field in range has UNKNOWN_FIELD type', () => {
+      const errors = validate('bogus:[1 TO 10]');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('UNKNOWN_FIELD');
+    });
+
+    it('unknown field in field group has UNKNOWN_FIELD type', () => {
+      const errors = validate('bogus:(a OR b)');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('UNKNOWN_FIELD');
+    });
+
+    it('type mismatch has INVALID_VALUE type', () => {
+      const errors = validate('price:abc');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('INVALID_VALUE');
+    });
+
+    it('invalid date has INVALID_VALUE type', () => {
+      const errors = validate('created:notadate');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('INVALID_VALUE');
+    });
+
+    it('invalid boolean has INVALID_VALUE type', () => {
+      const errors = validate('is_vip:maybe');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('INVALID_VALUE');
+    });
+
+    it('invalid IP has INVALID_VALUE type', () => {
+      const errors = validate('ip:notanip');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('INVALID_VALUE');
+    });
+
+    it('missing value has SYNTAX_ERROR type', () => {
+      const errors = validate('status:');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('invalid modifier has SYNTAX_ERROR type', () => {
+      const errors = validate('status:active~5');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('comparison op on wrong field type has SYNTAX_ERROR type', () => {
+      const errors = validate('status:>active');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('ambiguous precedence has AMBIGUOUS_PRECEDENCE type', () => {
+      const errors = validate('a AND b OR c');
+      const warning = errors.find(e => e.type === 'AMBIGUOUS_PRECEDENCE');
+      expect(warning).toBeDefined();
+      expect(warning!.severity).toBe('warning');
+    });
+
+    it('custom validator errors have CUSTOM type', () => {
+      const errors = validate('rating:99', ratingValidator);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('CUSTOM');
+    });
+
+    it('range bound type mismatch has INVALID_VALUE type', () => {
+      const errors = validate('price:[abc TO def]');
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.every(e => e.type === 'INVALID_VALUE')).toBe(true);
+    });
+
+    it('boolean range has SYNTAX_ERROR type', () => {
+      const errors = validate('is_vip:[true TO false]');
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors.every(e => e.type === 'SYNTAX_ERROR')).toBe(true);
+    });
+
+    it('empty range bound has SYNTAX_ERROR type', () => {
+      const errors = validate('price:[TO 10]');
+      const syntaxErr = errors.find(e => e.type === 'SYNTAX_ERROR');
+      expect(syntaxErr).toBeDefined();
+    });
+
+    it('errors without explicit type default to SYNTAX_ERROR semantically', () => {
+      // Boost <= 0 on bare term
+      const errors = validate('hello^0');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+  });
 });

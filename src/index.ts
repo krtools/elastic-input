@@ -55,5 +55,5 @@ export type {
 export type { Token, TokenType } from './lexer/tokens';
 export type { ASTNode } from './parser/ast';
 export type { CursorContext, CursorContextType } from './parser/Parser';
-export type { ValidationError, ValidateValueFn } from './validation/Validator';
+export type { ValidationError, ValidationErrorType, ValidateValueFn } from './validation/Validator';
 export type { Suggestion } from './autocomplete/suggestionTypes';

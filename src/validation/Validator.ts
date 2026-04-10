@@ -13,6 +13,14 @@ function normalizeValidateResult(result: ValidateReturn): { message: string; sev
   return result;
 }
 
+/** Error type categories for validation errors. */
+export type ValidationErrorType =
+  | 'SYNTAX_ERROR'
+  | 'UNKNOWN_FIELD'
+  | 'INVALID_VALUE'
+  | 'AMBIGUOUS_PRECEDENCE'
+  | 'CUSTOM';
+
 /** A validation or syntax error with character offsets for squiggly underline display. */
 export interface ValidationError {
   /** Human-readable error description. */
@@ -25,6 +33,8 @@ export interface ValidationError {
   field?: string;
   /** Severity level. `'warning'` renders amber squiggles; `'error'` (default) renders red. */
   severity?: 'error' | 'warning';
+  /** Error category. @default 'SYNTAX_ERROR' */
+  type?: ValidationErrorType;
 }
 
 export class Validator {
@@ -59,6 +69,7 @@ export class Validator {
             message: `Fuzzy edit distance must be 0, 1, or 2 (got ${node.fuzzy})`,
             start: node.start,
             end: node.end,
+            type: 'SYNTAX_ERROR',
           });
         }
         if (node.proximity !== undefined && node.proximity < 0) {
@@ -66,6 +77,7 @@ export class Validator {
             message: `Proximity value must be non-negative (got ${node.proximity})`,
             start: node.start,
             end: node.end,
+            type: 'SYNTAX_ERROR',
           });
         }
         if (node.boost !== undefined && node.boost <= 0) {
@@ -73,6 +85,7 @@ export class Validator {
             message: `Boost value must be positive (got ${node.boost})`,
             start: node.start,
             end: node.end,
+            type: 'SYNTAX_ERROR',
           });
         }
         // Type-specific validation when defaultField is set
@@ -97,7 +110,7 @@ export class Validator {
               break;
           }
           if (error) {
-            errors.push({ message: error, start: node.start, end: node.end, field: dfConfig.name });
+            errors.push({ message: error, start: node.start, end: node.end, field: dfConfig.name, type: 'INVALID_VALUE' });
           }
         }
         // Custom validator for bare terms — include field info when defaultField is set
@@ -115,6 +128,7 @@ export class Validator {
               start: node.start,
               end: node.end,
               severity: result.severity,
+              type: 'CUSTOM',
             });
           }
         }
@@ -136,6 +150,7 @@ export class Validator {
               start: node.start,
               end: node.start + node.field.length,
               field: node.field,
+              type: 'UNKNOWN_FIELD',
             });
           } else {
             this.validateRangeBounds(rangeField, node, errors, validateValueFn, parseDateFn);
@@ -155,6 +170,7 @@ export class Validator {
             start: node.start,
             end: node.start + node.field.length,
             field: node.field,
+            type: 'UNKNOWN_FIELD',
           });
           return;
         }
@@ -166,6 +182,7 @@ export class Validator {
             start: node.start,
             end: node.end,
             field: node.field,
+            type: 'SYNTAX_ERROR',
           });
           return;
         }
@@ -177,6 +194,7 @@ export class Validator {
             start: node.start,
             end: node.end,
             field: node.field,
+            type: 'SYNTAX_ERROR',
           });
         }
         if (node.boost !== undefined && node.boost <= 0) {
@@ -185,6 +203,7 @@ export class Validator {
             start: node.start,
             end: node.end,
             field: node.field,
+            type: 'SYNTAX_ERROR',
           });
         }
 
@@ -232,6 +251,7 @@ export class Validator {
               end: node.end,
               field: node.field,
               severity: result.severity,
+              type: 'CUSTOM',
             });
           }
         }
@@ -239,11 +259,15 @@ export class Validator {
         if (error) {
           // Position error on the value portion
           const valueStart = node.end - node.value.length;
+          // Comparison operator on wrong type is SYNTAX_ERROR; type mismatch is INVALID_VALUE
+          const errorType = (node.operator !== ':' && field.type !== 'number' && field.type !== 'date')
+            ? 'SYNTAX_ERROR' as const : 'INVALID_VALUE' as const;
           errors.push({
             message: error,
             start: valueStart,
             end: node.end,
             field: node.field,
+            type: errorType,
           });
         }
         break;
@@ -261,6 +285,7 @@ export class Validator {
               start: node.start,
               end: node.start + node.field.length,
               field: node.field,
+              type: 'UNKNOWN_FIELD',
             });
           } else {
             this.walkFieldGroup(node.expression, groupField, errors, validateValueFn, parseDateFn);
@@ -271,6 +296,7 @@ export class Validator {
             message: `Boost value must be positive (got ${node.boost})`,
             start: node.start,
             end: node.end,
+            type: 'SYNTAX_ERROR',
           });
         }
         break;
@@ -288,6 +314,7 @@ export class Validator {
             message: `Boost value must be positive (got ${node.boost})`,
             start: node.start,
             end: node.end,
+            type: 'SYNTAX_ERROR',
           });
         }
         break;
@@ -301,6 +328,7 @@ export class Validator {
           message: node.message,
           start: node.start,
           end: node.end,
+          type: 'SYNTAX_ERROR',
         });
         break;
     }
@@ -384,16 +412,20 @@ export class Validator {
           end,
           field: field.name,
           severity: result.severity,
+          type: 'CUSTOM',
         });
       }
     }
 
     if (error) {
+      const errorType = (operator !== ':' && field.type !== 'number' && field.type !== 'date')
+        ? 'SYNTAX_ERROR' as const : 'INVALID_VALUE' as const;
       errors.push({
         message: error,
         start,
         end,
         field: field.name,
+        type: errorType,
       });
     }
   }
@@ -406,6 +438,7 @@ export class Validator {
         start: node.start,
         end: node.start + 1, // highlight the opening bracket
         field: node.field,
+        type: 'SYNTAX_ERROR',
       });
     }
     if (node.upper !== '*' && node.upper.trim() === '') {
@@ -414,6 +447,7 @@ export class Validator {
         start: node.end - 1, // highlight the closing bracket
         end: node.end,
         field: node.field,
+        type: 'SYNTAX_ERROR',
       });
     }
   }
@@ -457,16 +491,20 @@ export class Validator {
             end: bound.end,
             field: field.name,
             severity: result.severity,
+            type: 'CUSTOM',
           });
         }
       }
 
       if (error) {
+        // Boolean range is SYNTAX_ERROR; type mismatch on bounds is INVALID_VALUE
+        const errorType = field.type === 'boolean' ? 'SYNTAX_ERROR' as const : 'INVALID_VALUE' as const;
         errors.push({
           message: error,
           start: bound.start,
           end: bound.end,
           field: field.name,
+          type: errorType,
         });
       }
     }
@@ -491,6 +529,7 @@ export class Validator {
           start: node.start,
           end: node.end,
           severity: 'warning',
+          type: 'AMBIGUOUS_PRECEDENCE',
         });
         // Mark all collected nodes to prevent duplicate warnings
         allNodes.forEach(n => flagged.add(n));

@@ -1115,7 +1115,19 @@ Validation errors are accessible outside the component in two ways:
 1. **`onValidationChange` callback** — fires on every input change with the current error array
 2. **`api.getValidationErrors()`** — returns errors on demand via the imperative API
 
-Each error has: `{ message: string, start: number, end: number, field?: string }`
+Each error has: `{ message: string, start: number, end: number, field?: string, severity?: 'error' | 'warning', type?: ValidationErrorType }`
+
+#### Error Types (`ValidationErrorType`)
+
+| Type | When | Examples |
+|------|------|----------|
+| `SYNTAX_ERROR` | Parser errors, missing values, invalid modifiers/operators, empty range bounds, boolean ranges | Unclosed quote, `status:`, `status:active~5`, `status:>active` |
+| `UNKNOWN_FIELD` | Field not in the fields list | `bogus:value`, `bogus:[1 TO 10]`, `bogus:(a OR b)` |
+| `INVALID_VALUE` | Type-specific validation failures | `price:abc`, `created:notadate`, `is_vip:maybe`, `ip:notanip` |
+| `AMBIGUOUS_PRECEDENCE` | Mixed AND/OR without parentheses (warning severity) | `a AND b OR c` |
+| `CUSTOM` | Errors from the `validateValue` callback | Per-consumer logic |
+
+- **Tests:** `Validator.test.ts` → "error types" describe block
 
 - **Tests:** `ValidationSquiggles.test.ts` → "errors include field name for field-specific errors", "errors include field name for unknown fields", "returns empty array for valid input", "returns empty array for empty input"
 

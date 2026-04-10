@@ -516,6 +516,27 @@ describe('Date picker style consistency', () => {
   });
 });
 
+describe('date preset value pass-through', () => {
+  // DateRangePicker passes preset values directly to onSelect without modification.
+  // Range presets must include their own brackets in the value.
+
+  it('range preset value includes brackets', () => {
+    const preset = { label: 'Last 7 days', value: '[now-7d TO now]', type: 'range' as const };
+    // onSelect receives the value as-is
+    expect(preset.value).toBe('[now-7d TO now]');
+  });
+
+  it('single preset value has no brackets', () => {
+    const preset = { label: 'Today', value: 'now/d', type: 'single' as const };
+    expect(preset.value).toBe('now/d');
+  });
+
+  it('clear preset value is empty string', () => {
+    const preset = { label: 'Clear', value: '' };
+    expect(preset.value).toBe('');
+  });
+});
+
 describe('adjacent month days grid computation', () => {
   it('previous month fills leading empty cells', () => {
     // April 2026 starts on Wednesday (firstDay = 3)

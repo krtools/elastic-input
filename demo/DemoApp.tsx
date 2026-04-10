@@ -687,10 +687,10 @@ export function DemoApp() {
                   datePresets={[
                     { label: 'Today', value: 'now/d', type: 'single' },
                     { label: 'Yesterday', value: 'now-1d/d', type: 'single' },
-                    { label: 'Last 7 days', value: 'now-7d TO now', type: 'range' },
-                    { label: 'Last 30 days', value: 'now-30d TO now', type: 'range' },
-                    { label: 'Last 90 days', value: 'now-90d TO now', type: 'range' },
-                    { label: 'This year', value: 'now/y TO now', type: 'range' },
+                    { label: 'Last 7 days', value: '[now-7d TO now]', type: 'range' },
+                    { label: 'Last 30 days', value: '[now-30d TO now]', type: 'range' },
+                    { label: 'Last 90 days', value: '[now-90d TO now]', type: 'range' },
+                    { label: 'This year', value: '[now/y TO now]', type: 'range' },
                     { label: 'Clear', value: '' },
                   ]}
                   collapseOnBlur={collapseOnBlur}

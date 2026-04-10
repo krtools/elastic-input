@@ -453,7 +453,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     if (editorRef.current) {
@@ -904,7 +904,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     if (editorRef.current) {
@@ -1311,7 +1311,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
-    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end }));
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
     const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
@@ -1445,7 +1445,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const newTokens = lexer.tokenize();
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
-        const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end }));
+        const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end, type: 'SYNTAX_ERROR' as const }));
         const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });

@@ -907,7 +907,7 @@ export function DemoApp() {
               <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />
               <OptionToggle label="#saved-search syntax" checked={savedSearchesEnabled} onChange={setSavedSearchesEnabled} theme={theme} />
               <OptionToggle label="!history syntax" checked={historySearchEnabled} onChange={setHistorySearchEnabled} theme={theme} />
-              <OptionToggle label="Clause nav (Ctrl+Shift+Arrow)" checked={clauseNavigation} onChange={setClauseNavigation} theme={theme} />
+              <OptionToggle label="Clause nav (Ctrl+Alt+Arrow)" checked={clauseNavigation} onChange={setClauseNavigation} theme={theme} />
             </OptionGroup>
 
             <OptionGroup label="Hints" theme={theme}>

@@ -1537,8 +1537,8 @@ export function ElasticInput(props: ElasticInputProps) {
     // Any other key resets the expand/shrink selection state
     expandSelRef.current = null;
 
-    // Ctrl+Shift+Arrow: clause navigation
-    if (clauseNavigation && e.ctrlKey && e.shiftKey && (code === 'ArrowRight' || code === 'ArrowLeft') && editorRef.current) {
+    // Ctrl+Alt+Arrow: clause navigation
+    if (clauseNavigation && e.ctrlKey && e.altKey && (code === 'ArrowRight' || code === 'ArrowLeft') && editorRef.current) {
       e.preventDefault();
       const direction = code === 'ArrowRight' ? 'forward' : 'backward';
       const stops = collectClauseStops(s.ast);

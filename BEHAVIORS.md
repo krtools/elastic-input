@@ -1694,9 +1694,9 @@ The existing top-level `className` prop still applies to the outer container alo
 
 ---
 
-## 13. Clause Navigation (Ctrl+Shift+Arrow)
+## 13. Clause Navigation (Ctrl+Alt+Arrow)
 
-When `features.clauseNavigation` is enabled, **Ctrl+Shift+Left/Right** navigates between logical clauses in the query, selecting each clause as the cursor moves through them.
+When `features.clauseNavigation` is enabled, **Ctrl+Alt+Left/Right** navigates between logical clauses in the query, selecting each clause as the cursor moves through them.
 
 ### 13.1 Stop Collection
 
@@ -1722,6 +1722,6 @@ Examples:
 
 `findNextClauseStop` advances forward or backward through the stop list by index. When no stop is active (index = -1), it finds the nearest stop from the cursor position in the given direction.
 
-The active stop index resets to -1 on any typing input, so the next Ctrl+Shift+Arrow finds the nearest clause from the current cursor.
+The active stop index resets to -1 on any typing input, so the next Ctrl+Alt+Arrow finds the nearest clause from the current cursor.
 
 - **Tests:** `clauseNavigation.test.ts` — "collectClauseStops" (11 tests), "findNextClauseStop" (10 tests)

@@ -21,6 +21,7 @@ import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, get
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import { formatQuery } from '../utils/formatQuery';
+import { collectClauseStops, findNextClauseStop } from '../utils/clauseNavigation';
 import {
   mergeColors,
   mergeStyles,
@@ -226,6 +227,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
+  const clauseNavigation = featuresConfig?.clauseNavigation ?? false;
   const formatQueryConfig = featuresConfig?.formatQuery;
   const enableFormatQuery = !!formatQueryConfig;
   const formatQueryOptions = typeof formatQueryConfig === 'object' ? formatQueryConfig : undefined;
@@ -298,6 +300,8 @@ export function ElasticInput(props: ElasticInputProps) {
   const dropdownTriggerRef = React.useRef<DropdownOpenContext['trigger']>('input');
   // Expand/shrink selection state: the cached hierarchy and current level index
   const expandSelRef = React.useRef<{ ranges: SelectionRange[]; level: number } | null>(null);
+  // Clause navigation state: current stop index (-1 = not active)
+  const clauseStopIndexRef = React.useRef(-1);
   // Stable ref to the latest updateSuggestionsFromTokens so processInput (defined
   // earlier) always calls the current version without a stale closure.
   const updateSuggestionsRef = React.useRef<(toks: Token[], offset: number) => void>(() => {});
@@ -1230,6 +1234,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (isComposingRef.current) return;
     if (!editorRef.current) return;
     expandSelRef.current = null; // typing resets expand selection
+    clauseStopIndexRef.current = -1; // typing resets clause navigation
     // Cancel any pending navigation delay — typing shows dropdown immediately
     if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
 
@@ -1532,6 +1537,25 @@ export function ElasticInput(props: ElasticInputProps) {
     // Any other key resets the expand/shrink selection state
     expandSelRef.current = null;
 
+    // Ctrl+Shift+Arrow: clause navigation
+    if (clauseNavigation && e.ctrlKey && e.shiftKey && (code === 'ArrowRight' || code === 'ArrowLeft') && editorRef.current) {
+      e.preventDefault();
+      const direction = code === 'ArrowRight' ? 'forward' : 'backward';
+      const stops = collectClauseStops(s.ast);
+      const selRange = getSelectionCharRange(editorRef.current);
+      const cursorPos = direction === 'forward' ? selRange.end : selRange.start;
+      const result = findNextClauseStop(stops, clauseStopIndexRef.current, cursorPos, direction);
+      if (result) {
+        clauseStopIndexRef.current = result.index;
+        setSelectionCharRange(editorRef.current, result.stop.start, result.stop.end);
+        setCursorOffset(result.stop.start);
+        setSelectionEnd(result.stop.end);
+      }
+      return;
+    }
+    // Any other key resets clause navigation state
+    clauseStopIndexRef.current = -1;
+
     // Ctrl+Space: activate/restore dropdown
     if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -1763,7 +1787,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, homeEndKeys, getDropdownPageSize, enableFormatQuery]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

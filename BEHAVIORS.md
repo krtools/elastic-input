@@ -1691,3 +1691,37 @@ interface ClassNamesConfig {
 The existing top-level `className` prop still applies to the outer container alongside `classNames.container`. All three sources are joined: `ei-container ${className} ${classNames.container}`.
 
 - **Tests:** `CssClasses.test.ts` — token class output, regex/range part classes, custom tokenClassName pass-through; `cx.test.ts` — class joining utility
+
+---
+
+## 13. Clause Navigation (Ctrl+Shift+Arrow)
+
+When `features.clauseNavigation` is enabled, **Ctrl+Shift+Left/Right** navigates between logical clauses in the query, selecting each clause as the cursor moves through them.
+
+### 13.1 Stop Collection
+
+The AST is walked to produce an ordered list of "clause stops" — character ranges to select. The rules:
+
+| Node type | Behavior |
+|-----------|----------|
+| Leaf nodes (`FieldValue`, `BareTerm`, `SavedSearch`, `HistoryRef`, `Regex`, `Range`, `Error`) | Single stop |
+| `Group` with multiple clauses | Stop on group → enter → recurse contents → exit back to group |
+| `Group` with single clause | Stop on group only (no enter) |
+| `FieldGroup` | Stop on whole thing → enter → recurse contents → **no exit back** |
+| `Not` | Stop on whole thing → enter inner expression → **no exit back** |
+| `BooleanExpr` | Flatten left/right and recurse each side |
+
+Examples:
+- `a AND b AND c` → stops: `['a', 'b', 'c']`
+- `(a b) c` → stops: `['(a b)', 'a', 'b', '(a b)', 'c']` (enter group, then exit)
+- `NOT x y` → stops: `['NOT x', 'x', 'y']` (enter NOT, no exit back)
+- `status:(a OR b) c` → stops: `['status:(a OR b)', 'a', 'b', 'c']` (enter field group, no exit back)
+- `(a) b` → stops: `['(a)', 'b']` (single-clause group, no enter)
+
+### 13.2 Navigation
+
+`findNextClauseStop` advances forward or backward through the stop list by index. When no stop is active (index = -1), it finds the nearest stop from the cursor position in the given direction.
+
+The active stop index resets to -1 on any typing input, so the next Ctrl+Shift+Arrow finds the nearest clause from the current cursor.
+
+- **Tests:** `clauseNavigation.test.ts` — "collectClauseStops" (11 tests), "findNextClauseStop" (10 tests)

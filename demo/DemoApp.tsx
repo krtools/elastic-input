@@ -444,6 +444,7 @@ export function DemoApp() {
   const [wildcardWrap, setWildcardWrap] = React.useState(true);
   const [savedSearchesEnabled, setSavedSearchesEnabled] = React.useState(true);
   const [historySearchEnabled, setHistorySearchEnabled] = React.useState(true);
+  const [clauseNavigation, setClauseNavigation] = React.useState(true);
 
   // Selection options
   const [autoSelect, setAutoSelect] = React.useState(false);
@@ -675,6 +676,7 @@ export function DemoApp() {
                     wildcardWrap,
                     savedSearches: savedSearchesEnabled,
                     historySearch: historySearchEnabled,
+                    clauseNavigation,
                   }}
                   validateValue={demoValidateValue}
                   onTab={useOnTab ? handleTab : undefined}
@@ -905,6 +907,7 @@ export function DemoApp() {
               <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />
               <OptionToggle label="#saved-search syntax" checked={savedSearchesEnabled} onChange={setSavedSearchesEnabled} theme={theme} />
               <OptionToggle label="!history syntax" checked={historySearchEnabled} onChange={setHistorySearchEnabled} theme={theme} />
+              <OptionToggle label="Clause nav (Ctrl+Shift+Arrow)" checked={clauseNavigation} onChange={setClauseNavigation} theme={theme} />
             </OptionGroup>
 
             <OptionGroup label="Hints" theme={theme}>

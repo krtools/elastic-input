@@ -329,6 +329,9 @@ export interface FeaturesConfig {
   savedSearches?: boolean;
   /** Enable `!query` history-search syntax and autocomplete. When false, `!` is a regular character. @default false */
   historySearch?: boolean;
+  /** Enable Ctrl+Shift+Arrow to navigate between clauses (field:value, groups, NOT expressions).
+   *  The selection jumps to the next/previous clause, entering multi-clause groups and NOT wrappers. @default false */
+  clauseNavigation?: boolean;
 }
 
 /**

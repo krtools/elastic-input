@@ -1047,6 +1047,7 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
   - **Years view**: year cells between start year and hovered year are highlighted.
   - Hovering backward (before the start date) works — preview shows the reversed range. Leaving the calendar clears the preview.
 - Range presets (e.g., "Last 7 days", "Last 30 days") are shown in a 2-column grid below the calendar in range mode only. The date picker dropdown has no max-height constraint so presets are visible without scrolling.
+- When a preset has an empty `value` (e.g. a "Clear" preset), no trailing space is injected — the value is replaced with just the empty string.
 
 - **Tests:** `DatePicker.test.ts` → "single mode formats as YYYY-MM-DD", "range format is [start TO end]", "range with reversed dates orders correctly", "hover date creates a preview range with isDateInRange", "hover preview works when hovering before the start date (reversed)", "no preview when hoverDate is null (mouse left the calendar)", "month-level preview", "year-level preview"
 

@@ -1917,9 +1917,10 @@ export function ElasticInput(props: ElasticInputProps) {
     const after = currentValueRef.current.slice(end);
 
     // Add trailing space when cursor would end up at or near the end of input
+    // Skip trailing space when the date string is empty (e.g. a "clear" preset)
     let trailingSpace = '';
     let finalAfter = after;
-    if (trailingSpaceOnAccept) {
+    if (trailingSpaceOnAccept && dateStr.length > 0) {
       if (after.length === 0) {
         // Nothing after — add space
         trailingSpace = ' ';

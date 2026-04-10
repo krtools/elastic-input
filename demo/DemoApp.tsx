@@ -479,6 +479,7 @@ export function DemoApp() {
   const [controlledValue, setControlledValue] = React.useState('');
 
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
+  (window as any).elasticInput = inputApiRef;
 
   const theme = isDark ? darkTheme : lightTheme;
   const colors = {

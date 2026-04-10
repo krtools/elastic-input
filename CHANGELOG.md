@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.8.0 — 2026-04-10
+
+### Features
+
+- **Ctrl+Alt+Arrow clause navigation** — Navigate between logical clauses (field:value, groups, NOT expressions) with Ctrl+Alt+Left/Right. Selects each clause as the cursor moves. Enable via `features.clauseNavigation`. Groups with multiple clauses support enter/exit traversal; NOT and field groups support enter-only.
+- **Error type categories on `ValidationError`** — Each validation error now includes a `type` field: `SYNTAX_ERROR`, `UNKNOWN_FIELD`, `INVALID_VALUE`, `AMBIGUOUS_PRECEDENCE`, or `CUSTOM`. Exported as `ValidationErrorType`.
+- **`value`, `selectionStart`, `selectionEnd` on `DropdownOpenContext`** — The `dropdown.open` callback now receives the current input value and text selection range, enabling richer programmatic dropdown control.
+- **Triggering event in `onSearch`** — `onSearch` callback now receives an optional third argument: the `KeyboardEvent` (Enter) or `MouseEvent` (button click) that triggered the search.
+- **Date picker: year-level navigation (`«`/`»`)** — Jump by year in days view, decade in months view, or century in years view.
+- **Date picker: adjacent month days** — Calendar grid shows previous/next month days in gray to fill the grid. Clicking them selects the date without navigating to that month.
+- **Date picker: single-date presets** — Date presets now support `type?: 'single' | 'range'` to control which picker mode they appear in. Untyped presets appear in both.
+- **Dismiss dropdown on editor scroll** — Scrolling the editor (wheel, scrollbar drag, touch swipe) closes the dropdown.
+
+### Bug Fixes
+
+- **Parser syntax errors missing `type` field** — Errors from the parser (unclosed parens, unexpected tokens) were reported without the `type` field. All parser errors now include `type: 'SYNTAX_ERROR'`.
+- **Placeholder text bleeding outside narrow input** — Long placeholder text now clips with ellipsis instead of overflowing the input bounds.
+- **Date picker nav button spacing** — `«`/`‹` and `›`/`»` buttons are now grouped with consistent spacing regardless of the center label width. Buttons also have a hover background.
+- **Empty date preset trailing space** — Date presets with empty value (e.g. "Clear") no longer inject a trailing space.
+- **`formatQuery` whitespace-only trim** — `formatQuery` now returns empty string for whitespace-only input instead of preserving it.
+
+### Demo
+
+- Added date presets (Today, Yesterday, Last 7/30/90 days, This year, Clear)
+- Enabled Alt+Shift+F format query shortcut
+- Added clause navigation toggle
+- Exposed `inputApiRef` on `window.elasticInput` for console inspection
+
 ## 0.7.0 — 2026-04-09
 
 ### Breaking Changes

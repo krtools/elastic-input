@@ -463,8 +463,12 @@ export interface ElasticInputProps {
   features?: FeaturesConfig;
   /** Callback that receives the imperative API handle for programmatic control. */
   inputRef?: (api: ElasticInputAPI) => void;
-  /** Custom presets for the date range picker. When provided, completely replaces the built-in presets (Today, Last 7 days, etc.). Pass `[]` to hide presets entirely. Only shown in range mode. */
-  datePresets?: { label: string; value: string }[];
+  /** Custom presets for the date picker. When provided, completely replaces the built-in presets (Today, Last 7 days, etc.). Pass `[]` to hide presets entirely.
+   *  Each preset can specify a `type` to control which mode it appears in:
+   *  - `'single'` — only in single date mode
+   *  - `'range'` — only in range mode
+   *  - omitted — shown in both modes */
+  datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
   /** Called when the input gains focus. */

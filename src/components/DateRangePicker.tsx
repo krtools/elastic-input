@@ -18,7 +18,7 @@ interface DateRangePickerProps {
   initialMode?: 'single' | 'range';
   initialStart?: Date | null;
   initialEnd?: Date | null;
-  presets?: { label: string; value: string }[];
+  presets?: { label: string; value: string; type?: 'single' | 'range' }[];
   /** Custom class name for the date picker container. */
   className?: string;
 }
@@ -229,14 +229,14 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     ...styles.dayToday,
   };
 
-  // --- Range presets ---
-  const DEFAULT_PRESETS: { label: string; value: string }[] = [
-    { label: 'Today', value: '[now/d TO now]' },
-    { label: 'Yesterday', value: '[now-1d/d TO now/d]' },
-    { label: 'Last 7 days', value: '[now-7d TO now]' },
-    { label: 'Last 30 days', value: '[now-30d TO now]' },
-    { label: 'Last 90 days', value: '[now-90d TO now]' },
-    { label: 'Last 1 year', value: '[now-365d TO now]' },
+  // --- Presets ---
+  const DEFAULT_PRESETS: { label: string; value: string; type?: 'single' | 'range' }[] = [
+    { label: 'Today', value: '[now/d TO now]', type: 'range' },
+    { label: 'Yesterday', value: '[now-1d/d TO now/d]', type: 'range' },
+    { label: 'Last 7 days', value: '[now-7d TO now]', type: 'range' },
+    { label: 'Last 30 days', value: '[now-30d TO now]', type: 'range' },
+    { label: 'Last 90 days', value: '[now-90d TO now]', type: 'range' },
+    { label: 'Last 1 year', value: '[now-365d TO now]', type: 'range' },
   ];
   const presets = presetsProp ?? DEFAULT_PRESETS;
 
@@ -390,18 +390,21 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
         </div>
       )}
 
-      {mode === 'range' && (
-        <div className="ei-datepicker-presets" style={{
-          ...styles.quickOptions,
-          ...presetGridStyle,
-        }}>
-          {presets.map(p => (
-            <button key={p.value} style={styles.quickOption} onClick={() => onSelect(p.value)}>
-              {p.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {(() => {
+        const filtered = presets.filter(p => !p.type || p.type === mode);
+        return filtered.length > 0 && (
+          <div className="ei-datepicker-presets" style={{
+            ...styles.quickOptions,
+            ...presetGridStyle,
+          }}>
+            {filtered.map(p => (
+              <button key={`${p.type ?? 'both'}-${p.value}`} style={styles.quickOption} onClick={() => onSelect(p.value)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

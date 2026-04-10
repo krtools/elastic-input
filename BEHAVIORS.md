@@ -1048,7 +1048,7 @@ The `<<`/`>>` buttons (`«`/`»`) appear at the outer edges of the header, flank
   - **Months view**: month cells whose month falls between start and hovered month are highlighted.
   - **Years view**: year cells between start year and hovered year are highlighted.
   - Hovering backward (before the start date) works — preview shows the reversed range. Leaving the calendar clears the preview.
-- Range presets (e.g., "Last 7 days", "Last 30 days") are shown in a 2-column grid below the calendar in range mode only. The date picker dropdown has no max-height constraint so presets are visible without scrolling.
+- Presets are shown in a 2-column grid below the calendar. Each preset can have a `type` property: `'single'` (shown only in single mode), `'range'` (shown only in range mode), or omitted (shown in both modes). Built-in presets (Today, Last 7 days, etc.) are all `type: 'range'`. The preset section is hidden when no presets match the current mode. The date picker dropdown has no max-height constraint so presets are visible without scrolling.
 - When a preset has an empty `value` (e.g. a "Clear" preset), no trailing space is injected — the value is replaced with just the empty string.
 
 - **Adjacent month days**: The calendar grid shows grayed-out days from the previous and next months to fill partial weeks. Previous month days appear before the 1st (e.g. if the month starts on Wednesday, Sunday–Tuesday show the previous month's last days). Next month days fill after the last day of the month to complete the row. Adjacent days are clickable and select the date without navigating away from the current month view. Styled with `dayOtherMonth` (opacity: 0.3). **Tests:** `DatePicker.test.ts` → "adjacent month days grid computation"
@@ -1449,7 +1449,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `onFocus` | `() => void` | — | Called when the input gains focus |
 | `onBlur` | `() => void` | — | Called when the input loses focus |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
-| `datePresets` | `{ label, value }[]` | built-in | Custom date range picker presets; `[]` hides presets |
+| `datePresets` | `{ label, value, type? }[]` | built-in (range) | Custom date picker presets; `type` filters to `'single'`/`'range'`/both; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
 | `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Set to `0` to disable. |

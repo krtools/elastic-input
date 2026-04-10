@@ -102,7 +102,7 @@ interface DatePickerPortalProps {
   styleConfig?: StyleConfig;
   datePickerInit?: DatePickerInit | null;
   fixedWidth?: number;
-  datePresets?: { label: string; value: string }[];
+  datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   datePickerClassName?: string;
 }
 

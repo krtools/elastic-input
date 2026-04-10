@@ -87,9 +87,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     setViewLevel('months');
   };
 
-  const selectDay = (day: number) => {
-    const date = new Date(viewYear, viewMonth, day);
-
+  const selectDate = (date: Date) => {
     if (mode === 'single') {
       onSelect(formatDate(date));
       return;
@@ -135,11 +133,9 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
   const dayCells: React.ReactNode[] = [];
-  for (let i = 0; i < firstDay; i++) {
-    dayCells.push(<div key={`e${i}`} />);
-  }
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(viewYear, viewMonth, d);
+
+  // Helper to render a day cell
+  const renderDayCell = (date: Date, key: string, isOtherMonth: boolean) => {
     const isToday = isSameDay(date, today);
     const isStart = rangeStart && isSameDay(date, rangeStart);
     const isEnd = previewEnd && isSameDay(date, previewEnd);
@@ -148,6 +144,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
 
     const dayStyle = {
       ...styles.day,
+      ...(isOtherMonth ? styles.dayOtherMonth : {}),
       ...(isToday ? styles.dayToday : {}),
       ...(inRange ? styles.dayInRange : {}),
       ...(isSelected ? styles.daySelected : {}),
@@ -155,12 +152,12 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
 
     const isRangePreviewing = mode === 'range' && rangeStart && !rangeEnd;
 
-    dayCells.push(
+    return (
       <button
-        key={d}
+        key={key}
         className="ei-datepicker-day"
         style={dayStyle}
-        onClick={() => selectDay(d)}
+        onClick={() => selectDate(date)}
         onMouseEnter={(e) => {
           if (isRangePreviewing) {
             setHoverDate(date);
@@ -175,9 +172,36 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
           }
         }}
       >
-        {d}
+        {date.getDate()}
       </button>
     );
+  };
+
+  // Previous month trailing days
+  if (firstDay > 0) {
+    const prevMonthDays = getDaysInMonth(viewYear, viewMonth - 1);
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const d = prevMonthDays - i;
+      const date = new Date(viewYear, viewMonth - 1, d);
+      dayCells.push(renderDayCell(date, `prev${d}`, true));
+    }
+  }
+
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(viewYear, viewMonth, d);
+    dayCells.push(renderDayCell(date, String(d), false));
+  }
+
+  // Next month leading days to fill the last week
+  const totalCells = dayCells.length;
+  const remainder = totalCells % 7;
+  if (remainder > 0) {
+    const nextDays = 7 - remainder;
+    for (let d = 1; d <= nextDays; d++) {
+      const date = new Date(viewYear, viewMonth + 1, d);
+      dayCells.push(renderDayCell(date, `next${d}`, true));
+    }
   }
 
   // --- Grid cell style for months/years ---

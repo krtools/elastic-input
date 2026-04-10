@@ -515,3 +515,63 @@ describe('Date picker style consistency', () => {
     expect(s.daySelected).toHaveProperty('backgroundColor');
   });
 });
+
+describe('adjacent month days grid computation', () => {
+  it('previous month fills leading empty cells', () => {
+    // April 2026 starts on Wednesday (firstDay = 3)
+    const year = 2026, month = 3; // April
+    const firstDay = getFirstDayOfMonth(year, month);
+    expect(firstDay).toBe(3); // Wed
+    const prevMonthDays = getDaysInMonth(year, month - 1); // March has 31 days
+    expect(prevMonthDays).toBe(31);
+    // Should show March 29, 30, 31 before April 1
+    const prevDays: number[] = [];
+    for (let i = firstDay - 1; i >= 0; i--) {
+      prevDays.push(prevMonthDays - i);
+    }
+    expect(prevDays).toEqual([29, 30, 31]);
+  });
+
+  it('next month fills trailing empty cells to complete the week', () => {
+    // April 2026 has 30 days, starts on Wed (3), so total = 3 + 30 = 33
+    // 33 % 7 = 5, need 2 more cells → May 1, 2
+    const year = 2026, month = 3;
+    const firstDay = getFirstDayOfMonth(year, month);
+    const daysInMonth = getDaysInMonth(year, month);
+    const totalCells = firstDay + daysInMonth; // 3 + 30 = 33
+    const remainder = totalCells % 7; // 5
+    const nextDays = remainder > 0 ? 7 - remainder : 0; // 2
+    expect(nextDays).toBe(2);
+  });
+
+  it('no trailing days needed when month ends on Saturday', () => {
+    // January 2022 starts on Saturday (6), has 31 days
+    // Total = 6 + 31 = 37, 37 % 7 = 2, need 5 more
+    // Actually, let's find a month that ends on Saturday:
+    // October 2022: starts on Saturday (6), 31 days, total = 37, 37%7=2 → need 5
+    // We need total % 7 === 0. February 2026 starts on Sunday (0), 28 days = 28 cells, 28%7=0
+    const year = 2026, month = 1; // February 2026
+    const firstDay = getFirstDayOfMonth(year, month);
+    expect(firstDay).toBe(0); // Sunday
+    const daysInMonth = getDaysInMonth(year, month);
+    expect(daysInMonth).toBe(28);
+    const totalCells = firstDay + daysInMonth; // 28
+    const remainder = totalCells % 7; // 0
+    const nextDays = remainder > 0 ? 7 - remainder : 0;
+    expect(nextDays).toBe(0); // No trailing days needed
+  });
+
+  it('handles year boundary (January shows December days)', () => {
+    // January 2026 starts on Thursday (4)
+    const year = 2026, month = 0;
+    const firstDay = getFirstDayOfMonth(year, month);
+    expect(firstDay).toBe(4); // Thu
+    const prevMonthDays = getDaysInMonth(year, month - 1); // December 2025 has 31 days
+    expect(prevMonthDays).toBe(31);
+    const prevDays: number[] = [];
+    for (let i = firstDay - 1; i >= 0; i--) {
+      prevDays.push(prevMonthDays - i);
+    }
+    expect(prevDays).toEqual([28, 29, 30, 31]);
+  });
+});

@@ -1429,7 +1429,7 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `fields` | `FieldConfig[] \| () => Promise<FieldConfig[]>` | required | Field definitions (static or async loader) |
-| `onSearch` | `(query, ast) => void` | — | Called on submit (Enter on value, Ctrl+Enter) |
+| `onSearch` | `(query, ast, event?) => void` | — | Called on submit (Enter on value, Ctrl+Enter); `event` is the triggering keyboard/mouse event when available |
 | `onChange` | `(query, ast) => void` | — | Called on every input change |
 | `onValidationChange` | `(errors) => void` | — | Called when validation errors change |
 | `value` | `string` | — | Controlled value |

@@ -933,6 +933,7 @@ export function ElasticInput(props: ElasticInputProps) {
     suggestion: Suggestion,
     key: 'Enter' | 'Tab' = 'Enter',
     afterAccept?: (newValue: string, newAst: ASTNode | null) => void,
+    triggerEvent?: React.KeyboardEvent | React.MouseEvent,
   ) => {
     if (!suggestion) return;
     const s = stateRef.current;
@@ -995,7 +996,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (afterAccept) {
         afterAccept(newValue, newAst);
       } else if (shouldSubmit) {
-        if (onSearch) onSearch(newValue, newAst);
+        if (onSearch) onSearch(newValue, newAst, triggerEvent);
       } else {
         updateSuggestionsFromTokens(newTokens, newCursorPos);
       }
@@ -1547,7 +1548,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       closeDropdown();
-      if (onSearch) onSearch(currentValueRef.current, s.ast);
+      if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
 
@@ -1655,7 +1656,7 @@ export function ElasticInput(props: ElasticInputProps) {
               // Non-interactive items: treat as no selection — close and submit
               e.preventDefault();
               closeDropdown();
-              if (onSearch) onSearch(currentValueRef.current, s.ast);
+              if (onSearch) onSearch(currentValueRef.current, s.ast, e);
               return;
             }
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
@@ -1669,21 +1670,21 @@ export function ElasticInput(props: ElasticInputProps) {
                 const newValue = before + ' ' + after;
                 const newPos = offset + 1;
                 applyNewValue(newValue, newPos, () => {
-                  if (onSearch) onSearch(newValue, s.ast);
+                  if (onSearch) onSearch(newValue, s.ast, e);
                 });
               } else {
-                if (onSearch) onSearch(text, s.ast);
+                if (onSearch) onSearch(text, s.ast, e);
               }
               return;
             }
             e.preventDefault();
-            acceptSuggestion(selected, 'Enter');
+            acceptSuggestion(selected, 'Enter', undefined, e);
             return;
           }
           // No item selected — close dropdown and submit
           e.preventDefault();
           closeDropdown();
-          if (onSearch) onSearch(currentValueRef.current, s.ast);
+          if (onSearch) onSearch(currentValueRef.current, s.ast, e);
           return;
         case 'Tab': {
           if (onTabProp) {
@@ -1699,12 +1700,12 @@ export function ElasticInput(props: ElasticInputProps) {
             const result = onTabProp({ suggestion: acceptableSugg, cursorContext: ctx, query: currentValueRef.current });
             if (result.accept && acceptableSugg) {
               acceptSuggestion(acceptableSugg, 'Tab', (newValue, newAst) => {
-                if (result.submit && onSearch) onSearch(newValue, newAst);
+                if (result.submit && onSearch) onSearch(newValue, newAst, e);
                 if (result.blur) editorRef.current?.blur();
-              });
+              }, e);
             } else {
               closeDropdown();
-              if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast);
+              if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast, e);
               if (result.blur) editorRef.current?.blur();
             }
             return;
@@ -1729,7 +1730,7 @@ export function ElasticInput(props: ElasticInputProps) {
               return;
             }
             e.preventDefault();
-            acceptSuggestion(selected, 'Tab');
+            acceptSuggestion(selected, 'Tab', undefined, e);
             return;
           }
           break; // Tab with no selection falls through to browser default
@@ -1746,7 +1747,7 @@ export function ElasticInput(props: ElasticInputProps) {
       e.preventDefault();
       const ctx = s.cursorContext || { type: 'EMPTY' as const, partial: '' };
       const result = onTabProp({ suggestion: null, cursorContext: ctx, query: currentValueRef.current });
-      if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast);
+      if (result.submit && onSearch) onSearch(currentValueRef.current, s.ast, e);
       if (result.blur) editorRef.current?.blur();
       return;
     }
@@ -1759,7 +1760,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (e.key === 'Enter' && !s.showDropdown && !s.showDatePicker) {
       e.preventDefault();
-      if (onSearch) onSearch(currentValueRef.current, s.ast);
+      if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
   }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, homeEndKeys, getDropdownPageSize, enableFormatQuery]);

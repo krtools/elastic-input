@@ -429,8 +429,10 @@ export type FieldsSource = FieldConfig[] | (() => Promise<FieldConfig[]>);
 export interface ElasticInputProps {
   /** Field definitions that determine autocomplete, validation, and syntax highlighting. Accepts a static array or an async loader function. */
   fields: FieldsSource;
-  /** Called when the user submits a search (Enter on a value, or Ctrl+Enter). */
-  onSearch?: (query: string, ast: ASTNode | null) => void;
+  /** Called when the user submits a search (Enter on a value, or Ctrl+Enter).
+   *  The optional `event` parameter is the keyboard or mouse event that triggered
+   *  the search, when one is available (e.g. absent for programmatic triggers). */
+  onSearch?: (query: string, ast: ASTNode | null, event?: React.KeyboardEvent | React.MouseEvent) => void;
   /** Called on every input change with the current query and AST. */
   onChange?: (query: string, ast: ASTNode | null) => void;
   /** Called when validation errors change. Useful for external error display. */

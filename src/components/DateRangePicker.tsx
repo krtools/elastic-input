@@ -72,6 +72,19 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     }
   };
 
+  // Big navigation: skip one level up (year in days, decade in months, century in years)
+  const navigatePrevBig = () => {
+    if (viewLevel === 'days') setViewYear(y => y - 1);
+    else if (viewLevel === 'months') setViewYear(y => y - 10);
+    else setViewYear(y => y - 100);
+  };
+
+  const navigateNextBig = () => {
+    if (viewLevel === 'days') setViewYear(y => y + 1);
+    else if (viewLevel === 'months') setViewYear(y => y + 10);
+    else setViewYear(y => y + 100);
+  };
+
   const zoomOut = () => {
     if (viewLevel === 'days') setViewLevel('months');
     else if (viewLevel === 'months') setViewLevel('years');
@@ -251,6 +264,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
       </div>
 
       <div className="ei-datepicker-header" style={styles.header}>
+        <button style={styles.navButton} onClick={navigatePrevBig}>&laquo;</button>
         <button style={styles.navButton} onClick={navigatePrev}>&lsaquo;</button>
         <button
           style={{
@@ -272,6 +286,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
           {headerLabel}
         </button>
         <button style={styles.navButton} onClick={navigateNext}>&rsaquo;</button>
+        <button style={styles.navButton} onClick={navigateNextBig}>&raquo;</button>
       </div>
 
       {viewLevel === 'days' && (

@@ -1027,11 +1027,13 @@ The years view shows 12 cells: the 10 years of the current decade plus one year 
 
 #### 8.5.3 Navigation
 
-| View Level | Prev/Next Step |
-|------------|---------------|
-| Days | ±1 month (wraps year) |
-| Months | ±1 year |
-| Years | ±10 years (decade) |
+| View Level | `<` / `>` (single step) | `<<` / `>>` (big step) |
+|------------|------------------------|----------------------|
+| Days | ±1 month (wraps year) | ±1 year |
+| Months | ±1 year | ±10 years (decade) |
+| Years | ±10 years (decade) | ±100 years (century) |
+
+The `<<`/`>>` buttons (`«`/`»`) appear at the outer edges of the header, flanking the single-step `<`/`>` buttons.
 
 - **Tests:** `DatePicker.test.ts` → "prev/next at days level changes month", "prev/next at days level wraps year", "prev at days level wraps year backward", "prev/next at months level changes year", "prev/next at years level changes by decade"
 

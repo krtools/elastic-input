@@ -677,6 +677,7 @@ export function DemoApp() {
                     savedSearches: savedSearchesEnabled,
                     historySearch: historySearchEnabled,
                     clauseNavigation,
+                    formatQuery: true,
                   }}
                   validateValue={demoValidateValue}
                   onTab={useOnTab ? handleTab : undefined}

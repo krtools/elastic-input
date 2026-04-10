@@ -246,6 +246,9 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
     gap: '2px',
   };
 
+  const navBtnEnter = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.backgroundColor = '#eef1f5'; };
+  const navBtnLeave = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; };
+
   return (
     <div className={cx('ei-datepicker', className)} style={styles.container} onMouseDown={e => e.preventDefault()} onMouseLeave={() => setHoverDate(null)}>
       <div className="ei-datepicker-toggle" style={styles.rangeToggle}>
@@ -264,8 +267,10 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
       </div>
 
       <div className="ei-datepicker-header" style={styles.header}>
-        <button style={styles.navButton} onClick={navigatePrevBig}>&laquo;</button>
-        <button style={styles.navButton} onClick={navigatePrev}>&lsaquo;</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <button style={styles.navButton} onClick={navigatePrevBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&laquo;</button>
+          <button style={styles.navButton} onClick={navigatePrev} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&lsaquo;</button>
+        </div>
         <button
           style={{
             ...styles.monthLabel,
@@ -285,8 +290,10 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
         >
           {headerLabel}
         </button>
-        <button style={styles.navButton} onClick={navigateNext}>&rsaquo;</button>
-        <button style={styles.navButton} onClick={navigateNextBig}>&raquo;</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <button style={styles.navButton} onClick={navigateNext} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&rsaquo;</button>
+          <button style={styles.navButton} onClick={navigateNextBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&raquo;</button>
+        </div>
       </div>
 
       {viewLevel === 'days' && (

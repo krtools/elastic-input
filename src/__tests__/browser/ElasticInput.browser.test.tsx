@@ -819,4 +819,26 @@ describe('ElasticInput browser tests', () => {
       expect(dropdownText().toLowerCase()).toContain('status');
     });
   });
+
+  describe('scroll dismiss', () => {
+    it('closes dropdown when editor is scrolled', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: mockFetchSuggestions,
+        }),
+      );
+      const editor = page.elementLocator(document.querySelector(EDITOR) as HTMLElement);
+      await editor.click();
+      await userEvent.type(editor, 'sta');
+
+      expect(await waitFor(dropdownVisible)).toBe(true);
+
+      // Trigger scroll on the editor element
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      editorEl.dispatchEvent(new Event('scroll'));
+
+      expect(await waitFor(() => !dropdownVisible(), 1000)).toBe(true);
+    });
+  });
 });

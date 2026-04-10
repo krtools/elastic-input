@@ -1150,6 +1150,19 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, [dropdownAlignToInput, dropdownMaxHeightPx]);
 
+  // Close dropdown when the editor is scrolled (wheel, scrollbar drag, touch swipe)
+  React.useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const onEditorScroll = () => {
+      if (stateRef.current.showDropdown || stateRef.current.showDatePicker) {
+        closeDropdown();
+      }
+    };
+    editor.addEventListener('scroll', onEditorScroll);
+    return () => editor.removeEventListener('scroll', onEditorScroll);
+  }, [closeDropdown]);
+
   // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
   const prevParenMatchRef = React.useRef<string | null>(null);
   const prevColorsRef = React.useRef(colors);

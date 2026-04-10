@@ -793,6 +793,12 @@ When no text is selected, the bracket/quote character is inserted normally.
 
 Escape closes the autocomplete dropdown or date picker without accepting anything.
 
+### 7.6.1 Scroll Dismiss
+
+Scrolling within the editor (via mouse wheel, scrollbar drag, or touch swipe) closes the autocomplete dropdown and date picker, matching native dropdown behavior. Scrolling within the dropdown itself (when it has its own scrollbar) does **not** dismiss it.
+
+- **Tests:** `ElasticInput.browser.test.tsx` → "closes dropdown when editor is scrolled"
+
 ### 7.7 Typographic Character Normalization
 
 Pasted and typed text is automatically normalized to replace typographic/smart characters with their ASCII equivalents. This prevents issues when queries are copied from Outlook, Word, Google Docs, or other rich-text sources.

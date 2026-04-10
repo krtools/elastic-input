@@ -227,6 +227,12 @@ export interface DropdownOpenContext {
   suggestions: Suggestion[];
   /** Whether the dropdown is currently visible. */
   isOpen: boolean;
+  /** Current query string. */
+  value: string;
+  /** Start offset of the text selection (same as `selectionEnd` when caret with no selection). */
+  selectionStart: number;
+  /** End offset of the text selection (same as `selectionStart` when caret with no selection). */
+  selectionEnd: number;
 }
 
 /**

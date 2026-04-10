@@ -537,7 +537,7 @@ export function ElasticInput(props: ElasticInputProps) {
     return true;
   }, [renderNoResults]);
 
-  const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number) => {
+  const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
     if (!showOperators) {
       result.suggestions = result.suggestions.filter(s => s.type !== 'operator');
@@ -552,6 +552,9 @@ export function ElasticInput(props: ElasticInputProps) {
         context: result.context,
         suggestions: result.suggestions,
         isOpen: stateRef.current.showDropdown || stateRef.current.showDatePicker,
+        value: currentValueRef.current,
+        selectionStart: offset,
+        selectionEnd: selEnd ?? offset,
       });
       if (decision === false) {
         setShowDropdown(false);
@@ -1098,6 +1101,9 @@ export function ElasticInput(props: ElasticInputProps) {
           context: s.cursorContext,
           suggestions: s.suggestions,
           isOpen: s.showDropdown || s.showDatePicker,
+          value: currentValueRef.current,
+          selectionStart: s.cursorOffset,
+          selectionEnd: s.selectionEnd,
         });
         if (decision === false) {
           setShowDropdown(false);

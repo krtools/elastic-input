@@ -953,6 +953,9 @@ The `DropdownOpenContext` contains:
 | `context` | `CursorContext` | Current cursor context (field name, value, operator, etc.) |
 | `suggestions` | `Suggestion[]` | Suggestions the engine computed |
 | `isOpen` | `boolean` | Whether the dropdown is currently open |
+| `value` | `string` | Current query string |
+| `selectionStart` | `number` | Start offset of text selection/caret |
+| `selectionEnd` | `number` | End offset of text selection/caret (same as `selectionStart` when no selection) |
 
 When the callback is active, the string-constant mode logic (including the `'manual'` state machine and `'input'` whitespace detection) is bypassed entirely. The callback receives every trigger and has full control.
 
@@ -962,6 +965,7 @@ When the callback is active, the string-constant mode logic (including the `'man
 - **Suppress when empty:** `(ctx) => ctx.suggestions.length > 0 ? null : false` — hide when no suggestions
 - **Field-value only:** `(ctx) => ctx.context.type === 'FIELD_VALUE' ? null : false` — only show in field value positions
 - **Sticky:** `(ctx) => ctx.isOpen ? true : null` — once open, keep open until explicitly closed
+- **Suppress on boolean operators:** `(ctx) => ctx.context.type === 'OPERATOR' ? false : null` — hide when cursor is on AND/OR/NOT
 
 ### 8.3.1 Dropdown Trigger Options
 

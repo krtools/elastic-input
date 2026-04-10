@@ -16,6 +16,9 @@ function makeContext(overrides: Partial<DropdownOpenContext> = {}): DropdownOpen
     context: { type: 'FIELD_NAME', partial: 'sta', fieldName: undefined } as CursorContext,
     suggestions: [],
     isOpen: false,
+    value: 'sta',
+    selectionStart: 3,
+    selectionEnd: 3,
     ...overrides,
   };
 }
@@ -86,6 +89,26 @@ describe('dropdown.open callback contract', () => {
     expect(spy.mock.calls[0][0].suggestions[0].text).toBe('status:');
   });
 
+  it('callback receives current value', () => {
+    const spy = vi.fn((_ctx: DropdownOpenContext) => null);
+    spy(makeContext({ value: 'status:active' }));
+    expect(spy.mock.calls[0][0].value).toBe('status:active');
+  });
+
+  it('callback receives selection offsets (caret)', () => {
+    const spy = vi.fn((_ctx: DropdownOpenContext) => null);
+    spy(makeContext({ selectionStart: 5, selectionEnd: 5 }));
+    expect(spy.mock.calls[0][0].selectionStart).toBe(5);
+    expect(spy.mock.calls[0][0].selectionEnd).toBe(5);
+  });
+
+  it('callback receives selection offsets (range)', () => {
+    const spy = vi.fn((_ctx: DropdownOpenContext) => null);
+    spy(makeContext({ selectionStart: 2, selectionEnd: 8 }));
+    expect(spy.mock.calls[0][0].selectionStart).toBe(2);
+    expect(spy.mock.calls[0][0].selectionEnd).toBe(8);
+  });
+
   describe('practical callback patterns', () => {
     it('show only on Ctrl+Space (manual-like)', () => {
       const open: DropdownOpenProp = (ctx) => ctx.trigger === 'ctrlSpace' ? null : false;
@@ -109,6 +132,17 @@ describe('dropdown.open callback contract', () => {
       expect(evaluate(open, makeContext({
         context: { type: 'FIELD_NAME', partial: 'sta' } as CursorContext,
       }))).toBe('hide');
+    });
+
+    it('suppress on boolean operators using context', () => {
+      const open: DropdownOpenProp = (ctx) =>
+        ctx.context.type === 'OPERATOR' ? false : null;
+      expect(evaluate(open, makeContext({
+        context: { type: 'OPERATOR', partial: 'AN' } as CursorContext,
+      }))).toBe('hide');
+      expect(evaluate(open, makeContext({
+        context: { type: 'FIELD_NAME', partial: 'sta' } as CursorContext,
+      }))).toBe('engine-decides');
     });
 
     it('keep open once opened (sticky)', () => {

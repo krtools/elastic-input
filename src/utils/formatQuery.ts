@@ -50,7 +50,7 @@ export function formatQuery(input: string | ASTNode, options?: FormatQueryOption
   } else {
     ast = input;
   }
-  if (!ast) return typeof input === 'string' ? input : '';
+  if (!ast) return '';
   return printNode(ast, 0, maxLineLength, indent, opMap);
 }
 

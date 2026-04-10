@@ -902,6 +902,8 @@ When `features.formatQuery` is enabled (default: `false`):
 
 Pressing **Alt+Shift+F** pretty-prints the current query in-place using `formatQuery`. The cursor is placed at the end of the formatted result. If formatting produces no change, nothing happens.
 
+Whitespace-only input is trimmed to an empty string by `formatQuery` (tested in `formatQuery.test.ts` → "trims whitespace-only input to empty string").
+
 ---
 
 ## 8. Dropdown Positioning

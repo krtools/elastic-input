@@ -88,6 +88,12 @@ describe('formatQuery', () => {
     expect(formatQuery('')).toBe('');
   });
 
+  it('trims whitespace-only input to empty string', () => {
+    expect(formatQuery('   ')).toBe('');
+    expect(formatQuery('\t  \n  ')).toBe('');
+    expect(formatQuery(' ')).toBe('');
+  });
+
   it('accepts an AST node directly', () => {
     const tokens = new Lexer('status:active AND name:test').tokenize();
     const ast = new Parser(tokens).parse();

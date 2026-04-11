@@ -538,6 +538,28 @@ export function DemoApp() {
         ),
       );
     }
+    if (field.name === 'segment') {
+      const segments = [
+        'enterprise-annual', 'mid-market-growth', 'smb-starter',
+        'new-lead-inbound', 'sales-qualified', 'demo-scheduled',
+        'partner-referral', 'outbound-cold', 'marketing-qualified',
+        'high-value-renewal', 'at-risk-churn', 'expansion-ready',
+        'onboarding-active', 'trial-converted', 'self-serve-free',
+      ];
+      return React.createElement('div', { style: { padding: '4px 0' } },
+        React.createElement('div', { style: { fontWeight: 700, fontSize: '13px', marginBottom: '6px' } }, 'Segments'),
+        React.createElement('div', {
+          style: { display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: '4px 12px', fontSize: '12px' },
+        },
+          ...segments.map(s =>
+            React.createElement('div', {
+              key: s,
+              style: { opacity: 0.85, whiteSpace: 'nowrap' },
+            }, s)
+          ),
+        ),
+      );
+    }
     return null;
   }, []);
 

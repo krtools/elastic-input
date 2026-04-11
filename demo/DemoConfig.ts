@@ -13,6 +13,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'tags', label: 'Tags', type: 'string', description: 'Contact tags' },
   { name: 'age', label: 'Age', type: 'string', description: 'Contact age (years since DOB)', placeholder: false },
   { name: 'code', label: 'Code', type: 'string', description: 'Internal code (may contain special chars)' },
+  { name: 'segment', label: 'Segment', type: 'string', description: 'Contact segment (see grid hint)', suggestions: false },
   { name: 'slow', label: 'Slow Field', type: 'string', description: 'Slow async fetch (3s delay)' },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)' },
 ];

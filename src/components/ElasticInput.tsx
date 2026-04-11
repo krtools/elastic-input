@@ -865,7 +865,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
-  const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number) => {
+  const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
     if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
     if (!triggerOnNavigation) {
       // Navigation won't open the dropdown, but should close it if open
@@ -878,10 +878,10 @@ export function ElasticInput(props: ElasticInputProps) {
     if (navigationDelay > 0) {
       navDelayTimerRef.current = setTimeout(() => {
         navDelayTimerRef.current = null;
-        updateSuggestionsFromTokens(toks, offset);
+        updateSuggestionsFromTokens(toks, offset, selEnd);
       }, navigationDelay);
     } else {
-      updateSuggestionsFromTokens(toks, offset);
+      updateSuggestionsFromTokens(toks, offset, selEnd);
     }
   }, [triggerOnNavigation, navigationDelay, updateSuggestionsFromTokens, closeDropdown]);
 
@@ -1801,7 +1801,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const selRange = getSelectionCharRange(editorRef.current);
       setCursorOffset(selRange.start);
       setSelectionEnd(selRange.end);
-      triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start);
+      triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start, selRange.end);
     }
   }, [triggerSuggestionsFromNavigation]);
 
@@ -1892,7 +1892,7 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     }
 
-    triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start);
+    triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start, selRange.end);
   }, [triggerSuggestionsFromNavigation, closeDropdown]);
 
   const doPaste = React.useCallback((text: string) => {

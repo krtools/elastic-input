@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
-import { FieldConfig, SuggestionItem } from '../../types';
+import { FieldConfig, SuggestionItem, DropdownOpenContext } from '../../types';
 import { findNodeAtOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
 
@@ -839,6 +839,69 @@ describe('ElasticInput browser tests', () => {
       editorEl.dispatchEvent(new Event('scroll'));
 
       expect(await waitFor(() => !dropdownVisible(), 1000)).toBe(true);
+    });
+  });
+
+  describe('dropdown.open callback selectionStart/selectionEnd', () => {
+    it('selectionStart and selectionEnd differ when text is selected', async () => {
+      const captured: DropdownOpenContext[] = [];
+      const openFn = (ctx: DropdownOpenContext): boolean | null => {
+        captured.push({ ...ctx });
+        return null;
+      };
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: openFn },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active');
+      await new Promise(r => setTimeout(r, 150));
+
+      // Select "active" (characters 7-13) via Shift+Home to select from cursor to start
+      captured.length = 0;
+      await userEvent.keyboard('{Shift>}{Home}{/Shift}');
+      await new Promise(r => setTimeout(r, 200));
+
+      // Shift+Home selects from cursor (end of "status:active") to start — 13 chars
+      const withSelection = captured.filter(c => c.selectionStart !== c.selectionEnd);
+      expect(withSelection.length).toBeGreaterThan(0);
+      const last = withSelection[withSelection.length - 1];
+      expect(last.selectionStart).toBe(0);
+      expect(last.selectionEnd).toBe(13);
+    });
+
+    it('selectionStart equals selectionEnd with collapsed caret', async () => {
+      const captured: DropdownOpenContext[] = [];
+      const openFn = (ctx: DropdownOpenContext): boolean | null => {
+        captured.push({ ...ctx });
+        return null;
+      };
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: openFn },
+        }),
+      );
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      captured.length = 0;
+      await userEvent.type(editor, 'hello');
+      await new Promise(r => setTimeout(r, 150));
+
+      // All invocations during typing should have collapsed caret
+      expect(captured.length).toBeGreaterThan(0);
+      for (const ctx of captured) {
+        expect(ctx.selectionStart).toBe(ctx.selectionEnd);
+      }
     });
   });
 });

@@ -87,6 +87,7 @@ export function getDropdownStyle(colors: Required<ColorConfig>, styles: Required
     boxShadow: styles.dropdownShadow,
     maxHeight: styles.dropdownMaxHeight,
     overflowY: 'auto',
+    width: 'max-content',
     minWidth: styles.dropdownMinWidth,
     maxWidth: styles.dropdownMaxWidth,
     padding: '4px 0',

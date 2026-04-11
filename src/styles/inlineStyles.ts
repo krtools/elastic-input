@@ -224,7 +224,7 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       backgroundColor: 'rgba(9, 105, 218, 0.1)',
     },
     dayOtherMonth: {
-      opacity: 0.3,
+      opacity: .45
     },
     dayToday: {
       fontWeight: 700,

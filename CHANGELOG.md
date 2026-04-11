@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.1 — 2026-04-11
+
+### Features
+
+- **Validation error precedence** — When multiple errors overlap the same range, higher-precedence errors now suppress lower-precedence ones. Order: `SYNTAX_ERROR` > `INVALID_VALUE` > `UNKNOWN_FIELD` > `AMBIGUOUS_PRECEDENCE` > `CUSTOM`. Exported as `deduplicateErrors()`.
+- **Empty-value check before unknown-field** — `blah:` now reports "Missing value" (`SYNTAX_ERROR`) instead of "Unknown field" (`UNKNOWN_FIELD`), since a syntax issue is more actionable than a possible config issue.
+
+### Bug Fixes
+
+- **Dropdown overflow near viewport edge** — Dropdowns with wide custom content (e.g. `renderFieldHint` grids) no longer extend past the right edge of the viewport. A post-render measurement nudges the dropdown left when it overflows.
+- **`dropdown.open` callback `selectionEnd` always equaling `selectionStart`** — The selection end was never passed through the navigation path, so the callback always saw a collapsed caret. Now correctly reports the full selection range.
+- **Date picker other-month day opacity** — Adjacent month days in the calendar were too faded at 0.3 opacity; increased to 0.45.
+
 ## 0.8.0 — 2026-04-10
 
 ### Features

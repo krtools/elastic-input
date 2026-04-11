@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.2 — 2026-04-11
+
+### Bug Fixes
+
+- **Dropdown width crunching near viewport edge** — Absolutely positioned dropdowns were shrink-to-fit constrained by the space between `left` and the viewport edge, causing wide content (e.g. `renderFieldHint` grids) to be squeezed. Fixed by setting `width: max-content` so the dropdown sizes to its content first (capped by `maxWidth`), then the post-render nudge shifts it left if needed.
+
+### Demo
+
+- Added `segment` field (CRM tab) with a 3-column grid hint for testing wide dropdown positioning.
+
 ## 0.8.1 — 2026-04-11
 
 ### Features

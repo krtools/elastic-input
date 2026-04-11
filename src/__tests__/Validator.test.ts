@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator, ValidateValueFn } from '../validation/Validator';
+import { Validator, ValidateValueFn, deduplicateErrors, ValidationError } from '../validation/Validator';
 import { FieldConfig, ValidateValueContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -1071,6 +1071,87 @@ describe('Incomplete expression errors', () => {
       const errors = validate('hello^0');
       expect(errors).toHaveLength(1);
       expect(errors[0].type).toBe('SYNTAX_ERROR');
+    });
+  });
+
+  describe('deduplicateErrors', () => {
+    it('returns empty array for empty input', () => {
+      expect(deduplicateErrors([])).toEqual([]);
+    });
+
+    it('returns single error unchanged', () => {
+      const err: ValidationError = { message: 'bad', start: 0, end: 5, type: 'UNKNOWN_FIELD' };
+      expect(deduplicateErrors([err])).toEqual([err]);
+    });
+
+    it('SYNTAX_ERROR supersedes UNKNOWN_FIELD on the same range', () => {
+      const syntax: ValidationError = { message: 'Missing value', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const unknown: ValidationError = { message: 'Unknown field', start: 0, end: 4, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([unknown, syntax]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('SYNTAX_ERROR supersedes UNKNOWN_FIELD regardless of input order', () => {
+      const syntax: ValidationError = { message: 'Missing value', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const unknown: ValidationError = { message: 'Unknown field', start: 0, end: 4, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([syntax, unknown]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('keeps non-overlapping errors of different types', () => {
+      const syntax: ValidationError = { message: 'bad syntax', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const unknown: ValidationError = { message: 'unknown', start: 10, end: 15, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([syntax, unknown]);
+      expect(result).toHaveLength(2);
+    });
+
+    it('keeps errors of the same type on the same range', () => {
+      const a: ValidationError = { message: 'err A', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const b: ValidationError = { message: 'err B', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      expect(deduplicateErrors([a, b])).toHaveLength(2);
+    });
+
+    it('higher-precedence error covering a wider range suppresses contained lower-precedence', () => {
+      const outer: ValidationError = { message: 'Missing value after blah:', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const inner: ValidationError = { message: 'Unknown field: blah', start: 0, end: 4, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([inner, outer]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('does not suppress partially overlapping errors', () => {
+      const a: ValidationError = { message: 'syntax', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const b: ValidationError = { message: 'unknown', start: 3, end: 10, type: 'UNKNOWN_FIELD' };
+      // b is not fully contained in a (b.end > a.end), so both should survive
+      const result = deduplicateErrors([a, b]);
+      expect(result).toHaveLength(2);
+    });
+
+    it('INVALID_VALUE supersedes UNKNOWN_FIELD', () => {
+      const invalid: ValidationError = { message: 'bad value', start: 0, end: 5, type: 'INVALID_VALUE' };
+      const unknown: ValidationError = { message: 'unknown', start: 0, end: 4, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([unknown, invalid]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('INVALID_VALUE');
+    });
+
+    it('real case: parser SYNTAX_ERROR suppresses validator UNKNOWN_FIELD', () => {
+      const syntaxErr: ValidationError = { message: 'Missing value after blah:', start: 0, end: 5, type: 'SYNTAX_ERROR' };
+      const unknownErr: ValidationError = { message: 'Unknown field: blah', start: 0, end: 4, type: 'UNKNOWN_FIELD' };
+      const result = deduplicateErrors([syntaxErr, unknownErr]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('SYNTAX_ERROR');
+    });
+
+    it('real case: blah: reports SYNTAX_ERROR not UNKNOWN_FIELD', () => {
+      // "blah:" — empty value is a syntax error, which takes precedence
+      // over the field being unknown (which may just be a config issue)
+      const errors = validate('blah:');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].type).toBe('SYNTAX_ERROR');
+      expect(errors[0].message).toContain('Missing value');
     });
   });
 });

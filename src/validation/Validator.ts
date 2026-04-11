@@ -37,6 +37,40 @@ export interface ValidationError {
   type?: ValidationErrorType;
 }
 
+/** Precedence rank for error types — lower number = higher priority. */
+const ERROR_TYPE_PRECEDENCE: Record<ValidationErrorType, number> = {
+  SYNTAX_ERROR: 0,
+  INVALID_VALUE: 1,
+  UNKNOWN_FIELD: 2,
+  AMBIGUOUS_PRECEDENCE: 3,
+  CUSTOM: 4,
+};
+
+/**
+ * When multiple errors overlap the same character range, keep only the
+ * highest-precedence one.  E.g. a SYNTAX_ERROR on `blah:` supersedes
+ * an UNKNOWN_FIELD on the same span.
+ */
+export function deduplicateErrors(errors: ValidationError[]): ValidationError[] {
+  if (errors.length <= 1) return errors;
+  // Sort by precedence (highest first), then by start offset
+  const sorted = [...errors].sort((a, b) => {
+    const pa = ERROR_TYPE_PRECEDENCE[a.type ?? 'SYNTAX_ERROR'];
+    const pb = ERROR_TYPE_PRECEDENCE[b.type ?? 'SYNTAX_ERROR'];
+    return pa !== pb ? pa - pb : a.start - b.start;
+  });
+  const kept: ValidationError[] = [];
+  for (const err of sorted) {
+    // Drop this error if a higher-precedence error already covers its range
+    const dominated = kept.some(k =>
+      ERROR_TYPE_PRECEDENCE[k.type ?? 'SYNTAX_ERROR'] < ERROR_TYPE_PRECEDENCE[err.type ?? 'SYNTAX_ERROR'] &&
+      k.start <= err.start && k.end >= err.end
+    );
+    if (!dominated) kept.push(err);
+  }
+  return kept;
+}
+
 export class Validator {
   private fields: Map<string, FieldConfig>;
 
@@ -163,18 +197,7 @@ export class Validator {
         // * as field name means all fields — skip field-specific validation
         if (node.field === '*') return;
 
-        const field = this.fields.get(node.field);
-        if (!field) {
-          errors.push({
-            message: `Unknown field: "${node.field}"`,
-            start: node.start,
-            end: node.start + node.field.length,
-            field: node.field,
-            type: 'UNKNOWN_FIELD',
-          });
-          return;
-        }
-
+        // Check empty value first — SYNTAX_ERROR outranks UNKNOWN_FIELD
         if (node.value === '') {
           const opLabel = node.operator === ':' ? ':' : node.operator;
           errors.push({
@@ -183,6 +206,18 @@ export class Validator {
             end: node.end,
             field: node.field,
             type: 'SYNTAX_ERROR',
+          });
+          return;
+        }
+
+        const field = this.fields.get(node.field);
+        if (!field) {
+          errors.push({
+            message: `Unknown field: "${node.field}"`,
+            start: node.start,
+            end: node.start + node.field.length,
+            field: node.field,
+            type: 'UNKNOWN_FIELD',
           });
           return;
         }

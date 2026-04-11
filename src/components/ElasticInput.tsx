@@ -6,7 +6,7 @@ import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
-import { Validator, ValidationError } from '../validation/Validator';
+import { Validator, ValidationError, deduplicateErrors } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig } from '../types';
 import { cx } from '../utils/cx';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -454,7 +454,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
+    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -905,7 +905,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
+    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token, fieldTypeMap });
@@ -1329,7 +1329,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
+    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
@@ -1463,7 +1463,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end, type: 'SYNTAX_ERROR' as const }));
-        const newErrors = [...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)];
+        const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;

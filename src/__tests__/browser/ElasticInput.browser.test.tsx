@@ -904,4 +904,52 @@ describe('ElasticInput browser tests', () => {
       }
     });
   });
+
+  describe('dropdown viewport overflow', () => {
+    it('dropdown with wide custom content does not overflow the right edge of the viewport', async () => {
+      // Render a custom field hint that is ~350px wide via a minWidth so
+      // the dropdown element is forced to be at least 350px regardless of
+      // CSS maxWidth.
+      const renderFieldHint = (_field: FieldConfig, _partial: string) => {
+        return React.createElement('div', {
+          style: { minWidth: '350px', padding: '8px' },
+          className: 'test-wide-hint',
+        }, 'Wide hint content that forces dropdown wider');
+      };
+
+      // Position the input near the right edge of the viewport.
+      // Don't provide fetchSuggestions so the sync path renders the hint directly.
+      const container = renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: {
+            open: 'always' as const,
+            renderFieldHint,
+          },
+          styles: { dropdownMaxWidth: '500px' },
+        }),
+      );
+      container.style.cssText = 'position:absolute; right:0; top:50px; width:200px;';
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:');
+      await new Promise(r => setTimeout(r, 300));
+
+      // Dropdown should be visible
+      expect(await waitFor(dropdownVisible)).toBe(true);
+
+      const dropdown = document.querySelector(DROPDOWN) as HTMLElement;
+      expect(dropdown).not.toBeNull();
+
+      const rect = dropdown.getBoundingClientRect();
+      const vw = window.innerWidth;
+
+      // The dropdown's right edge must not exceed the viewport
+      expect(rect.right).toBeLessThanOrEqual(vw);
+      // And its left must not be negative
+      expect(rect.left).toBeGreaterThanOrEqual(0);
+    });
+  });
 });

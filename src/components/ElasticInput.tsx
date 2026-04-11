@@ -1125,6 +1125,23 @@ export function ElasticInput(props: ElasticInputProps) {
     manualActivationContextRef.current = null;
   }, [dropdownOpen]);
 
+  // After the dropdown renders, check if it overflows the viewport and nudge left.
+  // This handles custom content (renderFieldHint grids, etc.) that may be wider
+  // than the 300px estimate used during initial positioning.
+  const dropdownNudgedRef = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (dropdownNudgedRef.current) { dropdownNudgedRef.current = false; return; }
+    const el = dropdownListRef.current;
+    if (!el || !dropdownPosition) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    if (rect.right > vw - 8) {
+      const shift = rect.right - vw + 8;
+      dropdownNudgedRef.current = true;
+      setDropdownPosition(prev => prev ? { ...prev, left: Math.max(8, prev.left - shift) } : prev);
+    }
+  }, [dropdownPosition, showDropdown, showDatePicker, suggestions]);
+
   // Reposition dropdown on window resize / scroll so it stays anchored
   React.useEffect(() => {
     const reposition = () => {

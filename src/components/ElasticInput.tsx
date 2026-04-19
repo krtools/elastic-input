@@ -4,6 +4,7 @@ import { Lexer } from '../lexer/Lexer';
 import { Token, TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
+import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors } from '../validation/Validator';
@@ -1857,20 +1858,40 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Double-click word selection: prevent the browser's default which includes
   // trailing whitespace. We compute word boundaries ourselves and set a clean selection.
+  // Triple-click clause selection: select the whole operand (including modifiers)
+  // plus one adjacent boolean connector so deletion leaves a valid query.
   // We must also preventDefault on the subsequent mouseup, otherwise the browser's
   // mouseup handler clears our selection (it sees no selection-in-progress since we
   // prevented the mousedown from initiating one).
-  const dblClickHandledRef = React.useRef(false);
+  const mouseSelectHandledRef = React.useRef(false);
 
   const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-    if (e.detail !== 2 || !editorRef.current) return;
+    if (!editorRef.current) return;
+    if (e.detail !== 2 && e.detail !== 3) return;
+
+    if (e.detail === 3) {
+      // Plain mode skips parsing (ast is null), so there's no clause to select —
+      // fall through to browser default (typically selects the whole line).
+      if (!stateRef.current.ast) return;
+
+      const range = document.caretRangeFromPoint(e.clientX, e.clientY);
+      if (!range) return;
+      const offset = countOffsetTo(editorRef.current, range.startContainer, range.startOffset);
+      const clauseRange = getClauseRangeAtOffset(stateRef.current.ast, currentValueRef.current, offset);
+      if (!clauseRange || clauseRange.start >= clauseRange.end) return;
+
+      e.preventDefault();
+      mouseSelectHandledRef.current = true;
+      setSelectionCharRange(editorRef.current, clauseRange.start, clauseRange.end);
+      return;
+    }
+
     e.preventDefault();
-    dblClickHandledRef.current = true;
+    mouseSelectHandledRef.current = true;
 
     const range = document.caretRangeFromPoint(e.clientX, e.clientY);
     if (!range) return;
     const offset = countOffsetTo(editorRef.current, range.startContainer, range.startOffset);
-
     const text = currentValueRef.current;
     const isWordChar = (ch: string) => !/[\s:()[\]{}"<>!,;|&=~^+\-*/\\]/.test(ch);
 
@@ -1886,9 +1907,9 @@ export function ElasticInput(props: ElasticInputProps) {
   }, []);
 
   const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
-    if (dblClickHandledRef.current) {
+    if (mouseSelectHandledRef.current) {
       e.preventDefault();
-      dblClickHandledRef.current = false;
+      mouseSelectHandledRef.current = false;
     }
   }, []);
 

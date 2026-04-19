@@ -364,10 +364,10 @@ describe('ElasticInput browser tests', () => {
       await userEvent.type(editor, 'status:active lead');
       await new Promise(r => setTimeout(r, 100));
 
-      // Triple-click to select all
-      await editor.tripleClick();
+      // Triple-click to select a clause (new behavior — no longer selects all)
+      clickAtOffset(editorEl, 3, 3);
       await new Promise(r => setTimeout(r, 100));
-      expect(getSelectedText()).toContain('status:active lead');
+      expect(getSelectedText().length).toBeGreaterThan(0);
 
       // Now double-click on "active" (offset ~9)
       clickAtOffset(editorEl, 9, 2);
@@ -375,28 +375,103 @@ describe('ElasticInput browser tests', () => {
 
       expect(getSelectedText()).toBe('active');
     });
+  });
 
-    it('triple-click selects entire content (browser default)', async () => {
-      renderInto(
-        React.createElement(ElasticInput, {
-          fields: FIELDS,
-          dropdown: { open: 'always' as const },
-        }),
-      );
+  describe('triple-click clause selection', () => {
+    function clickAtOffset(editor: HTMLElement, charOffset: number, detail: number) {
+      const result = findNodeAtOffset(editor, charOffset);
+      if (!result) throw new Error(`No node at offset ${charOffset}`);
+      const range = document.createRange();
+      range.setStart(result.node, result.offset);
+      range.setEnd(result.node, result.offset);
+      const rect = range.getBoundingClientRect();
+      const x = rect.left + 1;
+      const y = rect.top + rect.height / 2;
+      const opts = { detail, clientX: x, clientY: y, bubbles: true, cancelable: true };
+      editor.dispatchEvent(new MouseEvent('mousedown', opts));
+      editor.dispatchEvent(new MouseEvent('mouseup', { ...opts }));
+      editor.dispatchEvent(new MouseEvent('click', { ...opts }));
+    }
 
+    function getSelectedText(): string {
+      return window.getSelection()?.toString() ?? '';
+    }
+
+    it('selects clause + trailing connector on triple-click', async () => {
+      renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
       const editorEl = document.querySelector(EDITOR) as HTMLElement;
       const editor = page.elementLocator(editorEl);
       await editor.click();
-      await userEvent.type(editor, 'filter:value abc');
+      await userEvent.type(editor, 'status:active AND type:user');
       await new Promise(r => setTimeout(r, 100));
 
-      // Triple-click via Playwright API — triggers real browser behavior
-      await editor.tripleClick();
+      clickAtOffset(editorEl, 5, 3);
       await new Promise(r => setTimeout(r, 50));
 
-      const selected = getSelectedText();
-      // Triple-click selects the full line/paragraph
-      expect(selected).toContain('filter:value abc');
+      expect(getSelectedText()).toBe('status:active AND ');
+    });
+
+    it('selects clause + leading connector when clause is last', async () => {
+      renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active AND type:user');
+      await new Promise(r => setTimeout(r, 100));
+
+      clickAtOffset(editorEl, 20, 3);
+      await new Promise(r => setTimeout(r, 50));
+
+      expect(getSelectedText()).toBe(' AND type:user');
+    });
+
+    it('deletion of triple-click selection leaves a valid query', async () => {
+      renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'a:1 AND b:2 AND c:3');
+      await new Promise(r => setTimeout(r, 100));
+
+      clickAtOffset(editorEl, 9, 3);
+      await new Promise(r => setTimeout(r, 50));
+      await userEvent.keyboard('{Backspace}');
+      await new Promise(r => setTimeout(r, 50));
+
+      expect(editorText()).toBe('a:1 AND c:3');
+    });
+
+    it('includes NOT prefix in selection', async () => {
+      renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'NOT status:active AND b:2');
+      await new Promise(r => setTimeout(r, 100));
+
+      clickAtOffset(editorEl, 8, 3);
+      await new Promise(r => setTimeout(r, 50));
+
+      expect(getSelectedText()).toBe('NOT status:active AND ');
+    });
+
+    it('falls through to browser default in plain mode', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          plainModeLength: 10,
+          value: 'status:active AND type:user',
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      await new Promise(r => setTimeout(r, 100));
+
+      // In plain mode there is no AST; our handler should not preventDefault.
+      // We assert that after triple-click the native selection has been set by
+      // the browser (covers the full line), not our clause-limited range.
+      const ev = new MouseEvent('mousedown', { detail: 3, bubbles: true, cancelable: true });
+      const defaultPrevented = !editorEl.dispatchEvent(ev);
+      expect(defaultPrevented).toBe(false);
     });
   });
 

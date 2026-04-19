@@ -622,8 +622,19 @@ Double-clicking a word in the editor selects the word without trailing whitespac
 - Double-click "value" in `filter:value abc` → selects "value" (not "value ")
 - Backspace after → `filter: abc` (space preserved)
 - Double-click "filter" in `filter:value` → selects "filter" (stops at `:`)
-- Triple-click is unaffected (browser default, selects entire line)
-- **Tests:** `ElasticInput.browser.test.tsx` → "double-click selects word without trailing whitespace", "double-click + backspace preserves adjacent space", "triple-click selects entire content (browser default)"
+- **Tests:** `ElasticInput.browser.test.tsx` → "double-click selects word without trailing whitespace", "double-click + backspace preserves adjacent space"
+
+### 5.3.1 Triple-Click Clause Selection
+
+Triple-clicking in the editor selects the whole clause at that offset, including prefix modifiers (`NOT`, `-`, `+`, `!`) and suffix modifiers (`^boost`, `~fuzzy`), plus one adjacent boolean connector so that deleting the selection leaves a syntactically valid query. The trailing connector is preferred; when the clause is the last operand, the leading connector is consumed instead. Implemented as a pure AST walk (`getClauseRangeAtOffset` in `src/parser/findClauseAtOffset.ts`) plus an `e.detail === 3` branch in `handleMouseDown`.
+
+- Triple-click on `status:active` in `status:active AND type:user` → selects `status:active AND ` (trailing connector consumed)
+- Triple-click on `type:user` in the same → selects ` AND type:user` (leading connector, last clause)
+- Triple-click on `b:2` in `a:1 AND b:2 AND c:3` → deleting leaves `a:1 AND c:3`
+- Triple-click on `status:active` in `NOT status:active AND b:2` → selects `NOT status:active AND ` (NOT included)
+- Triple-click inside `(a:1 OR b:2)` → selects the whole group
+- In plain mode (`plainModeLength` exceeded, AST is `null`), the handler falls through to browser default (typically selects the whole line) — no clause selection is attempted.
+- **Tests:** `findClauseAtOffset.test.ts` (39 unit tests); `ElasticInput.browser.test.tsx` → "selects clause + trailing connector on triple-click", "selects clause + leading connector when clause is last", "deletion of triple-click selection leaves a valid query", "includes NOT prefix in selection", "falls through to browser default in plain mode"
 
 ### 5.4 Selection-Aware Replacement
 

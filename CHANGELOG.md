@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.0 — 2026-04-20
+
+### Features
+
+- **Triple-click clause selection** — Triple-clicking in the editor selects the whole clause at that offset, including prefix modifiers (`NOT`, `-`, `+`, `!`) and suffix modifiers (`^boost`, `~fuzzy`), plus one adjacent boolean connector so deleting the selection leaves a syntactically valid query. Prefers the trailing connector; falls back to leading when the clause is the last operand. In plain mode (no AST), falls through to browser-default triple-click behavior.
+
 ## 0.8.2 — 2026-04-11
 
 ### Bug Fixes

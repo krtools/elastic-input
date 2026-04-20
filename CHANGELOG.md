@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 — 2026-04-20
+
+### Features
+
+- **Unified loading spinner for slow subsequent fetches** — Previously, once an async fetch cycle was active, subsequent keystrokes kept the last-rendered suggestions visible indefinitely, which made slow backends look frozen. Now every async context update (first entry and subsequent) goes through the same `"Searching…"` spinner path, subject to `dropdown.loadingDelay`. The delay timer restarts on each keystroke, so rapid typing still never flashes the spinner — it only appears when the user pauses and the fetch exceeds the configured delay.
+
+### Behavior Changes
+
+- **Always-mode dropdown suppressed on boolean/suffix operators** — When `dropdown.open` is `'always'`, the dropdown is now hidden whenever the caret is on or inside `AND` / `OR` / `NOT` (including `&&` / `||`) or a fuzzy/boost suffix (`~N` / `^N`). Inserting an autocomplete in the middle of those tokens was never useful. Prefix operators (`+` / `-` / `!`) are intentionally **not** suppressed — typing `-` and getting field autocomplete is a legitimate flow.
+
+### Demo
+
+- Added a "Loading spinner delay" select to the sidebar (options: 0, 100, 150, 300, 500, 1500 ms; default 150 ms) so the new spinner behavior is adjustable at runtime.
+
 ## 0.9.0 — 2026-04-20
 
 ### Features

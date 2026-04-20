@@ -942,7 +942,7 @@ Controls when the autocomplete dropdown appears. Accepts either a string constan
 
 | Constant | Behavior |
 |----------|----------|
-| `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. If dismissed (e.g. via Escape), **Ctrl+Space** (Cmd+Space on macOS) restores it. |
+| `'always'` (default) | Dropdown appears automatically as the user types, based on cursor context. If dismissed (e.g. via Escape), **Ctrl+Space** (Cmd+Space on macOS) restores it. Suppressed when the caret is on or inside a boolean keyword (`AND`/`OR`/`NOT`/`&&`/`||`) or a fuzzy/boost suffix (`~N` / `^N`) — inserting an autocomplete mid-operator would never make sense. Prefix operators (`+`/`-`/`!`) are **not** suppressed, since they normally precede a field or value the user still wants autocomplete for. Tested in `ElasticInput.browser.test.tsx` ("always-mode operator suppression"). |
 | `'input'` | Dropdown appears only when the user types non-whitespace characters (or deletes/pastes). Typing whitespace (space, tab) dismisses the dropdown. Navigation events (click, arrow keys, focus) never trigger the dropdown. **Ctrl+Space** always works as a manual override. |
 | `'never'` | Dropdown is completely disabled. No suggestions, date picker, or hints are shown. |
 | `'manual'` | Dropdown only appears after the user presses **Ctrl+Space** (or Cmd+Space on macOS). Once activated, the dropdown stays open for the current context type. When the context changes (e.g. moving from a field name to a field value), the dropdown is dismissed and must be re-activated with another Ctrl+Space. Escape also dismisses it. |

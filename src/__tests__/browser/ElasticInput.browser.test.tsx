@@ -3,7 +3,7 @@ import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig, SuggestionItem, DropdownOpenContext } from '../../types';
-import { findNodeAtOffset } from '../../utils/cursorUtils';
+import { findNodeAtOffset, setCaretCharOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
 
 afterEach(cleanup);
@@ -272,6 +272,136 @@ describe('ElasticInput browser tests', () => {
       // Wait and verify dropdown stays closed
       await new Promise(r => setTimeout(r, 500));
       expect(dropdownVisible()).toBe(false);
+    });
+  });
+
+  describe('always-mode operator suppression', () => {
+    async function setCaret(editorEl: HTMLElement, offset: number) {
+      setCaretCharOffset(editorEl, offset);
+      // handleKeyUp only runs nav logic when e.key is a nav key — dispatch a
+      // proper KeyboardEvent so suggestion state recomputes at the new caret.
+      editorEl.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true }));
+      await new Promise(r => setTimeout(r, 80));
+    }
+
+    it('suppresses dropdown when caret is on/inside AND/OR/&&/||', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:active AND level:1');
+      await new Promise(r => setTimeout(r, 100));
+
+      // 'status:active AND level:1' — AND is at offsets [14, 17)
+      // Check |AND (14), A|ND (15), AN|D (16), AND| (17)
+      for (const caret of [14, 15, 16, 17]) {
+        await setCaret(editorEl, caret);
+        expect(dropdownVisible(), `caret=${caret}`).toBe(false);
+      }
+    });
+
+    it('suppresses dropdown on/inside && and ||', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'a && b || c');
+      await new Promise(r => setTimeout(r, 100));
+
+      // 'a && b || c'
+      // '&&' at [2, 4), '||' at [7, 9)
+      for (const caret of [2, 3, 4, 7, 8, 9]) {
+        await setCaret(editorEl, caret);
+        expect(dropdownVisible(), `caret=${caret}`).toBe(false);
+      }
+    });
+
+    it('suppresses dropdown when caret is on/inside ~fuzzy', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, '"hello"~2');
+      await new Promise(r => setTimeout(r, 100));
+
+      // '"hello"~2' — TILDE '~2' is at offsets [7, 9)
+      for (const caret of [7, 8, 9]) {
+        await setCaret(editorEl, caret);
+        expect(dropdownVisible(), `caret=${caret}`).toBe(false);
+      }
+    });
+
+    it('suppresses dropdown when caret is on/inside NOT keyword', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'NOT status:active');
+      await new Promise(r => setTimeout(r, 100));
+
+      // 'NOT status:active' — NOT at [0, 3)
+      for (const caret of [0, 1, 2, 3]) {
+        await setCaret(editorEl, caret);
+        expect(dropdownVisible(), `caret=${caret}`).toBe(false);
+      }
+    });
+
+    it('does NOT suppress dropdown for prefix operators +/-/!', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, '-');
+      await new Promise(r => setTimeout(r, 150));
+
+      // After typing '-', the caret is at offset 1 (just after the prefix op).
+      // The dropdown should still surface field suggestions.
+      expect(dropdownVisible()).toBe(true);
+    });
+
+    it('suppresses dropdown when caret is on/inside ^boost', async () => {
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const },
+        }),
+      );
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, '(abc)^5');
+      await new Promise(r => setTimeout(r, 100));
+
+      // '(abc)^5' — BOOST '^5' is at offsets [5, 7)
+      for (const caret of [5, 6, 7]) {
+        await setCaret(editorEl, caret);
+        expect(dropdownVisible(), `caret=${caret}`).toBe(false);
+      }
     });
   });
 

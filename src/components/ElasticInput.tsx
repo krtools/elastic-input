@@ -598,6 +598,25 @@ export function ElasticInput(props: ElasticInputProps) {
         setSuggestions([]);
         return;
       }
+
+      // 'always' mode: suppress the dropdown when the caret is on or inside a
+      // boolean operator (AND/OR/NOT/&&/||) or a fuzzy/boost suffix (~N / ^N).
+      // Inserting an autocomplete in the middle of those tokens would never
+      // make sense. Covers |AND, A|ND, AN|D, AND| cursor positions. Prefix
+      // operators (+/-/!) are NOT suppressed — it's normal to type `-` and
+      // expect field/value autocomplete to follow.
+      if (dropdownMode === 'always') {
+        const onOperatorLikeToken = toks.some(t =>
+          (t.type === TokenType.AND || t.type === TokenType.OR || t.type === TokenType.NOT || t.type === TokenType.TILDE || t.type === TokenType.BOOST)
+          && offset >= t.start && offset <= t.end
+        );
+        if (onOperatorLikeToken) {
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+          return;
+        }
+      }
     }
 
     // Determine if this context will trigger an async fetch

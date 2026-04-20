@@ -275,6 +275,46 @@ describe('ElasticInput browser tests', () => {
     });
   });
 
+  describe('loading spinner on subsequent slow fetches', () => {
+    it('shows "Searching..." on subsequent slow fetch (unified behavior)', async () => {
+      const FETCH_MS = 600;
+      const slowFetch = (fieldName: string, partial: string): Promise<SuggestionItem[]> => {
+        if (fieldName !== 'status') return Promise.resolve([]);
+        const lower = partial.toLowerCase();
+        return new Promise(resolve => setTimeout(() => resolve(
+          STATUS_VALUES.filter(v => v.includes(lower)).map(v => ({ text: v }))
+        ), FETCH_MS));
+      };
+
+      renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: slowFetch,
+          dropdown: { open: 'always' as const, loadingDelay: 100 },
+        }),
+      );
+
+      const editor = page.elementLocator(document.querySelector(EDITOR) as HTMLElement);
+      await editor.click();
+      await userEvent.type(editor, 'status:a');
+
+      // First fetch: "Searching..." should appear after loadingDelay, then results
+      expect(await waitFor(() => dropdownText().includes('Searching'))).toBe(true);
+      expect(await waitFor(() => dropdownText().includes('active'), 2000)).toBe(true);
+
+      // Sanity: spinner is gone once results are in
+      expect(dropdownText()).not.toContain('Searching');
+
+      // Second keystroke while still in async context — this is the new behavior.
+      // Previously the dropdown would "freeze" on the last results for the whole
+      // 600ms; now it should flip to "Searching..." after loadingDelay.
+      await userEvent.type(editor, 'c');
+
+      expect(await waitFor(() => dropdownText().includes('Searching'), 1000)).toBe(true);
+      expect(await waitFor(() => dropdownText().includes('active') && !dropdownText().includes('Searching'), 2000)).toBe(true);
+    });
+  });
+
   describe('double-click word selection', () => {
     /**
      * Simulate a click with a specific detail (click count) at a character offset

@@ -457,6 +457,7 @@ export function DemoApp() {
   // Limit options
   const [maxSuggestions, setMaxSuggestions] = React.useState(8);
   const [suggestDebounceMs, setSuggestDebounceMs] = React.useState(200);
+  const [loadingDelay, setLoadingDelay] = React.useState(150);
 
   // Value type colors
   const [vtString, setVtString] = React.useState(isDark ? '#a5d6ff' : '#0550ae');
@@ -680,6 +681,7 @@ export function DemoApp() {
                     homeEndKeys,
                     maxSuggestions,
                     suggestDebounceMs,
+                    loadingDelay,
                     showSavedSearchHint,
                     showHistoryHint,
                     showOperators,
@@ -967,6 +969,20 @@ export function DemoApp() {
                   { value: 500, label: '500ms' },
                 ]}
                 onChange={setSuggestDebounceMs}
+                theme={theme}
+              />
+              <OptionSelect
+                label="Loading spinner delay"
+                value={loadingDelay}
+                options={[
+                  { value: 0, label: '0ms (instant)' },
+                  { value: 100, label: '100ms' },
+                  { value: 150, label: '150ms' },
+                  { value: 300, label: '300ms' },
+                  { value: 500, label: '500ms' },
+                  { value: 1500, label: '1500ms' },
+                ]}
+                onChange={setLoadingDelay}
                 theme={theme}
               />
             </OptionGroup>

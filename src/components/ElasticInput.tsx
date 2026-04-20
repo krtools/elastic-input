@@ -659,39 +659,11 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    // If we're in an async field and a fetch is already active/pending,
-    // don't flash sync suggestions — keep the current dropdown content.
-    if (willFetchAsync && asyncActiveRef.current) {
-      // Just update context and kick off a new debounced fetch below;
-      // don't touch suggestions/dropdown state (preserves last-good results or spinner).
-      setAutocompleteContext(contextType);
-    } else if (!willFetchAsync) {
-      // Context changed away from async field — cancel any in-flight async work
-      asyncActiveRef.current = false;
-      abortControllerRef.current?.abort();
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
-
-
-      const newSuggestions = applyFieldHint(result.suggestions, result.context);
-      if (newSuggestions.length > 0) {
-        setSuggestions(newSuggestions);
-        if (!dropdownAlignToInput) setShowDropdown(false);
-        setShowDatePicker(false);
-        setSelectedSuggestionIndex((result.context.partial || autoSelect) ? 0 : -1);
-        setAutocompleteContext(contextType);
-        showDropdownAtPosition(newSuggestions.length * 32, 300);
-      } else {
-        setAutocompleteContext(contextType);
-        if (!tryShowNoResults(result.context)) {
-          setShowDropdown(false);
-          setShowDatePicker(false);
-          setSuggestions([]);
-        }
-      }
-    } else {
-      // First entry into an async context — show "Searching..." spinner.
-      // If loadingDelay is set, defer the spinner so fast fetches skip it.
+    // Async path: show "Searching..." (subject to loadingDelay) on every async
+    // context update — first entry AND subsequent keystrokes. The loadingDelay
+    // timer is restarted each keystroke, so rapid typing never flashes the
+    // spinner; it only surfaces if the user pauses and the fetch is slow.
+    if (willFetchAsync) {
       const token = result.context.token;
       const start = token ? token.start : offset;
       const end = token ? token.end : offset;
@@ -719,6 +691,30 @@ export function ElasticInput(props: ElasticInputProps) {
         showSpinner();
       }
       setAutocompleteContext(contextType);
+    } else {
+      // Context changed away from async field — cancel any in-flight async work
+      asyncActiveRef.current = false;
+      abortControllerRef.current?.abort();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
+
+
+      const newSuggestions = applyFieldHint(result.suggestions, result.context);
+      if (newSuggestions.length > 0) {
+        setSuggestions(newSuggestions);
+        if (!dropdownAlignToInput) setShowDropdown(false);
+        setShowDatePicker(false);
+        setSelectedSuggestionIndex((result.context.partial || autoSelect) ? 0 : -1);
+        setAutocompleteContext(contextType);
+        showDropdownAtPosition(newSuggestions.length * 32, 300);
+      } else {
+        setAutocompleteContext(contextType);
+        if (!tryShowNoResults(result.context)) {
+          setShowDropdown(false);
+          setShowDatePicker(false);
+          setSuggestions([]);
+        }
+      }
     }
 
     // Handle async fetch (field values, saved searches, or history)

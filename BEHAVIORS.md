@@ -514,10 +514,10 @@ The dropdown content follows strict rules to prevent stale results from flashing
 
 | Phase | Dropdown Shows | Notes |
 |-------|---------------|-------|
-| First entry into field value | "Searching..." spinner | Immediate loading indicator, no sync hint flash |
-| Subsequent keystrokes (debounce pending) | Previous results preserved | No flash to empty/sync |
-| Debounce fires, fetch starts | Previous results preserved | Last-good results stay visible |
-| Fetch resolves (current) | New results | Fresh data shown |
+| First entry into field value | "Searching..." spinner | Loading indicator, subject to `loadingDelay` |
+| Subsequent keystrokes (debounce pending) | Previous results, then "Searching..." after `loadingDelay` | Spinner timer restarts each keystroke, so rapid typing stays on last-good results |
+| Debounce fires, fetch starts | Last-good results or "Searching..." (depending on delay) | Spinner appears once `loadingDelay` elapses without a resolved fetch |
+| Fetch resolves (current) | New results | Fresh data replaces whatever was shown (results or spinner) |
 | Fetch resolves (stale) | Ignored | Monotonic fetch ID prevents old results from overwriting newer ones |
 | Fetch errors | Dropdown closes | No stale results left behind |
 | Context changes (cursor moves away, different field) | Cleared | In-flight fetch cancelled, async state reset |
@@ -530,13 +530,14 @@ Each async fetch is tagged with a monotonic request ID. When results arrive, the
 
 The "Searching..." loading item is a non-selectable dropdown entry with an animated CSS spinner. The loading indicator:
 
-- Appears on first entry into a field value (when `fetchSuggestions` is provided), subject to `loadingDelay`
-- On subsequent keystrokes, previous results are preserved (no loading flash)
+- Appears on every async context update (first entry AND subsequent keystrokes), subject to `loadingDelay`
+- On subsequent keystrokes, the delay timer is **restarted** from scratch — so rapid typing never surfaces the spinner (last-good results stay visible); once the user pauses and the fetch drags past `loadingDelay`, the spinner replaces the stale results
 - Only appears if the request is still the latest (checked via fetch ID)
 - Is cleared when the fetch completes, errors, or the dropdown closes
 - Uses the `placeholder` color for the spinner border
+- **Tests:** `ElasticInput.browser.test.tsx` → "shows Searching... on subsequent slow fetch"
 
-**`dropdown.loadingDelay`** (default: `0`ms) — delays the "Searching..." spinner by the specified number of milliseconds. If the async fetch resolves before the delay elapses, the spinner is never shown. This prevents a distracting flash for fast-responding endpoints. When set to `0`, the spinner appears immediately (original behavior).
+**`dropdown.loadingDelay`** (default: `0`ms) — delays the "Searching..." spinner by the specified number of milliseconds. If the async fetch resolves before the delay elapses, the spinner is never shown. This prevents a distracting flash for fast-responding endpoints and — because the timer restarts on each keystroke — also prevents flashes during rapid typing. When set to `0`, the spinner appears immediately on every keystroke.
 
 #### 4.8.4 Debouncing
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0 — 2026-04-28
+
+### Features
+
+- **`FieldConfig.hide`** — New optional `hide?: boolean` property. Hidden fields are excluded from the autocomplete dropdown (and so are their aliases) but still validate normally — typing `hidden_field:value` produces no `UNKNOWN_FIELD` error and value/type validation still applies. Useful for fields that exist in the schema (legacy/internal/power-user) but should not be advertised to users.
+
 ## 0.10.0 — 2026-04-20
 
 ### Features

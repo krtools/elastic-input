@@ -57,6 +57,8 @@ export interface FieldConfig {
   placeholder?: string | false;
   /** Whether `fetchSuggestions` should be called for this field. Defaults to `true`. Set to `false` to skip the async fetch entirely (no "Searching..." spinner, no dropdown). */
   suggestions?: boolean;
+  /** When `true`, the field is excluded from autocomplete suggestions but still validates without an "Unknown field" error. Useful for fields that exist in the schema but should not be advertised to users. */
+  hide?: boolean;
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */

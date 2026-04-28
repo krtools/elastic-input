@@ -16,6 +16,7 @@ export const CRM_FIELDS: FieldConfig[] = [
   { name: 'segment', label: 'Segment', type: 'string', description: 'Contact segment (see grid hint)', suggestions: false },
   { name: 'slow', label: 'Slow Field', type: 'string', description: 'Slow async fetch (3s delay)' },
   { name: 'broken', label: 'Broken Field', type: 'string', description: 'Always fails (async error demo)' },
+  { name: 'internal_id', label: 'Internal ID', type: 'string', description: 'Hidden — not in dropdown, validates without "Unknown field"', hide: true },
 ];
 
 export const LOG_FIELDS: FieldConfig[] = [

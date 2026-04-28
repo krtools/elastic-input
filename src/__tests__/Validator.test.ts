@@ -862,6 +862,41 @@ describe('Incomplete expression errors', () => {
     expect(errors[0].message).toBe('Missing value after "status:"');
   });
 
+  describe('hidden fields', () => {
+    const HIDDEN_FIELDS: FieldConfig[] = [
+      { name: 'status', type: 'string' },
+      { name: 'hidden_id', type: 'string', hide: true },
+      { name: 'secret_count', type: 'number', hide: true },
+      { name: 'legacy', type: 'string', aliases: ['old_legacy'], hide: true },
+    ];
+
+    function validateHidden(input: string) {
+      const tokens = new Lexer(input).tokenize();
+      const ast = new Parser(tokens).parse();
+      return new Validator(HIDDEN_FIELDS).validate(ast);
+    }
+
+    it('does not flag a hidden field as UNKNOWN_FIELD', () => {
+      expect(validateHidden('hidden_id:abc')).toHaveLength(0);
+    });
+
+    it('still validates a hidden field by its declared type', () => {
+      const errors = validateHidden('secret_count:not_a_number');
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toContain('not a valid number');
+    });
+
+    it("does not flag a hidden field's alias as UNKNOWN_FIELD", () => {
+      expect(validateHidden('old_legacy:value')).toHaveLength(0);
+    });
+
+    it('still flags genuinely unknown fields', () => {
+      const errors = validateHidden('bogus_xyz:foo');
+      expect(errors.length).toBeGreaterThan(0);
+      expect(errors[0].message).toContain('Unknown field');
+    });
+  });
+
   describe('defaultField validation', () => {
     function validateWithDefault(input: string, defaultField: string, validateValueFn?: ValidateValueFn) {
       const tokens = new Lexer(input).tokenize();

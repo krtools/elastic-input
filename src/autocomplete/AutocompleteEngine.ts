@@ -167,6 +167,7 @@ export class AutocompleteEngine {
   getFieldSuggestions(partial: string, start: number, end: number): Suggestion[] {
     const lower = partial.toLowerCase();
     const scored = this.fields
+      .filter(f => !f.hide)
       .map(f => {
         const name = f.name.toLowerCase();
         const label = (f.label || '').toLowerCase();

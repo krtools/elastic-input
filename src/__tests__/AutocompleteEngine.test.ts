@@ -680,6 +680,62 @@ describe('AutocompleteEngine', () => {
     });
   });
 
+  describe('hidden fields', () => {
+    const hiddenFields: FieldConfig[] = [
+      { name: 'status', type: 'string', label: 'Status' },
+      { name: 'hidden_id', type: 'string', label: 'Hidden ID', hide: true },
+      { name: 'legacy', type: 'string', aliases: ['old_legacy'], hide: true },
+      { name: 'is_vip', type: 'boolean' },
+    ];
+
+    function getSuggs(input: string, cursorOffset?: number) {
+      const tokens = new Lexer(input).tokenize();
+      const engine = new AutocompleteEngine(hiddenFields);
+      return engine.getSuggestions(tokens, cursorOffset ?? input.length);
+    }
+
+    it('excludes hidden fields from empty-input suggestions', () => {
+      const result = getSuggs('');
+      const fieldTexts = result.suggestions.filter(s => s.text.endsWith(':')).map(s => s.text);
+      expect(fieldTexts).toContain('status:');
+      expect(fieldTexts).toContain('is_vip:');
+      expect(fieldTexts).not.toContain('hidden_id:');
+      expect(fieldTexts).not.toContain('legacy:');
+    });
+
+    it('excludes hidden fields even on prefix match', () => {
+      const result = getSuggs('hid');
+      const fieldTexts = result.suggestions.filter(s => s.text.endsWith(':')).map(s => s.text);
+      expect(fieldTexts).not.toContain('hidden_id:');
+    });
+
+    it("excludes hidden field's aliases from suggestions", () => {
+      const result = getSuggs('old_');
+      const fieldTexts = result.suggestions.filter(s => s.text.endsWith(':')).map(s => s.text);
+      expect(fieldTexts).not.toContain('legacy:');
+    });
+
+    it('still resolves a hidden field when typed explicitly', () => {
+      // Typing `hidden_id:` should produce no field-name suggestions but
+      // value-context behavior must still see the field config (e.g. resolveField returns it).
+      const engine = new AutocompleteEngine(hiddenFields);
+      expect(engine.resolveField('hidden_id')).toBeDefined();
+      expect(engine.resolveField('old_legacy')).toBeDefined();
+    });
+
+    it('hidden boolean field still gives value suggestions when typed', () => {
+      const booleanHidden: FieldConfig[] = [
+        { name: 'visible', type: 'string' },
+        { name: 'secret_flag', type: 'boolean', hide: true },
+      ];
+      const tokens = new Lexer('secret_flag:').tokenize();
+      const engine = new AutocompleteEngine(booleanHidden);
+      const result = engine.getSuggestions(tokens, 'secret_flag:'.length);
+      expect(result.suggestions.some(s => s.text === 'true')).toBe(true);
+      expect(result.suggestions.some(s => s.text === 'false')).toBe(true);
+    });
+  });
+
   describe('range expression context', () => {
     it('returns no suggestions when cursor is inside a range', () => {
       // company:[a TO b] with cursor on 'b' (offset 14)

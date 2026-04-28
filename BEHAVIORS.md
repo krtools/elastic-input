@@ -417,7 +417,9 @@ Shown in `FIELD_NAME` and `EMPTY` contexts. Fields are scored and ranked:
 
 Suggestion text includes a trailing colon: `"status:"`.
 
-- **Tests:** `AutocompleteEngine.test.ts` → "suggests all fields on empty input", "filters fields by prefix (startsWith name)", "filters fields by prefix (startsWith label)", "matches fields by includes (name contains)", "matches fields by includes (label contains)", "ranks startsWith higher than includes", "appends colon to field suggestion text"
+**Hidden fields:** `FieldConfig.hide: true` excludes a field (and any of its aliases) from field-name suggestions. The field still validates normally — typing `hidden_field:value` produces no `UNKNOWN_FIELD` error, and value/type validation still applies. Useful for fields that exist in the schema but should not be advertised.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "suggests all fields on empty input", "filters fields by prefix (startsWith name)", "filters fields by prefix (startsWith label)", "matches fields by includes (name contains)", "matches fields by includes (label contains)", "ranks startsWith higher than includes", "appends colon to field suggestion text"; "hidden fields" suite (5 tests covering exclusion from empty/prefix suggestions, alias suppression, explicit-typing resolution, value-suggestions for hidden boolean fields). `Validator.test.ts` → "hidden fields" suite (4 tests covering no UNKNOWN_FIELD error, type validation still applied, alias suppression, genuine-unknown still flagged).
 
 ### 4.2 Field Value Suggestions
 

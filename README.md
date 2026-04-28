@@ -142,6 +142,7 @@ interface FieldConfig {
   description?: string;   // Shown in autocomplete dropdown
   placeholder?: string | false; // Hint shown while typing a value (false to suppress)
   suggestions?: boolean;        // Whether fetchSuggestions is called (default true)
+  hide?: boolean;               // Exclude from autocomplete dropdown but still validate without "Unknown field"
 }
 ```
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.1 — 2026-07-22
+
+### Fixes
+
+- **Flipped (drop-up) dropdown anchored by its bottom edge** — The drop-up position was previously computed from an estimated dropdown height (suggestion count × 32px), so custom styles with shorter rows left the dropdown floating above the input by the estimation error. The dropdown and date-picker portals now anchor their bottom edge 4px above the caret via `translateY(-100%)`, so the gap is correct regardless of rendered height; the height estimate only influences the flip decision.
+
+### Demo
+
+- Demo production build (`npm run build:demo`) now emits source maps.
+
 ## 0.11.0 — 2026-04-28
 
 ### Features

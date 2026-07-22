@@ -97,7 +97,7 @@ export function shouldRemountDatePicker(
 }
 
 interface DatePickerPortalProps {
-  position: { top: number; left: number };
+  position: { top: number; left: number; flipped?: boolean };
   colors: Required<ColorConfig>;
   onSelect: (dateStr: string) => void;
   colorConfig?: ColorConfig;
@@ -132,6 +132,8 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     ...getDropdownStyle(colors, mergedStyleConfig),
     top: `${position.top}px`,
     left: `${position.left}px`,
+    // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
+    ...(position.flipped ? { transform: 'translateY(-100%)' } : {}),
     maxHeight: 'none',
     overflowY: 'visible',
     ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
@@ -327,7 +329,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = React.useState(-1);
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [dropdownPosition, setDropdownPosition] = React.useState<{ top: number; left: number } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = React.useState<{ top: number; left: number; flipped?: boolean } | null>(null);
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [isFocused, setIsFocused] = React.useState(false);
   const [isEmpty, setIsEmpty] = React.useState(!currentValueRef.current);
@@ -354,7 +356,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Helper: compute dropdown position. When dropdownAlignToInput is true,
   // position relative to the container instead of the caret.
-  const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): { top: number; left: number } | null => {
+  const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): { top: number; left: number; flipped?: boolean } | null => {
     if (dropdownAlignToInput && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       return {

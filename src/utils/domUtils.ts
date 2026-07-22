@@ -120,20 +120,36 @@ export function capDropdownHeight(contentHeight: number, maxHeightPx: number): n
   return Math.min(contentHeight, maxHeightPx);
 }
 
+export interface DropdownPosition {
+  top: number;
+  left: number;
+  /**
+   * True when the dropdown is flipped above the caret. In that case `top` is
+   * the anchor for the dropdown's BOTTOM edge — the renderer must apply
+   * `transform: translateY(-100%)` so the browser pins the bottom edge there
+   * regardless of the dropdown's actual rendered height. (dropdownHeight is
+   * only an estimate; using it to precompute the top edge left a gap whenever
+   * custom styles made rows shorter than the estimate.)
+   */
+  flipped?: boolean;
+}
+
 export function getDropdownPosition(
   caretRect: DOMRect,
   dropdownHeight: number,
   dropdownWidth: number
-): { top: number; left: number } {
+): DropdownPosition {
   const viewportHeight = window.innerHeight;
   const viewportWidth = window.innerWidth;
 
   let top = caretRect.bottom + window.scrollY + 4;
   let left = caretRect.left + window.scrollX;
+  let flipped = false;
 
-  // Flip above if no room below
+  // Flip above if no room below — anchor the bottom edge just above the caret
   if (caretRect.bottom + dropdownHeight + 4 > viewportHeight) {
-    top = caretRect.top + window.scrollY - dropdownHeight - 4;
+    top = caretRect.top + window.scrollY - 4;
+    flipped = true;
   }
 
   // Prevent overflow right
@@ -146,5 +162,5 @@ export function getDropdownPosition(
     left = 8;
   }
 
-  return { top, left };
+  return { top, left, flipped };
 }

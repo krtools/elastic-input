@@ -1197,4 +1197,53 @@ describe('ElasticInput browser tests', () => {
       expect(rect.left).toBeGreaterThanOrEqual(0);
     });
   });
+
+  describe('drop-up positioning', () => {
+    it('flipped dropdown hugs the input when item styles are smaller than the 32px estimate', async () => {
+      // Regression: flip-up placement was computed from an estimated height
+      // (suggestions.length × 32px). With custom styles that make rows shorter
+      // than 32px, the dropdown rendered its (smaller) actual height downward
+      // from the estimated top, leaving a gap between its bottom edge and the
+      // input roughly equal to the estimation error.
+      const container = renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          fetchSuggestions: mockFetchSuggestions,
+          dropdown: { open: 'always' as const },
+          // Mirrors the styling that surfaced the bug: min-height 0 and
+          // reduced padding, making each row well under the 32px estimate.
+          styles: {
+            inputMinHeight: '0',
+            inputPadding: '4px 8px',
+            dropdownItemPadding: '2px 8px',
+          },
+        }),
+      );
+      // Pin the input near the bottom of the viewport so the dropdown flips up.
+      container.style.cssText = `position:absolute; left:20px; top:${window.innerHeight - 40}px; width:400px;`;
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:');
+
+      // Wait for async value suggestions, then let the rAF positioning settle
+      expect(await waitFor(() => dropdownText().includes('active'))).toBe(true);
+      await new Promise(r => setTimeout(r, 200));
+
+      const dropdown = document.querySelector(DROPDOWN) as HTMLElement;
+      const dropdownRect = dropdown.getBoundingClientRect();
+      const editorRect = editorEl.getBoundingClientRect();
+
+      // Sanity: the dropdown actually flipped above the input
+      expect(dropdownRect.top).toBeLessThan(editorRect.top);
+
+      // The dropdown's bottom edge should sit right at the input's top edge
+      // (anchored 4px above the caret, which sits inside the input padding —
+      // mirroring how the drop-down direction anchors 4px below the caret),
+      // not a whole estimation-error away.
+      const gap = editorRect.top - dropdownRect.bottom;
+      expect(Math.abs(gap)).toBeLessThanOrEqual(12);
+    });
+  });
 });

@@ -29,7 +29,7 @@ interface AutocompleteDropdownProps {
   suggestions: Suggestion[];
   selectedIndex: number;
   onSelect: (suggestion: Suggestion) => void;
-  position: { top: number; left: number } | null;
+  position: { top: number; left: number; flipped?: boolean } | null;
   colors?: ColorConfig;
   styles?: StyleConfig;
   visible: boolean;
@@ -132,6 +132,8 @@ export function AutocompleteDropdown({
     ...getDropdownStyle(mergedColors, mergedStyles),
     top: `${position.top}px`,
     left: `${position.left}px`,
+    // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
+    ...(position.flipped ? { transform: 'translateY(-100%)' } : {}),
     ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 

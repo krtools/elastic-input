@@ -930,6 +930,8 @@ The autocomplete dropdown and date picker are rendered via `ReactDOM.createPorta
 - Dropdown appears below the caret by default, flips above if insufficient viewport space below
 - Clamped to viewport edges (no overflow left/right)
 
+**Flip-up anchoring:** the flip *decision* uses an estimated dropdown height (suggestion count × 32px, capped at `dropdownMaxHeight`), but the flipped dropdown's *placement* does not. `getDropdownPosition` returns `flipped: true` with `top` set 4px above the caret, and the renderer applies `transform: translateY(-100%)` so the browser pins the dropdown's **bottom edge** to that anchor regardless of actual rendered height. This mirrors the drop-down direction, which anchors the top edge 4px below the caret. Previously the top edge was precomputed as `caretTop − estimatedHeight`, so custom styles that made rows shorter than 32px (reduced `dropdownItemPadding`, smaller fonts) left a gap between the dropdown and the input equal to the estimation error. Applies to both the suggestion dropdown and the date picker portal. Tested in `ElasticInput.browser.test.tsx` ("drop-up positioning" — flipped dropdown hugs the input when item styles are smaller than the 32px estimate).
+
 ### 8.2 Full-Width Dropdown Mode (`dropdown.alignToInput`)
 
 When `dropdown.alignToInput` is `true`, the suggestion dropdown spans the full width of the input container and is affixed to its bottom edge, rather than following the caret. The `fixedWidth` override disables the default min/max width constraints.

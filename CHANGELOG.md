@@ -5,6 +5,7 @@
 ### Fixes
 
 - **Flipped (drop-up) dropdown anchored by its bottom edge** — The drop-up position was previously computed from an estimated dropdown height (suggestion count × 32px), so custom styles with shorter rows left the dropdown floating above the input by the estimation error. The dropdown and date-picker portals now anchor their bottom edge 4px above the caret via `translateY(-100%)`, so the gap is correct regardless of rendered height; the height estimate only influences the flip decision.
+- **Flip decision re-checked after render with actual height** — The flip decision itself also relied on the row-count estimate, which undercounts tall custom `renderFieldHint` panels, so a tall panel near the viewport bottom could stay below the caret and overflow off-screen. After render, a layout effect now measures the actual dropdown (or date picker) height and corrects the direction: it flips up if the content overflows below and fits above, and flips back down in the mirror case. The direction only changes when the other side fits, so the correction can't oscillate.
 
 ### Demo
 

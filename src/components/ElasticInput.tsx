@@ -17,7 +17,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
-import { getCaretRect, getDropdownPosition, capDropdownHeight, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
+import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
@@ -106,9 +106,11 @@ interface DatePickerPortalProps {
   fixedWidth?: number;
   datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   datePickerClassName?: string;
+  /** Ref callback exposing the portal element for post-render flip re-checks. */
+  elRef?: (el: HTMLDivElement | null) => void;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, elRef }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -140,7 +142,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
   };
 
   return ReactDOM.createPortal(
-    <div className="ei-datepicker-portal" style={style} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
+    <div className="ei-datepicker-portal" style={style} ref={el => elRef?.(el)} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
       <DateRangePicker
         onSelect={onSelect}
         colors={colorConfig}
@@ -330,6 +332,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
   const [dropdownPosition, setDropdownPosition] = React.useState<{ top: number; left: number; flipped?: boolean } | null>(null);
+  // Date picker portal element, tracked as state (not a ref) so the flip
+  // re-check effect re-runs when the portal finishes mounting.
+  const [datePickerEl, setDatePickerEl] = React.useState<HTMLDivElement | null>(null);
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [isFocused, setIsFocused] = React.useState(false);
   const [isEmpty, setIsEmpty] = React.useState(!currentValueRef.current);
@@ -1159,6 +1164,28 @@ export function ElasticInput(props: ElasticInputProps) {
       setDropdownPosition(prev => prev ? { ...prev, left: Math.max(8, prev.left - shift) } : prev);
     }
   }, [dropdownPosition, showDropdown, showDatePicker, suggestions]);
+
+  // After the dropdown/date picker renders, re-evaluate the flip decision with
+  // the actual rendered height. The initial decision uses an estimate that
+  // custom content (tall renderFieldHint panels, date picker variants) can far
+  // exceed, leaving the dropdown overflowing the bottom of the viewport.
+  const flipAdjustedRef = React.useRef(false);
+  React.useLayoutEffect(() => {
+    if (flipAdjustedRef.current) { flipAdjustedRef.current = false; return; }
+    if (!dropdownPosition) return;
+    // Full-width dropdowns are docked to the container and never flip
+    const el = showDatePicker ? datePickerEl : (showDropdown && !dropdownAlignToInput ? dropdownListRef.current : null);
+    if (!el) return;
+    const caretRect = getCaretRect();
+    if (!caretRect) return;
+    const adjusted = adjustFlippedPosition(
+      dropdownPosition, el.getBoundingClientRect().height, caretRect, window.innerHeight, window.scrollY,
+    );
+    if (adjusted) {
+      flipAdjustedRef.current = true;
+      setDropdownPosition(adjusted);
+    }
+  }, [dropdownPosition, showDropdown, showDatePicker, suggestions, dropdownAlignToInput, datePickerEl]);
 
   // Reposition dropdown on window resize / scroll so it stays anchored
   React.useEffect(() => {
@@ -2101,6 +2128,7 @@ export function ElasticInput(props: ElasticInputProps) {
           fixedWidth={undefined}
           datePresets={datePresetsProp}
           datePickerClassName={classNames?.datePicker}
+          elRef={setDatePickerEl}
         />
       ) : null}
     </div>

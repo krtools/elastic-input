@@ -1245,5 +1245,44 @@ describe('ElasticInput browser tests', () => {
       const gap = editorRect.top - dropdownRect.bottom;
       expect(Math.abs(gap)).toBeLessThanOrEqual(12);
     });
+
+    it('flips above when tall renderFieldHint content overflows below the viewport', async () => {
+      // Regression: the flip decision counts a custom hint as one 32px row, so
+      // a tall renderFieldHint panel near the viewport bottom stayed below the
+      // caret and overflowed off-screen. The post-render re-check must flip it
+      // above once the actual height is known.
+      const renderFieldHint = (_field: FieldConfig, _partial: string) =>
+        React.createElement('div', {
+          style: { height: '250px', width: '200px' },
+          className: 'test-tall-hint',
+        }, 'Tall hint content');
+
+      const container = renderInto(
+        React.createElement(ElasticInput, {
+          fields: FIELDS,
+          dropdown: { open: 'always' as const, renderFieldHint },
+        }),
+      );
+      // Near the bottom, but with enough room that the 32px estimate thinks
+      // the dropdown fits below — only the actual 250px content overflows.
+      container.style.cssText = `position:absolute; left:20px; top:${window.innerHeight - 120}px; width:400px;`;
+
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'status:');
+
+      expect(await waitFor(() => dropdownText().includes('Tall hint'))).toBe(true);
+      await new Promise(r => setTimeout(r, 200));
+
+      const dropdownRect = (document.querySelector(DROPDOWN) as HTMLElement).getBoundingClientRect();
+      const editorRect = editorEl.getBoundingClientRect();
+
+      // Must not overflow the bottom of the viewport...
+      expect(dropdownRect.bottom).toBeLessThanOrEqual(window.innerHeight);
+      // ...because it flipped above the input, hugging its top edge
+      expect(dropdownRect.top).toBeLessThan(editorRect.top);
+      expect(Math.abs(editorRect.top - dropdownRect.bottom)).toBeLessThanOrEqual(12);
+    });
   });
 });

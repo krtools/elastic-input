@@ -164,3 +164,34 @@ export function getDropdownPosition(
 
   return { top, left, flipped };
 }
+
+/**
+ * Re-evaluate the flip decision once the dropdown's actual rendered height is
+ * known. The initial decision is based on an estimated height (32px per
+ * suggestion row, 350px for the date picker), which custom content — tall
+ * renderFieldHint panels especially — can far exceed. Returns a corrected
+ * position, or null when the current placement stands. Only switches direction
+ * when the other side actually fits, so repeated application converges.
+ */
+export function adjustFlippedPosition(
+  position: DropdownPosition,
+  actualHeight: number,
+  caretRect: DOMRect,
+  viewportHeight: number,
+  scrollY: number,
+): DropdownPosition | null {
+  if (position.flipped) {
+    const overflowsAbove = caretRect.top - 4 - actualHeight < 0;
+    const fitsBelow = caretRect.bottom + 4 + actualHeight <= viewportHeight;
+    if (overflowsAbove && fitsBelow) {
+      return { ...position, top: caretRect.bottom + scrollY + 4, flipped: false };
+    }
+  } else {
+    const overflowsBelow = caretRect.bottom + 4 + actualHeight > viewportHeight;
+    const fitsAbove = caretRect.top - 4 - actualHeight >= 0;
+    if (overflowsBelow && fitsAbove) {
+      return { ...position, top: caretRect.top + scrollY - 4, flipped: true };
+    }
+  }
+  return null;
+}

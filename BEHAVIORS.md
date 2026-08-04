@@ -1464,8 +1464,10 @@ When the `colors` prop changes (e.g. switching between light and dark themes), t
 | `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior, rendering, and content; see sub-properties below |
 | `features` | `FeaturesConfig` | `{}` | Feature toggles for optional editing behaviors; see sub-properties below |
 | `onKeyDown` | `(e: React.KeyboardEvent) => void` | — | Called before internal keyboard handling; `preventDefault()` skips internal handling |
-| `onFocus` | `() => void` | — | Called when the input gains focus |
-| `onBlur` | `() => void` | — | Called when the input loses focus |
+| `onFocus` | `() => void` | — | Called when focus enters the component from outside; internal focus moves (editor ↔ slots) don't re-fire it; see §10.4 |
+| `onBlur` | `() => void` | — | Called when focus leaves the component entirely; internal focus moves don't fire it; see §10.4 |
+| `prefix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, before the editor; see §10.4 |
+| `suffix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, after the editor; see §10.4 |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
 | `datePresets` | `{ label, value, type? }[]` | built-in (range) | Custom date picker presets; `type` filters to `'single'`/`'range'`/both; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
@@ -1540,8 +1542,8 @@ The `styles` prop accepts a `StyleConfig` object for structural/layout customiza
 |----------|------|---------|-------------|
 | `fontFamily` | `string` | `'SF Mono', 'Fira Code', ...` | Shared font across input and dropdown |
 | `fontSize` | `string` | `14px` | Base font size for the input |
-| `inputMinHeight` | `string` | `40px` | Minimum input height |
-| `inputPadding` | `string` | `8px 12px` | Input padding (also drives placeholder position) |
+| `inputMinHeight` | `string` | `40px` | Minimum input height (border-box, applied to the container) |
+| `inputPadding` | `string` | `8px 12px` | Editor text padding (the placeholder mirrors it verbatim) |
 | `inputBorderWidth` | `string` | `2px` | Input border width |
 | `inputBorderColor` | `string` | `#d0d7de` | Input border color |
 | `inputBorderRadius` | `string` | `8px` | Input border radius |
@@ -1563,7 +1565,11 @@ The `styles` prop accepts a `StyleConfig` object for structural/layout customiza
 
 `DARK_STYLES` overrides border colors, focus colors, shadows, and badge colors for dark backgrounds.
 
-Placeholder positioning is automatically derived from `inputPadding` so it aligns with the input text.
+The border, radius, background, min-height, and focus ring are applied to the **container** (`.ei-container`), not the editor — see §10.4 for the element structure. The `input*` style keys keep their names and their visual meaning. Both container and editor set `box-sizing: border-box` explicitly, so sizing does not depend on the consumer's global CSS reset.
+
+The placeholder overlays the editor inside the editor wrap and inherits `inputPadding` verbatim (including `calc()` values), so it aligns exactly with where typed text appears.
+
+- **Tests:** `InlineStyles.test.ts` → "getInputContainerStyle — container owns the chrome", "getEditableStyle — editor is chrome-less", "getPlaceholderStyle — mirrors editor padding, no parsing"
 
 ### 10.3 ElasticInputAPI (via `inputRef`)
 
@@ -1575,6 +1581,33 @@ Placeholder positioning is automatically derived from `inputPadding` so it align
 | `blur()` | Blurs the input |
 | `getAST()` | Returns current parsed AST |
 | `getValidationErrors()` | Returns current validation errors |
+| `submit()` | Submits through the same path as Enter: a highlighted real suggestion is accepted first, then `onSearch` fires with the resulting query; with nothing highlighted, the dropdown closes and `onSearch` fires with the query as-is. Guarantees an external button never submits a different string than the Enter key would. |
+
+- **Tests:** `Slots.browser.test.tsx` → "submits the post-accept query when a value suggestion is highlighted (Enter parity)", "accepts a highlighted field name, then submits the result", "submits the raw query when no dropdown is open", "submits the raw query and closes the dropdown when nothing is highlighted"
+
+### 10.4 Prefix/Suffix Slots (`prefix`, `suffix`)
+
+The input's chrome (border, radius, background, min-height, focus ring) lives on the **container**, which is a flex row. Slot content renders as flex siblings of the editor, *inside* the bordered box:
+
+```
+.ei-container            ← border, radius, background, focus ring, min-height (border-box)
+  .ei-prefix             ← optional prefix slot
+  .ei-editor-wrap        ← position:relative; hosts placeholder + squiggles
+    .ei-editor           ← contentEditable; transparent, borderless; own text padding
+    .ei-placeholder
+    .ei-squiggly …
+  .ei-suffix             ← optional suffix slot
+```
+
+Behavior:
+- **Space is reserved by layout.** Text, placeholder, and squiggles never run under slot content — no padding math needed.
+- **Slot content is vertically centered on the first text row** (`min-height: calc(inputMinHeight − 2 × inputBorderWidth)`) and pinned to the top (`align-self: flex-start`) so it doesn't drift when the input grows to multiple lines.
+- **Render props receive live `InputStatus`**: `{ value, ast, errors, isValid, isLoading, isOpen, isFocused }`. `isValid` uses the exported `isQueryValid()` helper (warnings don't block; omitted `severity` counts as error). `isLoading` is true while the "Searching..." spinner is showing.
+- **Clicking slot content keeps editor state intact.** The slot wrapper prevents default on mousedown (except for focus-needing controls: `input`, `textarea`, `select`, `[contenteditable]`), so the editor keeps focus, caret, and any open dropdown; button clicks still fire. Clicking empty slot area focuses the editor with the caret at the end.
+- **Internal focus moves are not blurs.** Focus handlers live on the container; when focus moves between the editor, slot content, or the dropdown/date-picker portals (checked via `relatedTarget`), the dropdown stays open, async work continues, and `onFocus`/`onBlur` don't re-fire. Only focus leaving the component entirely triggers teardown (close dropdown, cancel async, show all squiggles).
+- A render prop returning `null`/`false` renders no slot wrapper (no reserved space).
+
+- **Tests:** `Slots.browser.test.tsx` → "renders slot content inside the bordered container without overlapping text", "clicking a suffix button keeps editor focus and the open dropdown", "render prop receives live status — validity drives disabled state", "squiggles align with error text when a prefix shifts the editor", "focus moving editor → suffix button keeps dropdown and focus state; leaving tears down"; `InlineStyles.test.ts` → container/editor/slot/placeholder style suites; `Validator.test.ts` → "isQueryValid" suite
 
 ---
 
@@ -1656,8 +1689,11 @@ All elements receive static `ei-*` classes unconditionally. These are always pre
 | Element | Class(es) |
 |---------|-----------|
 | Outer container | `ei-container` |
+| Editor wrap (placeholder/squiggle host) | `ei-editor-wrap` |
 | contentEditable editor | `ei-editor` |
 | Placeholder text | `ei-placeholder` |
+| Prefix slot wrapper | `ei-prefix` |
+| Suffix slot wrapper | `ei-suffix` |
 | Dropdown container | `ei-dropdown` |
 | Dropdown header | `ei-dropdown-header` |
 | Dropdown item | `ei-dropdown-item` |
@@ -1694,7 +1730,10 @@ The `classNames` prop on `ElasticInputProps` accepts a `ClassNamesConfig` object
 ```ts
 interface ClassNamesConfig {
   container?: string;
+  editorWrap?: string;
   editor?: string;
+  prefix?: string;
+  suffix?: string;
   placeholder?: string;
   dropdown?: string;
   dropdownHeader?: string;

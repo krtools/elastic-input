@@ -439,6 +439,7 @@ export function DemoApp() {
   // Feature options
   const [multiline, setMultiline] = React.useState(true);
   const [collapseOnBlur, setCollapseOnBlur] = React.useState(false);
+  const [embeddedSearchButton, setEmbeddedSearchButton] = React.useState(false);
   const [smartSelectAll, setSmartSelectAll] = React.useState(true);
   const [expandSelection, setExpandSelection] = React.useState(true);
   const [wildcardWrap, setWildcardWrap] = React.useState(true);
@@ -718,6 +719,44 @@ export function DemoApp() {
                     { label: 'Clear', value: '' },
                   ]}
                   collapseOnBlur={collapseOnBlur}
+                  suffix={embeddedSearchButton ? (status => (
+                    <button
+                      type="button"
+                      aria-label="Search"
+                      title={status.isValid ? 'Search' : 'Fix validation errors to search'}
+                      disabled={!status.value.trim() || !status.isValid}
+                      onClick={() => inputApiRef.current?.submit()}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        display: 'grid',
+                        placeItems: 'center',
+                        padding: 0,
+                        borderRadius: '6px',
+                        border: `1px solid ${theme.border}`,
+                        backgroundColor: theme.surface,
+                        color: theme.textSecondary,
+                        cursor: (!status.value.trim() || !status.isValid) ? 'default' : 'pointer',
+                        opacity: (!status.value.trim() || !status.isValid) ? 0.4 : 1,
+                        transition: 'opacity 0.15s',
+                      }}
+                    >
+                      {status.isLoading ? (
+                        <span style={{
+                          width: '12px', height: '12px', borderRadius: '50%',
+                          border: `2px solid ${theme.textSecondary}`,
+                          borderTopColor: 'transparent',
+                          display: 'inline-block',
+                          animation: 'elastic-input-spin 1s linear infinite',
+                        }} />
+                      ) : (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="m20 20-3.6-3.6" />
+                        </svg>
+                      )}
+                    </button>
+                  )) : undefined}
                 />
               </div>
               <button
@@ -937,6 +976,7 @@ export function DemoApp() {
             <OptionGroup label="Features" theme={theme}>
               <OptionToggle label="Multiline" checked={multiline} onChange={setMultiline} theme={theme} />
               <OptionToggle label="Collapse on blur" checked={collapseOnBlur} onChange={setCollapseOnBlur} theme={theme} />
+              <OptionToggle label="Embedded search button" checked={embeddedSearchButton} onChange={setEmbeddedSearchButton} theme={theme} />
               <OptionToggle label="Smart Ctrl+A" checked={smartSelectAll} onChange={setSmartSelectAll} theme={theme} />
               <OptionToggle label="Expand selection" checked={expandSelection} onChange={setExpandSelection} theme={theme} />
               <OptionToggle label="Wildcard wrap (*)" checked={wildcardWrap} onChange={setWildcardWrap} theme={theme} />

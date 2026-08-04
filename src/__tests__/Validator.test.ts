@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator, ValidateValueFn, deduplicateErrors, ValidationError } from '../validation/Validator';
+import { Validator, ValidateValueFn, deduplicateErrors, isQueryValid, ValidationError } from '../validation/Validator';
 import { FieldConfig, ValidateValueContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -1188,5 +1188,46 @@ describe('Incomplete expression errors', () => {
       expect(errors[0].type).toBe('SYNTAX_ERROR');
       expect(errors[0].message).toContain('Missing value');
     });
+  });
+});
+
+describe('isQueryValid', () => {
+  const err = (severity?: 'error' | 'warning'): ValidationError => ({
+    message: 'x', start: 0, end: 1, ...(severity ? { severity } : {}),
+  });
+
+  it('returns true for no errors', () => {
+    expect(isQueryValid([])).toBe(true);
+  });
+
+  it('returns false for an explicit error', () => {
+    expect(isQueryValid([err('error')])).toBe(false);
+  });
+
+  it('treats omitted severity as error (the default)', () => {
+    expect(isQueryValid([err()])).toBe(false);
+  });
+
+  it('warnings do not block validity', () => {
+    expect(isQueryValid([err('warning')])).toBe(true);
+    expect(isQueryValid([err('warning'), err('warning')])).toBe(true);
+  });
+
+  it('a single error among warnings blocks validity', () => {
+    expect(isQueryValid([err('warning'), err(), err('warning')])).toBe(false);
+  });
+
+  it('matches real validator output for an unknown field', () => {
+    const tokens = new Lexer('bogus:value').tokenize();
+    const ast = new Parser(tokens).parse();
+    const errors = new Validator(FIELDS).validate(ast);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(isQueryValid(errors)).toBe(false);
+  });
+
+  it('matches real validator output for a valid query', () => {
+    const tokens = new Lexer('status:active').tokenize();
+    const ast = new Parser(tokens).parse();
+    expect(isQueryValid(new Validator(FIELDS).validate(ast))).toBe(true);
   });
 });

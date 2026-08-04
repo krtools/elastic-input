@@ -13,7 +13,7 @@ export type { HighlightOptions } from './components/HighlightedContent';
 export { Lexer } from './lexer/Lexer';
 export type { LexerOptions } from './lexer/Lexer';
 export { Parser } from './parser/Parser';
-export { Validator, deduplicateErrors } from './validation/Validator';
+export { Validator, deduplicateErrors, isQueryValid } from './validation/Validator';
 export { AutocompleteEngine } from './autocomplete/AutocompleteEngine';
 export type { AutocompleteOptions } from './autocomplete/AutocompleteEngine';
 
@@ -49,6 +49,8 @@ export type {
   FeaturesConfig,
   ClassNamesConfig,
   DefaultFieldConfig,
+  InputStatus,
+  SlotContent,
 } from './types';
 
 // Low-level types — tokens, AST, and internal structures

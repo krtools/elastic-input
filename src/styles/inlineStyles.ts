@@ -11,30 +11,65 @@ export function mergeStyles(custom?: StyleConfig): Required<StyleConfig> {
   return { ...DEFAULT_STYLES, ...custom };
 }
 
-export function getInputContainerStyle(colors: Required<ColorConfig>, customStyle?: React.CSSProperties): React.CSSProperties {
+/**
+ * The outer container owns the input's chrome: border, radius, background,
+ * min-height, and the focus ring. It is a flex row so `prefix`/`suffix` slot
+ * content sits inside the bordered box as plain flex siblings of the editor.
+ * `boxSizing: border-box` is set explicitly so sizing is deterministic
+ * regardless of the consumer's global CSS reset.
+ */
+export function getInputContainerStyle(
+  colors: Required<ColorConfig>,
+  styles: Required<StyleConfig>,
+  isFocused: boolean,
+  customStyle?: React.CSSProperties,
+): React.CSSProperties {
+  return {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    width: '100%',
+    boxSizing: 'border-box',
+    minHeight: styles.inputMinHeight,
+    borderWidth: styles.inputBorderWidth,
+    borderStyle: 'solid',
+    borderColor: styles.inputBorderColor,
+    borderRadius: styles.inputBorderRadius,
+    backgroundColor: colors.background,
+    ...(isFocused ? getContainerFocusStyle(styles) : {}),
+    ...customStyle,
+  };
+}
+
+/**
+ * Wrapper around the editor that hosts the absolutely-positioned placeholder
+ * and validation squiggles. It is borderless and padding-less, so its
+ * coordinate space coincides with the editor's border box — squiggle rects
+ * measured relative to the editor rect can be used as-is.
+ */
+export function getEditorWrapStyle(): React.CSSProperties {
   return {
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    width: '100%',
-    ...customStyle,
+    flex: '1 1 auto',
+    minWidth: 0,
+    alignSelf: 'stretch',
   };
 }
 
 export function getEditableStyle(colors: Required<ColorConfig>, styles: Required<StyleConfig>): React.CSSProperties {
   return {
     flex: 1,
-    minHeight: styles.inputMinHeight,
+    boxSizing: 'border-box',
     padding: styles.inputPadding,
-    borderWidth: styles.inputBorderWidth,
-    borderStyle: 'solid',
-    borderColor: styles.inputBorderColor,
-    borderRadius: styles.inputBorderRadius,
+    border: 'none',
     outline: 'none',
     fontSize: styles.fontSize,
     fontFamily: styles.fontFamily,
     lineHeight: styles.lineHeight,
-    backgroundColor: colors.background,
+    backgroundColor: 'transparent',
     color: colors.text,
     caretColor: colors.cursor,
     whiteSpace: 'pre-wrap',
@@ -45,26 +80,44 @@ export function getEditableStyle(colors: Required<ColorConfig>, styles: Required
   };
 }
 
-export function getEditableFocusStyle(styles: Required<StyleConfig>): React.CSSProperties {
+export function getContainerFocusStyle(styles: Required<StyleConfig>): React.CSSProperties {
   return {
     borderColor: styles.inputFocusBorderColor,
     boxShadow: styles.inputFocusShadow,
   };
 }
 
+/**
+ * Layout for a `prefix`/`suffix` slot. Slot content is vertically centered on
+ * the first text row (container min-height minus its borders) and pinned to
+ * the top when the input grows to multiple lines (`align-self: flex-start`).
+ */
+export function getSlotStyle(side: 'prefix' | 'suffix', styles: Required<StyleConfig>): React.CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    flex: 'none',
+    alignSelf: 'flex-start',
+    boxSizing: 'border-box',
+    minHeight: `calc(${styles.inputMinHeight} - 2 * ${styles.inputBorderWidth})`,
+    ...(side === 'prefix' ? { paddingLeft: '8px' } : { paddingRight: '8px' }),
+  };
+}
+
+/**
+ * The placeholder overlays the editor inside the editor wrap and mirrors the
+ * editor's own padding, so it aligns exactly with where typed text appears —
+ * no padding parsing needed.
+ */
 export function getPlaceholderStyle(colors: Required<ColorConfig>, styles: Required<StyleConfig>): React.CSSProperties {
-  // Parse padding to position placeholder correctly
-  const paddingParts = styles.inputPadding.split(/\s+/);
-  const topPad = paddingParts[0] || '8px';
-  const leftPad = paddingParts.length >= 4 ? paddingParts[3] : paddingParts.length >= 2 ? paddingParts[1] : topPad;
-
-  const rightPad = paddingParts.length >= 4 ? paddingParts[1] : paddingParts.length >= 2 ? paddingParts[1] : topPad;
-
   return {
     position: 'absolute',
-    top: topPad,
-    left: leftPad,
-    right: rightPad,
+    top: 0,
+    left: 0,
+    right: 0,
+    boxSizing: 'border-box',
+    padding: styles.inputPadding,
     color: colors.placeholder,
     pointerEvents: 'none',
     fontSize: styles.fontSize,

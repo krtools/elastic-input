@@ -39,6 +39,34 @@ export interface ValidateValueContext {
   inclusive?: boolean;
 }
 
+/**
+ * Live component state passed to `prefix`/`suffix` render props.
+ * Recomputed on every input, validation, focus, and dropdown change.
+ */
+export interface InputStatus {
+  /** The current raw query string. */
+  value: string;
+  /** The current parsed AST, or `null` if the input is empty. */
+  ast: ASTNode | null;
+  /** Current validation errors, including syntax errors and warnings. */
+  errors: ValidationError[];
+  /** True when there are no error-severity validation errors. Warnings do not
+   *  block validity, and an omitted `severity` counts as an error. */
+  isValid: boolean;
+  /** True while the async-suggestion "Searching..." spinner is showing. */
+  isLoading: boolean;
+  /** True while the autocomplete dropdown or date picker is visible. */
+  isOpen: boolean;
+  /** True while focus is inside the component (the editor or slot content). */
+  isFocused: boolean;
+}
+
+/**
+ * Content for the `prefix`/`suffix` slots: a static React node, or a render
+ * prop that receives the live {@link InputStatus}.
+ */
+export type SlotContent = React.ReactNode | ((status: InputStatus) => React.ReactNode);
+
 /** Configuration for a searchable field. Defines the field's name, type, and validation behavior. */
 export interface FieldConfig {
   /** Field name used in queries (e.g. `status` in `status:active`). */
@@ -355,6 +383,13 @@ export interface ElasticInputAPI {
   getValidationErrors: () => ValidationError[];
   /** Selects a character range in the input. Focuses the input if not already focused. */
   setSelection: (start: number, end: number) => void;
+  /**
+   * Submits the current query through the same path as pressing Enter: if a
+   * real suggestion is highlighted in the dropdown it is accepted first, then
+   * `onSearch` fires with the resulting query. With no highlighted suggestion,
+   * the dropdown closes and `onSearch` fires with the query as-is.
+   */
+  submit: () => void;
 }
 
 /** Context passed to the `onTab` callback. */
@@ -384,8 +419,14 @@ export interface TabActionResult {
 export interface ClassNamesConfig {
   /** Outer container div. */
   container?: string;
+  /** The wrapper div around the editor that hosts the placeholder and squiggles. */
+  editorWrap?: string;
   /** The contentEditable editor div. */
   editor?: string;
+  /** The `prefix` slot wrapper div. */
+  prefix?: string;
+  /** The `suffix` slot wrapper div. */
+  suffix?: string;
   /** The placeholder text div. */
   placeholder?: string;
   /** The autocomplete dropdown container. */
@@ -478,10 +519,34 @@ export interface ElasticInputProps {
   datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   /** Called on keydown events before internal handling. If `e.preventDefault()` is called, internal keyboard handling is skipped. */
   onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
-  /** Called when the input gains focus. */
+  /** Called when focus enters the component from outside. Focus moves between
+   *  the editor and slot content (`prefix`/`suffix`) do not re-fire this. */
   onFocus?: () => void;
-  /** Called when the input loses focus. */
+  /** Called when focus leaves the component entirely. Focus moves between the
+   *  editor and slot content (`prefix`/`suffix`) do not fire this. */
   onBlur?: () => void;
+  /**
+   * Content rendered inside the input box, before the editor (e.g. a filter
+   * icon). A static node, or a render prop receiving the live {@link InputStatus}.
+   * Slot content sits in the normal flex flow — text and placeholder
+   * automatically keep clear of it, with no padding math required.
+   *
+   * Interactive slot content (buttons) keeps the editor's focus, caret, and
+   * open dropdown intact when clicked — no `onMouseDown` workarounds needed.
+   */
+  prefix?: SlotContent;
+  /**
+   * Content rendered inside the input box, after the editor (e.g. a search
+   * button). See {@link ElasticInputProps.prefix} for behavior details.
+   *
+   * @example
+   * ```tsx
+   * suffix={({ value, isValid }) => (
+   *   <button disabled={!value.trim() || !isValid} onClick={() => api.submit()}>🔍</button>
+   * )}
+   * ```
+   */
+  suffix?: SlotContent;
   /**
    * Override Tab key behavior. Called when Tab is pressed, with the current suggestion (if any),
    * cursor context, and query string. Return an object specifying which actions to perform.

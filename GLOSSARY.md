@@ -51,6 +51,10 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `RANGE`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
 | **caret** / **cursor** | The text insertion point in the input |
 | **surround** | Auto-wrapping a text selection with matching delimiters when the user types `(`, `[`, or `"` — e.g. selecting `foo` and pressing `(` produces `(foo)` |
+| **slot** | The `prefix`/`suffix` regions inside the input box, before/after the editor. Rendered as flex siblings of the editor — layout reserves their space automatically |
+| **status** | The live `InputStatus` object passed to slot render props: `value`, `ast`, `errors`, `isValid`, `isLoading`, `isOpen`, `isFocused` |
+| **editor wrap** | The `position: relative` div around the editor that hosts the placeholder and squigglies; its coordinate space matches the editor's border box |
+| **internal focus move** | Focus moving between parts of the component (editor ↔ slot content ↔ portals). Not a blur: the dropdown stays open and `onFocus`/`onBlur` don't fire |
 
 ## Pipeline Stages
 

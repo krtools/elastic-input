@@ -71,6 +71,15 @@ export function deduplicateErrors(errors: ValidationError[]): ValidationError[] 
   return kept;
 }
 
+/**
+ * True when `errors` contains no error-severity entries. Warnings do not
+ * block validity. An omitted `severity` counts as `'error'` — this is the
+ * canonical validity check, so consumers don't have to remember that default.
+ */
+export function isQueryValid(errors: ValidationError[]): boolean {
+  return !errors.some(e => (e.severity ?? 'error') === 'error');
+}
+
 export class Validator {
   private fields: Map<string, FieldConfig>;
 

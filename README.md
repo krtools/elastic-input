@@ -122,8 +122,10 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) |
 | `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap, savedSearches, historySearch) |
 | `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
-| `onFocus` | `() => void` | — | Called when the input gains focus |
-| `onBlur` | `() => void` | — | Called when the input loses focus |
+| `onFocus` | `() => void` | — | Called when focus enters the component from outside (moves between editor and slots don't re-fire) |
+| `onBlur` | `() => void` | — | Called when focus leaves the component entirely |
+| `prefix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, before the editor (e.g. an icon) |
+| `suffix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, after the editor (e.g. a search button) |
 | `onTab` | `(context) => TabActionResult` | — | Override Tab key behavior (accept/blur/submit) |
 | `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
@@ -175,7 +177,33 @@ api.focus();                 // Focuses the input
 api.blur();                  // Blurs the input
 api.getAST();                // Returns the parsed AST
 api.getValidationErrors();   // Returns current validation errors
+api.submit();                // Submits like Enter: accepts a highlighted suggestion, then fires onSearch
 ```
+
+## Prefix / Suffix Slots
+
+`prefix` and `suffix` render content *inside* the input's bordered box, before/after the text. Layout reserves their space automatically — no padding overrides needed. Pass a render prop to react to live input state:
+
+```tsx
+let api;
+
+<ElasticInput
+  fields={fields}
+  inputRef={(ref) => { api = ref; }}
+  onSearch={(query, ast) => runSearch(query, ast)}
+  suffix={({ value, isValid }) => (
+    <button
+      aria-label="Search"
+      disabled={!value.trim() || !isValid}
+      onClick={() => api.submit()}
+    >
+      🔍
+    </button>
+  )}
+/>
+```
+
+The status object is `{ value, ast, errors, isValid, isLoading, isOpen, isFocused }`. Clicking slot content keeps the editor's focus, caret, and open dropdown intact, and `api.submit()` submits exactly what pressing Enter would — including accepting a highlighted suggestion first. Slot wrappers get `ei-prefix` / `ei-suffix` classes (plus `classNames.prefix` / `classNames.suffix`) for styling.
 
 ## Validation
 

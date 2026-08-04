@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`prefix` / `suffix` slots** — New props render content *inside* the input's bordered box, before/after the editor, as plain flex siblings — text, placeholder, and squiggles automatically keep clear with no padding math. Accepts a static node or a render prop receiving live `InputStatus` (`{ value, ast, errors, isValid, isLoading, isOpen, isFocused }`). Slot content is centered on the first text row and pinned to the top on multiline growth. Clicking slot buttons keeps the editor's focus, caret, and open dropdown intact. New classes `ei-prefix` / `ei-suffix` / `ei-editor-wrap` and matching `classNames` keys.
+- **`api.submit()`** — New imperative method that submits through the same path as pressing Enter: a highlighted real suggestion is accepted first, then `onSearch` fires with the resulting query. External search buttons can no longer submit a different string than the Enter key would.
+- **`isQueryValid(errors)`** — Exported helper for the canonical validity check (warnings don't block; omitted `severity` counts as `'error'`).
+
+### Behavior Changes
+
+- **Input chrome moved from the editor to the container** — The border, radius, background, min-height, and focus ring now live on `.ei-container` (a flex row); `.ei-editor` is transparent and borderless, keeping only its text padding. The `input*` style keys keep their names and visual meaning. Both elements set `box-sizing: border-box` explicitly, so rendered size no longer depends on the consumer's global CSS reset. Consumers targeting `.ei-editor` in external CSS for border/background should target `.ei-container` instead.
+- **Placeholder aligns exactly with typed text** — The placeholder now lives in the editor wrap and mirrors `inputPadding` verbatim (previously it was offset by the border width and mis-parsed padding values containing spaces, e.g. `calc()`).
+- **Internal focus moves are no longer blurs** — Focus moving between the editor, slot content, and the dropdown/date-picker portals keeps the dropdown open and async work running; `onFocus`/`onBlur` fire only when focus enters/leaves the component as a whole.
+
+### Demo
+
+- Added an "Embedded search button" toggle (Features group) demonstrating the `suffix` render prop: a magnifier button that disables on invalid/empty queries, shows a spinner while suggestions load, and submits via `api.submit()`.
+
 ## 0.11.1 — 2026-07-22
 
 ### Fixes

@@ -7,8 +7,8 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion } from '../autocomplete/suggestionTypes';
-import { Validator, ValidationError, deduplicateErrors } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig } from '../types';
+import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
@@ -27,8 +27,9 @@ import {
   mergeColors,
   mergeStyles,
   getInputContainerStyle,
+  getEditorWrapStyle,
   getEditableStyle,
-  getEditableFocusStyle,
+  getSlotStyle,
   getPlaceholderStyle,
   getDropdownStyle,
 } from '../styles/inlineStyles';
@@ -189,6 +190,8 @@ export function ElasticInput(props: ElasticInputProps) {
     defaultField: defaultFieldProp,
     trailingSpaceOnAccept = true,
     collapseOnBlur = false,
+    prefix,
+    suffix,
   } = props;
 
   // Normalize defaultField prop
@@ -281,7 +284,12 @@ export function ElasticInput(props: ElasticInputProps) {
     setEditorEl(el);
   }, []);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  // Wrapper around the editor hosting the placeholder and squiggles — the
+  // squiggle coordinate space (see getEditorWrapStyle).
+  const editorWrapRef = React.useRef<HTMLDivElement | null>(null);
   const dropdownListRef = React.useRef<HTMLDivElement | null>(null);
+  // Ref mirror of the datePickerEl state, for synchronous access in the blur guard
+  const datePickerElRef = React.useRef<HTMLDivElement | null>(null);
   const currentValueRef = React.useRef(value || defaultValue || '');
   const debounceTimerRef = React.useRef<any>(null);
   const isComposingRef = React.useRef(false);
@@ -1084,9 +1092,30 @@ export function ElasticInput(props: ElasticInputProps) {
           setCursorOffset(start);
           setSelectionEnd(end);
         },
+        submit: () => {
+          const s = stateRef.current;
+          const selected = s.showDropdown && s.selectedSuggestionIndex >= 0
+            ? s.suggestions[s.selectedSuggestionIndex]
+            : null;
+          const acceptable = selected
+            && selected.type !== 'loading'
+            && selected.type !== 'error'
+            && selected.type !== 'hint';
+          if (acceptable) {
+            // Same as Enter: accept the highlighted suggestion first, then
+            // search with the post-accept query — an external button must
+            // never submit a different string than the Enter key would.
+            acceptSuggestion(selected!, 'Enter', (newValue, newAst) => {
+              if (onSearch) onSearch(newValue, newAst);
+            });
+          } else {
+            closeDropdown();
+            if (onSearch) onSearch(currentValueRef.current, s.ast);
+          }
+        },
       });
     }
-  }, [inputRef, processInput]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, onSearch]);
 
   // Process initial value
   React.useEffect(() => {
@@ -1867,25 +1896,48 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [triggerSuggestionsFromNavigation]);
 
-  const handleFocus = React.useCallback(() => {
-    setIsFocused(true);
-    onFocusProp?.();
+  // True when a DOM node belongs to this component: the container (editor and
+  // slot content) or one of the body portals (dropdown, date picker). Used to
+  // distinguish focus moves *within* the component from focus leaving it.
+  const isInternalNode = React.useCallback((node: Node | null): boolean => {
+    if (!node) return false;
+    if (containerRef.current?.contains(node)) return true;
+    if (dropdownListRef.current?.contains(node)) return true;
+    if (datePickerElRef.current?.contains(node)) return true;
+    return false;
+  }, []);
+
+  // Focus/blur handlers live on the container (focus events bubble), so slot
+  // content participates in the component's focus state (focus-within
+  // semantics). Editor-specific caret logic only runs when the editor itself
+  // gains focus.
+  const handleFocus = React.useCallback((e: React.FocusEvent) => {
+    // Focus moves within the component don't re-enter: isFocused is already true
+    if (!isInternalNode(e.relatedTarget as Node | null)) {
+      setIsFocused(true);
+      onFocusProp?.();
+    }
+    if (e.target !== editorRef.current) return;
     // Defer suggestion update so isFocused state is committed
     const id = requestAnimationFrame(() => {
       rafIdsRef.current.delete(id);
       if (editorRef.current) {
         const toks = stateRef.current.tokens;
         const offset = toks.length > 0 ? getCaretCharOffset(editorRef.current) : 0;
-        // Restore cursorOffset from DOM — handleBlur sets it to -1
+        // Restore cursorOffset from DOM — blur teardown sets it to -1
         setCursorOffset(offset);
         setSelectionEnd(offset);
         triggerSuggestionsFromNavigation(toks, offset);
       }
     });
     rafIdsRef.current.add(id);
-  }, [handleInput, triggerSuggestionsFromNavigation, onFocusProp]);
+  }, [isInternalNode, triggerSuggestionsFromNavigation, onFocusProp]);
 
-  const handleBlur = React.useCallback(() => {
+  const handleBlur = React.useCallback((e: React.FocusEvent) => {
+    // Focus moving to another part of the component (a slot button, the
+    // dropdown, the date picker) is not a blur — keep the dropdown, the
+    // suggestions, and the focus state intact.
+    if (isInternalNode(e.relatedTarget as Node | null)) return;
     setIsFocused(false);
     setShowDropdown(false);
     setShowDatePicker(false);
@@ -1898,7 +1950,22 @@ export function ElasticInput(props: ElasticInputProps) {
     // Set cursor to -1 so deferred display shows all errors when blurred
     setCursorOffset(-1);
     onBlurProp?.();
-  }, [onBlurProp]);
+  }, [onBlurProp, isInternalNode]);
+
+  // Slot mousedown: keep the editor's focus, caret, and open dropdown intact
+  // when interacting with slot content (the click still fires on buttons).
+  // Focus-needing controls (inputs, selects) are exempted so they stay usable
+  // inside slots. Clicking empty slot area focuses the editor, matching the
+  // click-anywhere-in-the-box behavior of the rest of the input.
+  const handleSlotMouseDown = React.useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('input, textarea, select, [contenteditable]')) return;
+    e.preventDefault();
+    if (target === e.currentTarget && editorRef.current && document.activeElement !== editorRef.current) {
+      editorRef.current.focus();
+      setCaretCharOffset(editorRef.current, currentValueRef.current.length);
+    }
+  }, []);
 
   // Double-click word selection: prevent the browser's default which includes
   // trailing whitespace. We compute word boundaries ourselves and set a clean selection.
@@ -2051,10 +2118,9 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(stylesProp);
-  const containerStyle = getInputContainerStyle(mergedColors, style);
+  const containerStyle = getInputContainerStyle(mergedColors, mergedStyleConfig, isFocused, style);
   const editableStyle: React.CSSProperties = {
     ...getEditableStyle(mergedColors, mergedStyleConfig),
-    ...(isFocused ? getEditableFocusStyle(mergedStyleConfig) : {}),
   };
   if (isCollapsed) {
     editableStyle.whiteSpace = 'nowrap';
@@ -2063,41 +2129,84 @@ export function ElasticInput(props: ElasticInputProps) {
   }
   const placeholderStyle = getPlaceholderStyle(mergedColors, mergedStyleConfig);
 
-  return (
-    <div ref={containerRef} style={containerStyle} className={cx('ei-container', className, classNames?.container)}>
-      <div
-        ref={editorRefCallback}
-        contentEditable
-        suppressContentEditableWarning
-        className={cx('ei-editor', classNames?.editor)}
-        style={editableStyle}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onClick={handleClick}
-        onPaste={handlePaste}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
-        spellCheck={false}
-      />
+  // Live status for prefix/suffix render props. Every value change flows
+  // through setState (processInput/applyNewValue), so reading the value ref
+  // during render is always fresh.
+  const status: InputStatus = {
+    value: currentValueRef.current,
+    ast,
+    errors: validationErrors,
+    isValid: isQueryValid(validationErrors),
+    isLoading: suggestions.some(sg => sg.type === 'loading'),
+    isOpen: showDropdown || showDatePicker,
+    isFocused,
+  };
+  const resolveSlot = (content: SlotContent | undefined): React.ReactNode =>
+    typeof content === 'function' ? (content as (s: InputStatus) => React.ReactNode)(status) : content;
+  const prefixContent = resolveSlot(prefix);
+  const suffixContent = resolveSlot(suffix);
 
-      {isEmpty && !isFocused ? (
-        <div className={cx('ei-placeholder', classNames?.placeholder)} style={placeholderStyle}>{placeholder}</div>
+  return (
+    <div
+      ref={containerRef}
+      style={containerStyle}
+      className={cx('ei-container', className, classNames?.container)}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+    >
+      {prefixContent != null && prefixContent !== false ? (
+        <div
+          className={cx('ei-prefix', classNames?.prefix)}
+          style={getSlotStyle('prefix', mergedStyleConfig)}
+          onMouseDown={handleSlotMouseDown}
+        >
+          {prefixContent}
+        </div>
       ) : null}
 
-      <ValidationSquiggles
-        errors={validationErrors}
-        editorRef={editorEl}
-        cursorOffset={cursorOffset}
-        colors={colors}
-        styles={stylesProp}
-        containerRef={containerRef.current}
-        classNames={classNames ? { squiggly: classNames.squiggly, tooltip: classNames.tooltip } : undefined}
-      />
+      <div ref={editorWrapRef} className={cx('ei-editor-wrap', classNames?.editorWrap)} style={getEditorWrapStyle()}>
+        <div
+          ref={editorRefCallback}
+          contentEditable
+          suppressContentEditableWarning
+          className={cx('ei-editor', classNames?.editor)}
+          style={editableStyle}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onClick={handleClick}
+          onPaste={handlePaste}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
+          spellCheck={false}
+        />
+
+        {isEmpty && !isFocused ? (
+          <div className={cx('ei-placeholder', classNames?.placeholder)} style={placeholderStyle}>{placeholder}</div>
+        ) : null}
+
+        <ValidationSquiggles
+          errors={validationErrors}
+          editorRef={editorEl}
+          cursorOffset={cursorOffset}
+          colors={colors}
+          styles={stylesProp}
+          containerRef={editorWrapRef.current}
+          classNames={classNames ? { squiggly: classNames.squiggly, tooltip: classNames.tooltip } : undefined}
+        />
+      </div>
+
+      {suffixContent != null && suffixContent !== false ? (
+        <div
+          className={cx('ei-suffix', classNames?.suffix)}
+          style={getSlotStyle('suffix', mergedStyleConfig)}
+          onMouseDown={handleSlotMouseDown}
+        >
+          {suffixContent}
+        </div>
+      ) : null}
 
       <AutocompleteDropdown
         suggestions={suggestions}
@@ -2128,7 +2237,7 @@ export function ElasticInput(props: ElasticInputProps) {
           fixedWidth={undefined}
           datePresets={datePresetsProp}
           datePickerClassName={classNames?.datePicker}
-          elRef={setDatePickerEl}
+          elRef={el => { datePickerElRef.current = el; setDatePickerEl(el); }}
         />
       ) : null}
     </div>

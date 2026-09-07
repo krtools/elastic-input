@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Demo
+
+- **Stable `colors` identity** — The demo now memoizes its `ColorConfig` instead of rebuilding it every render. A fresh `colors` object per keystroke forced ElasticInput's paren-match effect to rewrite the editor HTML on every keystroke, which both wasted work and sustained the reverse-typing bug whenever the component's focus state desynced from DOM focus (spurious blur). With a stable identity the effect's dedup early-out holds and the sustained reversal cannot occur; the underlying focus-state gate is a separate library fix.
+
 ## 0.12.0 — 2026-08-04
 
 ### Features

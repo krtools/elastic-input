@@ -484,10 +484,12 @@ export function DemoApp() {
   (window as any).elasticInput = inputApiRef;
 
   const theme = isDark ? darkTheme : lightTheme;
-  const colors = {
+  // Stable identity: ColorConfig is a dependency of ElasticInput's internal
+  // effects — a fresh object every render forces per-keystroke re-highlighting.
+  const colors = React.useMemo(() => ({
     ...(isDark ? DARK_COLORS : DEFAULT_COLORS),
     valueTypes: { string: vtString, number: vtNumber, date: vtDate, boolean: vtBoolean, ip: vtIp },
-  };
+  }), [isDark, vtString, vtNumber, vtDate, vtBoolean, vtIp]);
   const styles = getAppStyles(theme);
   const tab = TABS.find(t => t.id === activeTab) || TABS[0];
 

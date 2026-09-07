@@ -1438,6 +1438,14 @@ For large inputs (hundreds of tokens), two optimizations prevent browser lock-up
 
 When the `colors` prop changes (e.g. switching between light and dark themes), the inline-styled HTML in the contentEditable editor must be regenerated with the new color values. The paren matching effect tracks the previous `colors` reference and forces a `buildHighlightedHTML` re-render when it changes, bypassing the paren-match-key early-return optimization. Without this, the old color values remain baked into the HTML spans until the next text edit.
 
+Because `colors` is compared by identity, consumers should pass a **stable object** (module constant or memoized). A fresh `colors` object every render forces a full `innerHTML` rewrite on every keystroke.
+
+### 9.5.7 Caret Preservation Across innerHTML Rewrites
+
+Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path saves the caret offset before the swap and restores it after. The save/restore is gated on **real DOM focus** (`document.activeElement === editor`), never on the component's `isFocused` state. The two can disagree: a blur event the component processes while DOM focus never actually leaves the editor (window blur, an extension's capture listener swallowing the refocus event) leaves `isFocused` false while keystrokes still land in the editor. Gating on state in that situation skipped the restore, the selection died, and Chrome re-seeded the caret at the removed token's slot in the parent — position 0 for a single-token query — so every subsequent character typed in **backwards** (`source` → `ecruos`). The DOM-focus gate keeps the original protection (no range is ever set on a genuinely blurred editor, which would re-focus it) while making the rewrite safe regardless of focus-state desync.
+
+- **Tests:** `ReverseTyping.browser.test.tsx` → "typing continues forward after a blur event that never moved DOM focus", "caret stays live across multiple keystrokes in the desynced state"
+
 ---
 
 ## 10. Configuration Options

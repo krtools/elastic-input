@@ -1284,12 +1284,19 @@ export function ElasticInput(props: ElasticInputProps) {
     if (matchKey === prevParenMatchRef.current && !colorsChanged) return;
     prevParenMatchRef.current = matchKey;
 
-    const savedOffset = isFocused ? getCaretCharOffset(editorRef.current) : -1;
+    // Gate the caret save/restore on real DOM focus, not isFocused state.
+    // A spurious blur (window blur, an extension swallowing the refocus event)
+    // can leave isFocused false while the editor still has DOM focus and
+    // receives keystrokes; gating on state then rewrites innerHTML without
+    // restoring, the selection detaches, and Chrome re-seeds the caret at the
+    // removed token's slot — every subsequent character types in backwards.
+    // Gating on activeElement keeps the original protection too: no range is
+    // ever set on a genuinely blurred editor (which would re-focus it).
+    const domFocused = document.activeElement === editorRef.current;
+    const savedOffset = domFocused ? getCaretCharOffset(editorRef.current) : -1;
     const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token, fieldTypeMap });
     editorRef.current.innerHTML = html;
-    // Only restore caret when focused — setting a selection range on a blurred
-    // contentEditable re-focuses it, which prevents the user from clicking away.
-    if (isFocused && savedOffset >= 0) {
+    if (domFocused && savedOffset >= 0) {
       setCaretCharOffset(editorRef.current, savedOffset);
     }
   }, [cursorOffset, selectionEnd, isFocused, colors]);
@@ -1309,10 +1316,12 @@ export function ElasticInput(props: ElasticInputProps) {
       // Expanding: rebuild HTML with proper <br> tags
       const toks = stateRef.current.tokens;
       if (toks.length > 0) {
-        const offset = isFocused ? getCaretCharOffset(editorRef.current) : -1;
+        // Same DOM-focus gate as the paren-match effect (see comment there)
+        const domFocused = document.activeElement === editorRef.current;
+        const offset = domFocused ? getCaretCharOffset(editorRef.current) : -1;
         const html = buildHighlightedHTML(toks, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;
-        if (isFocused && offset >= 0) {
+        if (domFocused && offset >= 0) {
           setCaretCharOffset(editorRef.current, offset);
         }
       }

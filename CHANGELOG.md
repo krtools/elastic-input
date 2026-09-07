@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Reverse typing after a focus-state desync** — A blur event processed while DOM focus never actually left the editor (window blur, an extension's capture listener swallowing the refocus event) left the internal `isFocused` state false while keystrokes still landed in the editor. The paren-match re-highlight effect gated its caret restore on that state, so each `innerHTML` rewrite detached the selection without restoring it; Chrome re-seeds a dead caret at the removed token's slot (position 0 for a single-token query), making every subsequent character prepend — `source` typed as `ecruos`. Sustained reversal additionally required an unstable `colors` prop identity (or paren-match churn) to force a rewrite per keystroke. The caret save/restore in the paren-match and collapse-expand effects is now gated on `document.activeElement` (real DOM focus) like the main highlight path, which makes the rewrite safe regardless of focus-state desync while still never setting a range on a genuinely blurred editor.
+
 ### Demo
 
 - **Stable `colors` identity** — The demo now memoizes its `ColorConfig` instead of rebuilding it every render. A fresh `colors` object per keystroke forced ElasticInput's paren-match effect to rewrite the editor HTML on every keystroke, which both wasted work and sustained the reverse-typing bug whenever the component's focus state desynced from DOM focus (spurious blur). With a stable identity the effect's dedup early-out holds and the sustained reversal cannot occur; the underlying focus-state gate is a separate library fix.

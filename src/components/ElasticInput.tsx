@@ -10,6 +10,7 @@ import { Suggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
+import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
@@ -159,6 +160,21 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
   );
 }
 
+/**
+ * useRef with lazy initialization. `useRef(new X())` evaluates its argument on
+ * every render, constructing a throwaway instance each time; this runs `init`
+ * exactly once, on the first render.
+ *
+ * Exported for tests only — not part of the public package API.
+ */
+export function useLazyRef<T>(init: () => T): React.MutableRefObject<T> {
+  const ref = React.useRef<T | null>(null);
+  if (ref.current === null) {
+    ref.current = init();
+  }
+  return ref as React.MutableRefObject<T>;
+}
+
 // ---------------------------------------------------------------------------
 // ElasticInput — main component
 // ---------------------------------------------------------------------------
@@ -194,10 +210,19 @@ export function ElasticInput(props: ElasticInputProps) {
     suffix,
   } = props;
 
-  // Normalize defaultField prop
-  const defaultFieldConfig = typeof defaultFieldProp === 'string'
-    ? { name: defaultFieldProp, showFieldSuggestions: false }
-    : defaultFieldProp ? { showFieldSuggestions: false, ...defaultFieldProp } : undefined;
+  // Normalize defaultField prop. Memoized on its primitive members so a fresh
+  // inline object per render keeps a stable identity here — the setDefaultField
+  // effect below depends on it.
+  const defaultFieldPropName = typeof defaultFieldProp === 'string' ? defaultFieldProp : defaultFieldProp?.name;
+  const defaultFieldShowSuggestions = typeof defaultFieldProp === 'object' && defaultFieldProp != null
+    ? defaultFieldProp.showFieldSuggestions ?? false
+    : false;
+  const defaultFieldConfig = React.useMemo(
+    () => defaultFieldPropName === undefined
+      ? undefined
+      : { name: defaultFieldPropName, showFieldSuggestions: defaultFieldShowSuggestions },
+    [defaultFieldPropName, defaultFieldShowSuggestions]
+  );
   const defaultFieldName = defaultFieldConfig?.name;
 
   // Dropdown config
@@ -248,15 +273,19 @@ export function ElasticInput(props: ElasticInputProps) {
   const initialFields = Array.isArray(fieldsProp) ? fieldsProp : [];
   const [resolvedFields, setResolvedFields] = React.useState<FieldConfig[]>(initialFields);
 
+  // Identity-only churn on the array form (a new array every render built from
+  // the same element references, e.g. `[...FIELDS]`) is absorbed here: keeping
+  // the previous state's identity when the contents are shallow-equal means the
+  // engine/validator rebuild effect (keyed on resolvedFields) doesn't fire.
   React.useEffect(() => {
     if (Array.isArray(fieldsProp)) {
-      setResolvedFields(fieldsProp);
+      setResolvedFields(prev => arrayShallowEqual(prev, fieldsProp) ? prev : fieldsProp);
       return;
     }
     let cancelled = false;
     fieldsProp().then(result => {
       if (!cancelled) {
-        setResolvedFields(result);
+        setResolvedFields(prev => arrayShallowEqual(prev, result) ? prev : result);
       }
     });
     return () => { cancelled = true; };
@@ -319,18 +348,28 @@ export function ElasticInput(props: ElasticInputProps) {
   // earlier) always calls the current version without a stale closure.
   const updateSuggestionsRef = React.useRef<(toks: Token[], offset: number) => void>(() => {});
 
-  // Mutable refs for engine/validator so they stay current without re-renders
-  const engineRef = React.useRef<AutocompleteEngine>(
-    new AutocompleteEngine(
+  // Mutable refs for engine/validator so they stay current without re-renders.
+  // Lazy-initialized: constructed once on first render, replaced only by the
+  // rebuild effect when resolved fields (or engine options) actually change.
+  const engineRef = useLazyRef(() => {
+    const engine = new AutocompleteEngine(
       initialFields, [], [],
       maxSuggestions || DEFAULT_MAX_SUGGESTIONS,
       { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
-    )
-  );
-  engineRef.current.setDefaultField(defaultFieldConfig);
-  const validatorRef = React.useRef(new Validator(initialFields));
+    );
+    engine.setDefaultField(defaultFieldConfig);
+    return engine;
+  });
+  const validatorRef = useLazyRef(() => new Validator(initialFields));
   const validateValueRef = React.useRef(validateValue);
   validateValueRef.current = validateValue;
+
+  // Keep the engine's default field current when the prop changes (in an
+  // effect — the render body must not mutate the retained engine). The rebuild
+  // effect applies it separately when constructing a replacement engine.
+  React.useEffect(() => {
+    engineRef.current.setDefaultField(defaultFieldConfig);
+  }, [defaultFieldConfig]);
 
   // --- State ---
   const [tokens, setTokens] = React.useState<Token[]>([]);

@@ -1520,16 +1520,19 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 
 #### Prop Identity Stability
 
-Most props are identity-insensitive by design: event handlers and renderers only re-create internal `useCallback`s, `validateValue` is read through a ref, and `dropdown`/`features` are destructured to primitives on every render. Three props are compared by identity and trigger real work when it changes:
+Most props are identity-insensitive by design: event handlers and renderers only re-create internal `useCallback`s, `validateValue` is read through a ref, and `dropdown`/`features` are destructured to primitives on every render. Props compared by identity, and the library's built-in resilience for each:
 
-- **`fields` (array)** — the resolve effect calls `setResolvedFields(fieldsProp)` keyed on `[fieldsProp]`; a new array identity triggers the rebuild effect: new `AutocompleteEngine`, new `Validator`, and a full `processInput` (re-lex, re-parse, re-validate, editor `innerHTML` rewrite) per render.
-- **`fields` (async loader)** — the loader itself is invoked per identity change; an unstable function produces a fetch loop (see *Async Field Loading* below).
+- **`fields` (array)** — the resolve effect shallow-compares the incoming array against the current resolved fields (same length, same **elements by reference**, via `arrayShallowEqual`) and keeps the previous state when equal, so identity-only churn — a new array per render built from stable element references (`[...FIELDS]`, `FIELDS.filter(...)`) — does **not** fire the rebuild effect (new `AutocompleteEngine`, new `Validator`, full `processInput`: re-lex, re-parse, re-validate, editor `innerHTML` rewrite). The compare is by element reference, not structure: a fully-inline literal that re-creates the element **objects** every render (`fields={[{ name: 'status', … }]}`) still rebuilds per render.
+- **`fields` (async loader)** — the loader itself is still invoked per identity change (an unstable function re-fetches per render; see *Async Field Loading* below), but its **result** goes through the same shallow compare: a loader resolving to a fresh array of the same element references (e.g. spread of a module-level cache) no longer triggers the rebuild/reprocess after resolution — this also breaks the resolve→rebuild→re-render fetch loop for cached loaders.
 - **`colors`** — a dependency of the paren-match re-highlight effect; identity churn bypasses the match-key dedup (`colorsChanged`) and rewrites the editor `innerHTML` on every keystroke. See §9.5.6 and §9.5.7 — unstable `colors` was the amplifier that sustained the reverse-typing bug.
 - **`dropdown.open` (callback form)** — a dependency of the proactive-close effect; each new identity re-invokes it with `trigger: 'modeChange'`, and a `false` return closes the dropdown and clears suggestions.
+- **`defaultField` (object form)** — normalized into a config memoized on its primitive members (`name`, `showFieldSuggestions`), so a fresh inline object per render does not re-run the `setDefaultField` effect.
 
-Consumers should hoist these to module scope or memoize them. The README's *Prop Stability* section is the consumer-facing version of this rule.
+Internally, the retained engine/validator instances are lazy-initialized (`useLazyRef`): constructed exactly once on first render — `useRef(new …)` would evaluate the constructor on every render — and replaced only by the rebuild effect. `setDefaultField` runs in an effect, never in the render body.
 
-- **Tests:** `ReverseTyping.browser.test.tsx` → both tests use a deliberately unstable `colors` harness to exercise the per-keystroke rewrite path
+Consumers should still hoist `fields`, `colors`, and `dropdown.open` to module scope or memoize them — the resilience covers identity churn of the `fields` **array**, not of its elements, and `colors`/`dropdown.open` have no content-compare. The README's *Prop Stability* section is the consumer-facing version of this rule.
+
+- **Tests:** `PropStability.browser.test.tsx` → "an identity-changed but content-equal fields array does not rebuild or reprocess", "a content-changed fields array still rebuilds and re-validates", "an unstable async loader resolving to content-equal fields does not reprocess", "useLazyRef runs the initializer exactly once across re-renders"; `arrayShallowEqual.test.ts` → compare semantics (reference equality, length, order); `ReverseTyping.browser.test.tsx` → both tests use a deliberately unstable `colors` harness to exercise the per-keystroke rewrite path
 
 #### Async Field Loading
 

@@ -142,8 +142,8 @@ Almost every prop can be written inline: event handlers, `styles`, `classNames`,
 
 | Prop | What happens on every render if the identity is unstable |
 |------|----------------------------------------------------------|
-| `fields` (array) | The autocomplete engine and validator are rebuilt, and the whole query is re-lexed, re-parsed, re-validated, and re-highlighted |
-| `fields` (async loader) | The loader is called again — a fetch loop |
+| `fields` (array) | If the **elements** are also new objects, the autocomplete engine and validator are rebuilt, and the whole query is re-lexed, re-parsed, re-validated, and re-highlighted. A new array of the *same* element references (`[...FIELDS]`, `FIELDS.filter(...)`) is absorbed by a built-in shallow compare and costs nothing. |
+| `fields` (async loader) | The loader is called again — a fetch loop. (If it resolves to the same element references, the result is absorbed and nothing rebuilds — but the redundant fetches remain.) |
 | `colors` | The editor's highlighted HTML is rebuilt on every keystroke |
 | `dropdown.open` (callback form) | The callback is re-invoked with `trigger: 'modeChange'`; returning `false` force-closes the dropdown you just opened |
 

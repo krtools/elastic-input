@@ -32,6 +32,18 @@ export function hasPendingSuggestion(suggestions: Suggestion[]): boolean {
 }
 
 /**
+ * Key identifying a completion task: what the user is currently completing.
+ * Same key across keystrokes = same task (type-ahead may keep previous
+ * results visible while a fresh fetch runs); different key = the held
+ * results belong to a finished task and must be discarded — a leftover
+ * suggestion shown as selected could not be sensibly accepted (e.g. a
+ * field-name completion while the user is already typing that field's value).
+ */
+export function completionTaskKey(contextType: string, fieldName?: string | null): string {
+  return fieldName ? `${contextType}:${fieldName}` : contextType;
+}
+
+/**
  * Whether a suggestion can be accepted (Enter/Tab/click). Inert items are
  * never acceptable; hints only when they insert a trigger char (`#` or `!`).
  */

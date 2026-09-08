@@ -4,6 +4,7 @@ import {
   isInertSuggestion,
   isAcceptableSuggestion,
   hasPendingSuggestion,
+  completionTaskKey,
 } from '../autocomplete/suggestionTypes';
 
 function sugg(type: string | undefined, text = 'x'): Suggestion {
@@ -49,6 +50,29 @@ describe('isAcceptableSuggestion', () => {
     expect(isAcceptableSuggestion(sugg('savedSearch'))).toBe(true);
     expect(isAcceptableSuggestion(sugg('history'))).toBe(true);
     expect(isAcceptableSuggestion(sugg(undefined))).toBe(true);
+  });
+});
+
+describe('completionTaskKey', () => {
+  it('keys value tasks by field — different fields are different tasks', () => {
+    expect(completionTaskKey('FIELD_VALUE', 'status')).toBe('FIELD_VALUE:status');
+    expect(completionTaskKey('FIELD_VALUE', 'status'))
+      .not.toBe(completionTaskKey('FIELD_VALUE', 'level'));
+  });
+
+  it('different context types are different tasks even for the same field', () => {
+    expect(completionTaskKey('FIELD_NAME', 'status'))
+      .not.toBe(completionTaskKey('FIELD_VALUE', 'status'));
+  });
+
+  it('fieldless contexts key on type alone', () => {
+    expect(completionTaskKey('SAVED_SEARCH')).toBe('SAVED_SEARCH');
+    expect(completionTaskKey('HISTORY_REF', null)).toBe('HISTORY_REF');
+    expect(completionTaskKey('FIELD_NAME', undefined)).toBe('FIELD_NAME');
+  });
+
+  it('same type + same field = same task (type-ahead preservation key)', () => {
+    expect(completionTaskKey('FIELD_VALUE', 'status')).toBe(completionTaskKey('FIELD_VALUE', 'status'));
   });
 });
 

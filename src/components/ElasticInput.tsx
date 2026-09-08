@@ -6,7 +6,7 @@ import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
-import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion } from '../autocomplete/suggestionTypes';
+import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
@@ -350,6 +350,10 @@ export function ElasticInput(props: ElasticInputProps) {
   const navDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadingDelayTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const asyncActiveRef = React.useRef(false); // true while an async fetch cycle is in progress
+  // Completion task (context type + field) that produced the currently
+  // displayed suggestions; null when nothing is displayed. Used to discard
+  // held results when the task changes during the spinner-delay window.
+  const displayedTaskRef = React.useRef<string | null>(null);
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
@@ -445,6 +449,20 @@ export function ElasticInput(props: ElasticInputProps) {
     return containerRef.current.getBoundingClientRect().width;
   }, [dropdownAlignToInput]);
 
+  // Pending caret-following dropdown-show frame. Tracked separately from
+  // rafIdsRef so close/clear paths can cancel it — otherwise a frame armed by
+  // an earlier keystroke can fire AFTER a synchronous close and resurrect
+  // showDropdown over an emptied suggestion list (a zombie state that renders
+  // nothing but swallows keys gated on the flag).
+  const dropdownShowRafRef = React.useRef<number | null>(null);
+  const cancelPendingDropdownShow = React.useCallback(() => {
+    if (dropdownShowRafRef.current != null) {
+      cancelAnimationFrame(dropdownShowRafRef.current);
+      rafIdsRef.current.delete(dropdownShowRafRef.current);
+      dropdownShowRafRef.current = null;
+    }
+  }, []);
+
   // Show dropdown, updating position. In full-width mode the position is always
   // the container bottom-left, so we set it synchronously (no rAF) to avoid
   // stale-position flash and jitter. In caret-following mode we use rAF so the
@@ -465,9 +483,12 @@ export function ElasticInput(props: ElasticInputProps) {
       setDropdownPosition(computeDropdownPosition(cappedHeight, width));
       return;
     }
-    // Caret-following: defer to rAF so caret rect is fresh
+    // Caret-following: defer to rAF so caret rect is fresh. Only one show may
+    // be pending — a newer show (or a close) supersedes it.
+    cancelPendingDropdownShow();
     const id = requestAnimationFrame(() => {
       rafIdsRef.current.delete(id);
+      dropdownShowRafRef.current = null;
       if (kind === 'datePicker') {
         setShowDatePicker(true);
       } else {
@@ -478,7 +499,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setDropdownPosition(pos);
     });
     rafIdsRef.current.add(id);
-  }, [dropdownAlignToInput, computeDropdownPosition, dropdownMaxHeightPx]);
+    dropdownShowRafRef.current = id;
+  }, [dropdownAlignToInput, computeDropdownPosition, dropdownMaxHeightPx, cancelPendingDropdownShow]);
 
   // Threshold: above this token count, debounce the expensive innerHTML replacement
   const HIGHLIGHT_DEBOUNCE_THRESHOLD = 80;
@@ -696,6 +718,12 @@ export function ElasticInput(props: ElasticInputProps) {
     const resolvedField = result.context.fieldName
       ? engineRef.current.resolveField(result.context.fieldName)
       : undefined;
+    // The completion task this update belongs to — aliases resolve to the
+    // canonical field name so alias/canonical don't count as a task change.
+    const taskKey = completionTaskKey(
+      result.context.type,
+      resolvedField ? resolvedField.name : result.context.fieldName,
+    );
     const willFetchAsync = !!(
       fetchSuggestionsProp &&
       result.context.type === 'FIELD_VALUE' &&
@@ -747,6 +775,7 @@ export function ElasticInput(props: ElasticInputProps) {
       setSuggestions([]);
       if (!dropdownAlignToInput) setShowDropdown(false);
       setAutocompleteContext(contextType);
+      displayedTaskRef.current = taskKey;
       showDropdownAtPosition(350, 300, 'datePicker');
       return;
     }
@@ -759,6 +788,23 @@ export function ElasticInput(props: ElasticInputProps) {
       const token = result.context.token;
       const start = token ? token.start : offset;
       const end = token ? token.end : offset;
+
+      // Held-result preservation is per completion task: previous results may
+      // stay visible across keystrokes only while the user keeps typing the
+      // SAME field's value (type-ahead — accepting a shown stale result is
+      // meaningful there). When the task changed (field name → value, value of
+      // field A → value of field B, …), the held suggestions belong to a
+      // finished task: a leftover item shown as selected could not be sensibly
+      // accepted, and its stale replace range would eat typed input. Discard
+      // immediately — the dropdown stays closed until the spinner or results.
+      if (displayedTaskRef.current !== taskKey) {
+        cancelPendingDropdownShow();
+        setSuggestions([]);
+        setSelectedSuggestionIndex(-1);
+        setShowDropdown(false);
+        setShowDatePicker(false);
+      }
+      displayedTaskRef.current = taskKey;
 
       const showSpinner = () => {
         loadingDelayTimerRef.current = null;
@@ -790,6 +836,9 @@ export function ElasticInput(props: ElasticInputProps) {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
 
+      // Sync path replaces (or closes) the display immediately — whatever ends
+      // up shown belongs to this task
+      displayedTaskRef.current = taskKey;
 
       const newSuggestions = applyFieldHint(result.suggestions, result.context);
       if (newSuggestions.length > 0) {
@@ -941,6 +990,7 @@ export function ElasticInput(props: ElasticInputProps) {
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
 
   const closeDropdown = React.useCallback(() => {
+    cancelPendingDropdownShow();
     setShowDropdown(false);
     setShowDatePicker(false);
     setDatePickerInit(null);
@@ -948,6 +998,7 @@ export function ElasticInput(props: ElasticInputProps) {
     datePickerReplaceRef.current = null;
     setSuggestions([]);
     setSelectedSuggestionIndex(-1);
+    displayedTaskRef.current = null;
     // Cancel any in-flight async work
     asyncActiveRef.current = false;
     abortControllerRef.current?.abort();
@@ -959,7 +1010,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
     // Reset manual activation so next Ctrl+Space re-activates
     manualActivationContextRef.current = null;
-  }, []);
+  }, [cancelPendingDropdownShow]);
 
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
@@ -1987,7 +2038,10 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    if (e.key === 'Enter' && !s.showDropdown && !s.showDatePicker) {
+    // Note: gate on "effectively open" (visible content), not the showDropdown
+    // flag alone — a stale flag with an emptied suggestion list must not
+    // swallow the submit.
+    if (e.key === 'Enter' && !(s.showDropdown && s.suggestions.length > 0) && !s.showDatePicker) {
       e.preventDefault();
       // Cancel any pending async work (debounce, in-flight fetch, spinner
       // delay) so results from a superseded fetch can't pop the dropdown
@@ -2057,9 +2111,11 @@ export function ElasticInput(props: ElasticInputProps) {
     // suggestions, and the focus state intact.
     if (isInternalNode(e.relatedTarget as Node | null)) return;
     setIsFocused(false);
+    cancelPendingDropdownShow();
     setShowDropdown(false);
     setShowDatePicker(false);
     setSuggestions([]);
+    displayedTaskRef.current = null;
     // Cancel any in-flight async work so results don't pop up after blur
     asyncActiveRef.current = false;
     abortControllerRef.current?.abort();
@@ -2068,7 +2124,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // Set cursor to -1 so deferred display shows all errors when blurred
     setCursorOffset(-1);
     onBlurProp?.();
-  }, [onBlurProp, isInternalNode]);
+  }, [onBlurProp, isInternalNode, cancelPendingDropdownShow]);
 
   // Slot mousedown: keep the editor's focus, caret, and open dropdown intact
   // when interacting with slot content (the click still fires on buttons).

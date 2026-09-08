@@ -524,6 +524,10 @@ The dropdown content follows strict rules to prevent stale results from flashing
 | Fetch errors | Dropdown closes | No stale results left behind |
 | Context changes (cursor moves away, different field) | Cleared | In-flight fetch cancelled, async state reset |
 
+**Preservation is per completion task.** "Previous results" stay visible across keystrokes only while the user keeps typing within the *same* completion task, keyed on cursor context type + resolved field name (`completionTaskKey`; aliases resolve to the canonical name). When the task changes — field name → value (typed the `:`), value of field A → value of field B, value → new bare term — the held suggestions are discarded immediately and the dropdown closes until the spinner or fresh results arrive. Rationale: an item shown as selected must always be sensibly acceptable. A leftover completion for a finished task cannot be — its stale replace range, clamped to the current cursor, would eat typed input (e.g. the held `status` field suggestion accepted at `status:act|` produced `status: `). Same-task type-ahead (accepting a shown result for partial `a` while the fetch for `ac` is in flight) is deliberately preserved.
+
+- **Tests:** `LoadingKeys.browser.test.tsx` → "discards held field-name suggestions when typing moves into the value", "keeps previous results usable while a same-task fetch is in flight (type-ahead)"; `suggestionGuards.test.ts` → "completionTaskKey" suite
+
 #### 4.8.2 Staleness Guard
 
 Each async fetch is tagged with a monotonic request ID. When results arrive, they are discarded if the ID does not match the latest request. This prevents slow responses from overwriting results from faster, newer requests.
@@ -790,7 +794,7 @@ Enter's behavior depends on what is being selected:
 | Saved search | Accept only (no submit) |
 | History ref | Accept only (no submit) |
 
-When no dropdown is open, Enter submits the search — and also cancels any pending async work (debounce timer, in-flight fetch, delayed spinner), so a superseded fetch can't pop the dropdown open over the search results. Enter with an **inert item** (spinner, error, no-results) highlighted closes the dropdown and submits the raw query. Enter is deliberately **not** blocked during loading windows (unlike Tab, §7.2.2): it means "search what I typed", which matches its behavior on non-matching partials with loaded fields.
+When no dropdown is open, Enter submits the search — and also cancels any pending async work (debounce timer, in-flight fetch, delayed spinner), so a superseded fetch can't pop the dropdown open over the search results. "Open" means visibly open (suggestions present), not just the internal flag — a stale flag over an emptied list can't swallow the submit. Close/clear paths also cancel any pending caret-following dropdown-show frame, so a frame armed by an earlier keystroke can't resurrect the dropdown state after a synchronous close. Enter with an **inert item** (spinner, error, no-results) highlighted closes the dropdown and submits the raw query. Enter is deliberately **not** blocked during loading windows (unlike Tab, §7.2.2): it means "search what I typed", which matches its behavior on non-matching partials with loaded fields.
 
 - **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value at end appends trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"; `LoadingKeys.browser.test.tsx` → "Enter still submits the raw partial while fields load", "ArrowDown onto the spinner + Enter submits the raw query intact", "Enter during the silent debounce window leaves no ghost dropdown behind"
 

@@ -208,11 +208,10 @@ describe('Tab/Enter while async value suggestions are in flight', () => {
 
     const editor = page.elementLocator(editorEl());
     await editor.click();
-    await userEvent.type(editor, 'status:');
-    // Escape clears the stale field-name suggestion so the silent window
-    // genuinely has a closed dropdown (nothing selected to type-ahead accept)
-    await userEvent.keyboard('{Escape}');
-    await userEvent.type(editor, 'act');
+    // Typing ":" changes the completion task (field name → value), which
+    // discards the held field-name suggestions — the silent window naturally
+    // has a closed dropdown
+    await userEvent.type(editor, 'status:act');
     // Give the 0ms debounce a beat to start the fetch; spinner is 5s away
     await new Promise(r => setTimeout(r, 50));
     expect(dropdownVisible()).toBe(false);
@@ -226,5 +225,74 @@ describe('Tab/Enter while async value suggestions are in flight', () => {
     d.resolve([{ text: 'active' }]);
     await new Promise(r => setTimeout(r, 200));
     expect(dropdownVisible()).toBe(false);
+  });
+});
+
+describe('completion-task staleness during the spinner delay window', () => {
+  it('discards held field-name suggestions when typing moves into the value', async () => {
+    const d = deferred<SuggestionItem[]>();
+    const searches: string[] = [];
+    renderInto(
+      React.createElement(ElasticInput, {
+        fields: FIELDS,
+        fetchSuggestions: () => d.promise,
+        onSearch: (q: string) => searches.push(q),
+        dropdown: { suggestDebounceMs: 0, loadingDelay: 5000 },
+      }),
+    );
+
+    const editor = page.elementLocator(editorEl());
+    await editor.click();
+    await userEvent.type(editor, 'statu');
+    expect(await waitFor(() => dropdownVisible() && dropdownText().toLowerCase().includes('status'))).toBe(true);
+
+    // ":" finishes the field-name task — the held "Status" suggestion must
+    // disappear rather than sit highlighted where Enter would accept it
+    await userEvent.type(editor, 's:');
+    expect(await waitFor(() => !dropdownVisible())).toBe(true);
+
+    // Enter now submits what was typed instead of accepting the stale
+    // field-name suggestion (which used to produce "status: ", eating input)
+    await userEvent.type(editor, 'act');
+    await userEvent.keyboard('{Enter}');
+    expect(await waitFor(() => searches.length === 1)).toBe(true);
+    expect(searches[0]).toBe('status:act');
+    expect(editorEl().textContent).toBe('status:act');
+    d.resolve([]);
+  });
+
+  it('keeps previous results usable while a same-task fetch is in flight (type-ahead)', async () => {
+    const calls: { partial: string; d: ReturnType<typeof deferred<SuggestionItem[]>> }[] = [];
+    const searches: string[] = [];
+    renderInto(
+      React.createElement(ElasticInput, {
+        fields: FIELDS,
+        fetchSuggestions: (_field: string, partial: string) => {
+          const dd = deferred<SuggestionItem[]>();
+          calls.push({ partial, d: dd });
+          return dd.promise;
+        },
+        onSearch: (q: string) => searches.push(q),
+        dropdown: { suggestDebounceMs: 0, loadingDelay: 5000 },
+      }),
+    );
+
+    const editor = page.elementLocator(editorEl());
+    await editor.click();
+    await userEvent.type(editor, 'status:a');
+    expect(await waitFor(() => calls.some(c => c.partial === 'a'))).toBe(true);
+    calls.find(c => c.partial === 'a')!.d.resolve([{ text: 'active' }, { text: 'inactive' }]);
+    expect(await waitFor(() => dropdownText().includes('active'))).toBe(true);
+
+    // Same task ("status" value), fresh fetch in flight: previous results
+    // stay visible and acceptable — that's the 0.10.0 type-ahead behavior
+    await userEvent.type(editor, 'c');
+    await new Promise(r => setTimeout(r, 100));
+    expect(dropdownText().includes('active')).toBe(true);
+
+    await userEvent.keyboard('{Enter}');
+    expect(await waitFor(() => searches.length === 1)).toBe(true);
+    expect(searches[0]).toBe('status:active ');
+    expect(editorEl().textContent).toBe('status:active ');
   });
 });

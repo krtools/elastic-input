@@ -15,3 +15,28 @@ export interface Suggestion {
 }
 
 export type SuggestionSource = 'field' | 'value' | 'operator' | 'savedSearch' | 'history' | 'hint';
+
+/**
+ * Inert dropdown items: the "Searching..." spinner, fetch errors, and
+ * "no results" messages. They render in the list and can be highlighted via
+ * arrow keys, but must never be accepted — their `text` is empty, so accepting
+ * one would replace the user's typed partial with nothing.
+ */
+export function isInertSuggestion(s: Suggestion): boolean {
+  return s.type === 'loading' || s.type === 'error' || s.type === 'noResults';
+}
+
+/** True when the list contains the async "Searching..." spinner item. */
+export function hasPendingSuggestion(suggestions: Suggestion[]): boolean {
+  return suggestions.some(s => s.type === 'loading');
+}
+
+/**
+ * Whether a suggestion can be accepted (Enter/Tab/click). Inert items are
+ * never acceptable; hints only when they insert a trigger char (`#` or `!`).
+ */
+export function isAcceptableSuggestion(s: Suggestion): boolean {
+  if (isInertSuggestion(s)) return false;
+  if (s.type === 'hint' && s.text !== '#' && s.text !== '!') return false;
+  return true;
+}

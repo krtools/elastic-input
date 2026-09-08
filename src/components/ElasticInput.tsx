@@ -6,7 +6,7 @@ import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
-import { Suggestion } from '../autocomplete/suggestionTypes';
+import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
@@ -272,6 +272,13 @@ export function ElasticInput(props: ElasticInputProps) {
   // Resolve async fields into state — start with [] while loading
   const initialFields = Array.isArray(fieldsProp) ? fieldsProp : [];
   const [resolvedFields, setResolvedFields] = React.useState<FieldConfig[]>(initialFields);
+  // True while the async fields loader is in flight. Distinguishes "fields not
+  // loaded yet" from "consumer passed an empty fields array" — Tab is blocked
+  // mid-partial only in the former case.
+  const [fieldsLoading, setFieldsLoading] = React.useState(!Array.isArray(fieldsProp));
+  // Set when an async load actually delivered new fields; consumed by the
+  // rebuild effect to re-surface suggestions for the partial being typed.
+  const fieldsJustLoadedRef = React.useRef(false);
 
   // Identity-only churn on the array form (a new array every render built from
   // the same element references, e.g. `[...FIELDS]`) is absorbed here: keeping
@@ -279,14 +286,24 @@ export function ElasticInput(props: ElasticInputProps) {
   // engine/validator rebuild effect (keyed on resolvedFields) doesn't fire.
   React.useEffect(() => {
     if (Array.isArray(fieldsProp)) {
+      setFieldsLoading(false);
       setResolvedFields(prev => arrayShallowEqual(prev, fieldsProp) ? prev : fieldsProp);
       return;
     }
     let cancelled = false;
+    setFieldsLoading(true);
     fieldsProp().then(result => {
-      if (!cancelled) {
-        setResolvedFields(prev => arrayShallowEqual(prev, result) ? prev : result);
-      }
+      if (cancelled) return;
+      setFieldsLoading(false);
+      setResolvedFields(prev => {
+        if (arrayShallowEqual(prev, result)) return prev;
+        fieldsJustLoadedRef.current = true;
+        return result;
+      });
+    }).catch(() => {
+      // A rejected loader must still clear the flag — otherwise the
+      // mid-partial Tab block would hold focus forever (keyboard trap).
+      if (!cancelled) setFieldsLoading(false);
     });
     return () => { cancelled = true; };
   }, [fieldsProp]);
@@ -398,10 +415,12 @@ export function ElasticInput(props: ElasticInputProps) {
   const stateRef = React.useRef({
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
+    fieldsLoading,
   });
   stateRef.current = {
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
+    fieldsLoading,
   };
 
   // --- Helpers ---
@@ -858,6 +877,11 @@ export function ElasticInput(props: ElasticInputProps) {
           // Cancel loading delay — results arrived before spinner was needed
           if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
 
+          // This fetch cycle is settled — nothing pending anymore. (Aborted
+          // fetches return above without touching the flag: a newer cycle
+          // owns it.)
+          asyncActiveRef.current = false;
+
           // Truncate to maxSuggestions — async providers may return unbounded results
           mapped = mapped.slice(0, effectiveMaxSuggestions);
 
@@ -929,6 +953,10 @@ export function ElasticInput(props: ElasticInputProps) {
     abortControllerRef.current?.abort();
     if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
     if (navDelayTimerRef.current) { clearTimeout(navDelayTimerRef.current); navDelayTimerRef.current = null; }
+    // Also cancel a pending "Searching..." spinner — without this, a
+    // loadingDelay timer armed before the close re-opens a ghost dropdown
+    // after e.g. an Enter submit.
+    if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
     // Reset manual activation so next Ctrl+Space re-activates
     manualActivationContextRef.current = null;
   }, []);
@@ -1010,6 +1038,10 @@ export function ElasticInput(props: ElasticInputProps) {
     triggerEvent?: React.KeyboardEvent | React.MouseEvent,
   ) => {
     if (!suggestion) return;
+    // Inert items (spinner, error, no-results) have empty text — accepting
+    // one would replace the typed partial with nothing. Guarded here as well
+    // as at the call sites so no path can wipe user input.
+    if (isInertSuggestion(suggestion)) return;
     const s = stateRef.current;
     const ctx = s.autocompleteContext;
     // For complete terms (values, saved searches, history), mark as navigation so
@@ -1108,6 +1140,19 @@ export function ElasticInput(props: ElasticInputProps) {
     // Re-validate current input with new fields (e.g. after async fields load)
     if (currentValueRef.current) {
       processInput(currentValueRef.current, false);
+    }
+    // Async fields just arrived: if the user is mid-partial in the focused
+    // editor (Tab may have been blocked waiting for exactly this), surface the
+    // suggestions they were waiting for. processInput above refreshed
+    // stateRef.tokens synchronously, so the engine sees the new fields.
+    if (fieldsJustLoadedRef.current) {
+      fieldsJustLoadedRef.current = false;
+      const partial = stateRef.current.cursorContext?.partial ?? '';
+      if (partial.length > 0 && editorRef.current && document.activeElement === editorRef.current) {
+        dropdownTriggerRef.current = 'input';
+        const offset = getCaretCharOffset(editorRef.current);
+        updateSuggestionsRef.current(stateRef.current.tokens, offset);
+      }
     }
   }, [resolvedFields, maxSuggestions, showSavedSearchHint, showHistoryHint]);
 
@@ -1815,8 +1860,9 @@ export function ElasticInput(props: ElasticInputProps) {
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
-            if (selected.type === 'loading' || selected.type === 'error') {
-              // Non-interactive items: treat as no selection — close and submit
+            if (isInertSuggestion(selected)) {
+              // Inert items (spinner/error/no-results): treat as no selection
+              // — close and submit
               e.preventDefault();
               closeDropdown();
               if (onSearch) onSearch(currentValueRef.current, s.ast, e);
@@ -1854,11 +1900,7 @@ export function ElasticInput(props: ElasticInputProps) {
             e.preventDefault();
             const selectedSugg = s.selectedSuggestionIndex >= 0 ? s.suggestions[s.selectedSuggestionIndex] : null;
             // Filter out non-acceptable suggestion types
-            const acceptableSugg = selectedSugg
-              && selectedSugg.type !== 'loading'
-              && selectedSugg.type !== 'error'
-              && !(selectedSugg.type === 'hint' && selectedSugg.text !== '#' && selectedSugg.text !== '!')
-              ? selectedSugg : null;
+            const acceptableSugg = selectedSugg && isAcceptableSuggestion(selectedSugg) ? selectedSugg : null;
             const ctx = s.cursorContext || { type: 'EMPTY' as const, partial: '' };
             const result = onTabProp({ suggestion: acceptableSugg, cursorContext: ctx, query: currentValueRef.current });
             if (result.accept && acceptableSugg) {
@@ -1876,6 +1918,15 @@ export function ElasticInput(props: ElasticInputProps) {
           // Default Tab behavior: accept suggestion if selected
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
+            if (selected.type === 'loading') {
+              // A completion may still arrive — hold focus, accept nothing
+              e.preventDefault();
+              return;
+            }
+            if (selected.type === 'error' || selected.type === 'noResults') {
+              // Nothing is coming — treat as no selection (tab out below)
+              break;
+            }
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
               e.preventDefault();
               closeDropdown();
@@ -1915,6 +1966,21 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Block Tab from leaving the input while a completion for the partial
+    // being typed may still arrive: async fields haven't loaded, or an async
+    // suggestion fetch is in flight. Once results land, the dropdown opens
+    // (auto-selecting the partial match) and the next Tab accepts it — the
+    // same behavior as if the data had already been loaded. Tab from an
+    // empty/whitespace position is never blocked (no keyboard trap), and
+    // Shift+Tab always moves focus.
+    if (e.key === 'Tab' && !e.shiftKey) {
+      const partial = s.cursorContext?.partial ?? '';
+      if (partial.length > 0 && (s.fieldsLoading || asyncActiveRef.current)) {
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (s.showDatePicker && e.key === 'Escape') {
       e.preventDefault();
       closeDropdown();
@@ -1923,6 +1989,10 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (e.key === 'Enter' && !s.showDropdown && !s.showDatePicker) {
       e.preventDefault();
+      // Cancel any pending async work (debounce, in-flight fetch, spinner
+      // delay) so results from a superseded fetch can't pop the dropdown
+      // open over the search results the user just asked for.
+      closeDropdown();
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
@@ -2185,7 +2255,7 @@ export function ElasticInput(props: ElasticInputProps) {
     ast,
     errors: validationErrors,
     isValid: isQueryValid(validationErrors),
-    isLoading: suggestions.some(sg => sg.type === 'loading'),
+    isLoading: hasPendingSuggestion(suggestions),
     isOpen: showDropdown || showDatePicker,
     isFocused,
   };

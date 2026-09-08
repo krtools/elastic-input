@@ -761,6 +761,23 @@ Examples:
 
 When `onTab` is **not provided**, default behavior applies: accept the selected suggestion if any, otherwise browser-default tab-out.
 
+#### 7.2.2 Tab While Completions Are Still Loading
+
+Tab is **blocked** (focus stays in the input, nothing is inserted) when a completion for the partial being typed may still arrive:
+
+- async `fields` haven't resolved yet (`sourc` + Tab before the field list loads), or
+- an async suggestion fetch (`fetchSuggestions`, saved searches, history) is in flight — including while the "Searching..." spinner shows.
+
+Once the data lands, the dropdown opens with the partial's match auto-selected, and the next Tab accepts it — the same outcome as if the data had been loaded all along. For async fields specifically, resolution re-surfaces suggestions automatically when the editor is focused with a non-empty partial at the caret.
+
+Guardrails against keyboard traps:
+- Tab from an **empty or whitespace position** is never blocked (partial must be non-empty).
+- **Shift+Tab** always moves focus.
+- A **rejected** async fields loader clears the loading state, so Tab is not blocked when nothing will ever arrive.
+- An inert item selected via arrow keys: Tab on the **spinner** holds focus (completion pending); Tab on an **error/no-results** item tabs out (nothing is coming). None of them can be accepted — accepting would wipe the typed partial (their `text` is empty). The same `isInertSuggestion`/`isAcceptableSuggestion` guards apply on Enter, `onTab` filtering, and inside `acceptSuggestion` itself.
+
+- **Tests:** `LoadingKeys.browser.test.tsx` → "blocks Tab mid-partial, then completes once fields arrive", "does not block Tab from an empty input (no keyboard trap)", "does not block Tab after the fields loader rejects", "blocks Tab while the spinner shows, then accepts once results land", "ArrowDown onto the spinner + Tab does not wipe the partial"; `suggestionGuards.test.ts` → guard membership matrix
+
 ### 7.3 Enter — Accept & Possibly Submit
 
 Enter's behavior depends on what is being selected:
@@ -773,9 +790,9 @@ Enter's behavior depends on what is being selected:
 | Saved search | Accept only (no submit) |
 | History ref | Accept only (no submit) |
 
-When no dropdown is open, Enter submits the search.
+When no dropdown is open, Enter submits the search — and also cancels any pending async work (debounce timer, in-flight fetch, delayed spinner), so a superseded fetch can't pop the dropdown open over the search results. Enter with an **inert item** (spinner, error, no-results) highlighted closes the dropdown and submits the raw query. Enter is deliberately **not** blocked during loading windows (unlike Tab, §7.2.2): it means "search what I typed", which matches its behavior on non-matching partials with loaded fields.
 
-- **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value at end appends trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"
+- **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value at end appends trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"; `LoadingKeys.browser.test.tsx` → "Enter still submits the raw partial while fields load", "ArrowDown onto the spinner + Enter submits the raw query intact", "Enter during the silent debounce window leaves no ghost dropdown behind"
 
 ### 7.4 Ctrl+Enter — Always Submit
 
@@ -1540,6 +1557,9 @@ When `fields` is an async function (`() => Promise<FieldConfig[]>`), the compone
 - No "Unknown field" errors are raised (there are no known fields to compare against)
 - No field autocomplete suggestions appear
 - The input is fully functional — users can type freely
+- Tab is blocked mid-partial so a fast typist isn't kicked out of the input before completions can appear (see §7.2.2); the loading state is tracked explicitly, so a consumer passing a static empty `fields` array is never affected
+- When the loader resolves and the editor is focused with a non-empty partial at the caret, suggestions for that partial surface automatically
+- If the loader **rejects**, the loading state clears (Tab unblocks) and the field list stays empty
 
 Once the promise resolves, the engine and validator are rebuilt and the current input is re-validated with the loaded fields. The async function should be memoized (e.g. with `useCallback`) to avoid re-fetching on every render.
 

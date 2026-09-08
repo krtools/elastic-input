@@ -55,6 +55,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **status** | The live `InputStatus` object passed to slot render props: `value`, `ast`, `errors`, `isValid`, `isLoading`, `isOpen`, `isFocused` |
 | **editor wrap** | The `position: relative` div around the editor that hosts the placeholder and squigglies; its coordinate space matches the editor's border box |
 | **internal focus move** | Focus moving between parts of the component (editor ↔ slot content ↔ portals). Not a blur: the dropdown stays open and `onFocus`/`onBlur` don't fire |
+| **inert suggestion** | A non-acceptable dropdown item: the "Searching..." spinner, a fetch error, or a no-results message. Renders in the list and can be highlighted, but Enter/Tab/click never accept it (its `text` is empty — accepting would wipe the typed partial). See `isInertSuggestion` / `isAcceptableSuggestion` |
 
 ## Pipeline Stages
 

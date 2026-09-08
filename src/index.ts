@@ -59,3 +59,4 @@ export type { ASTNode } from './parser/ast';
 export type { CursorContext, CursorContextType } from './parser/Parser';
 export type { ValidationError, ValidationErrorType, ValidateValueFn } from './validation/Validator';
 export type { Suggestion } from './autocomplete/suggestionTypes';
+export { isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion } from './autocomplete/suggestionTypes';

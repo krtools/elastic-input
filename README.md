@@ -98,7 +98,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `fields` | `FieldConfig[] \| () => Promise<FieldConfig[]>` | Field definitions for autocomplete and validation |
+| `fields` † | `FieldConfig[] \| () => Promise<FieldConfig[]>` | Field definitions for autocomplete and validation |
 
 ### Optional
 
@@ -112,14 +112,14 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `savedSearches` | `SavedSearch[] \| (partial) => Promise<SavedSearch[]>` | — | Saved search definitions (sync array or async callback with partial) |
 | `searchHistory` | `HistoryEntry[] \| (partial) => Promise<HistoryEntry[]>` | — | Search history entries (sync array or async callback with partial) |
 | `fetchSuggestions` | `(field, partial) => Promise<SuggestionItem[]>` | — | Async suggestion provider for field values (called for all non-boolean fields) |
-| `colors` | `ColorConfig` | `DEFAULT_COLORS` | Syntax highlighting and UI colors |
+| `colors` † | `ColorConfig` | `DEFAULT_COLORS` | Syntax highlighting and UI colors |
 | `styles` | `StyleConfig` | `DEFAULT_STYLES` | Structural/layout style overrides |
 | `placeholder` | `string` | `"Search..."` | Placeholder text |
 | `className` | `string` | — | CSS class for the outer container |
 | `classNames` | `ClassNamesConfig` | — | Custom CSS classes for sub-elements (editor, dropdown, tokens, etc.) |
 | `style` | `CSSProperties` | — | Inline styles for the outer container |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
-| `dropdown` | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) |
+| `dropdown` † | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) — † applies to function values inside it, e.g. `open` |
 | `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap, savedSearches, historySearch) |
 | `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
 | `onFocus` | `() => void` | — | Called when focus enters the component from outside (moves between editor and slots don't re-fire) |
@@ -131,6 +131,65 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
 | `plainModeLength` | `number` | — | Character count at which highlighting, autocomplete, and validation are disabled for performance |
 | `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Transform or cancel pasted text before insertion; supports async |
+
+† Needs a stable identity across renders — see [Prop Stability](#prop-stability).
+
+## Prop Stability
+
+Almost every prop can be written inline: event handlers, `styles`, `classNames`, `features`, renderers, and `validateValue` are all wired through refs or destructured to primitives internally, so a new identity per render costs nothing.
+
+**Three props are compared by identity** and do real work when it changes. Give these a stable reference (module constant, `useMemo`, or `useCallback`):
+
+| Prop | What happens on every render if the identity is unstable |
+|------|----------------------------------------------------------|
+| `fields` (array) | The autocomplete engine and validator are rebuilt, and the whole query is re-lexed, re-parsed, re-validated, and re-highlighted |
+| `fields` (async loader) | The loader is called again — a fetch loop |
+| `colors` | The editor's highlighted HTML is rebuilt on every keystroke |
+| `dropdown.open` (callback form) | The callback is re-invoked with `trigger: 'modeChange'`; returning `false` force-closes the dropdown you just opened |
+
+```tsx
+// ❌ BAD: new identities on every render
+function Search() {
+  return (
+    <ElasticInput
+      fields={[{ name: 'status', type: 'string' }]}   // engine + validator rebuilt per render
+      colors={{ ...DEFAULT_COLORS, error: '#f00' }}    // editor re-highlighted per keystroke
+      dropdown={{ open: ctx => ctx.suggestions.length > 0 }}  // re-evaluated per render
+    />
+  );
+}
+```
+
+```tsx
+// ✅ GOOD: stable identities — hoist to module scope or memoize
+const FIELDS: FieldConfig[] = [{ name: 'status', type: 'string' }];
+const COLORS = { ...DEFAULT_COLORS, error: '#f00' };
+const openWhenSuggestions = (ctx: DropdownOpenContext) => ctx.suggestions.length > 0;
+
+function Search() {
+  return (
+    <ElasticInput
+      fields={FIELDS}
+      colors={COLORS}
+      dropdown={{ open: openWhenSuggestions, maxSuggestions: 15 }}  // wrapper object itself is fine inline
+      onChange={(q) => setQuery(q)}                                 // handlers are fine inline
+      styles={{ inputBorderRadius: '10px' }}                        // fine inline
+    />
+  );
+}
+```
+
+Values derived from state or props belong in `useMemo`/`useCallback` instead of module scope:
+
+```tsx
+const fields = React.useMemo(() => buildFields(schema), [schema]);
+const colors = React.useMemo(
+  () => (dark ? DARK_COLORS : DEFAULT_COLORS),
+  [dark],
+);
+```
+
+The `dropdown` and `features` wrapper objects themselves are safe to inline — only function values inside `dropdown` need stable identity. If your app compiles with React Compiler, it memoizes these automatically and no manual hoisting is needed.
 
 ## Field Configuration
 

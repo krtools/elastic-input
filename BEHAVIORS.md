@@ -1518,6 +1518,19 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `savedSearches` | `boolean` | `!!savedSearches` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character. Defaults to `true` when a `savedSearches` prop is provided. |
 | `historySearch` | `boolean` | `!!searchHistory` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character. Defaults to `true` when a `searchHistory` prop is provided. |
 
+#### Prop Identity Stability
+
+Most props are identity-insensitive by design: event handlers and renderers only re-create internal `useCallback`s, `validateValue` is read through a ref, and `dropdown`/`features` are destructured to primitives on every render. Three props are compared by identity and trigger real work when it changes:
+
+- **`fields` (array)** — the resolve effect calls `setResolvedFields(fieldsProp)` keyed on `[fieldsProp]`; a new array identity triggers the rebuild effect: new `AutocompleteEngine`, new `Validator`, and a full `processInput` (re-lex, re-parse, re-validate, editor `innerHTML` rewrite) per render.
+- **`fields` (async loader)** — the loader itself is invoked per identity change; an unstable function produces a fetch loop (see *Async Field Loading* below).
+- **`colors`** — a dependency of the paren-match re-highlight effect; identity churn bypasses the match-key dedup (`colorsChanged`) and rewrites the editor `innerHTML` on every keystroke. See §9.5.6 and §9.5.7 — unstable `colors` was the amplifier that sustained the reverse-typing bug.
+- **`dropdown.open` (callback form)** — a dependency of the proactive-close effect; each new identity re-invokes it with `trigger: 'modeChange'`, and a `false` return closes the dropdown and clears suggestions.
+
+Consumers should hoist these to module scope or memoize them. The README's *Prop Stability* section is the consumer-facing version of this rule.
+
+- **Tests:** `ReverseTyping.browser.test.tsx` → both tests use a deliberately unstable `colors` harness to exercise the per-keystroke rewrite path
+
 #### Async Field Loading
 
 When `fields` is an async function (`() => Promise<FieldConfig[]>`), the component starts with an empty field list while loading. During this time:

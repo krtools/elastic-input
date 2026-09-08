@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Prop identity stability documented** — README gains a *Prop Stability* section (with † markers in the props tables) covering the three props that are compared by identity and do real work when it churns: `fields` (engine/validator rebuild + full reprocess per render; fetch loop for the async loader form), `colors` (editor re-highlight per keystroke), and function values inside `dropdown` such as `open` (re-invoked with `trigger: 'modeChange'` per render; a `false` return force-closes the dropdown). Everything else is documented as safe to write inline. BEHAVIORS.md §10.1 gains the mechanics-level version.
+
 ## 0.12.2 — 2026-09-08
 
 No functional changes — version bump only.

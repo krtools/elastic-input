@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.2 — 2026-09-08
+
+No functional changes — version bump only.
+
 ## 0.12.1 — 2026-09-08
 
 ### Fixes

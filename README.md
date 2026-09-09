@@ -120,7 +120,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `style` | `CSSProperties` | — | Inline styles for the outer container |
 | `inputRef` | `(api) => void` | — | Receive an imperative API handle |
 | `dropdown` † | `DropdownConfig` | `{}` | Dropdown behavior and rendering (open, triggers, renderers) — † applies to function values inside it, e.g. `open` |
-| `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap, savedSearches, historySearch) |
+| `features` | `FeaturesConfig` | `{}` | Feature toggles (multiline, smartSelectAll, expandSelection, wildcardWrap, savedSearches, historySearch, clauseNavigation, selectAllOnTabFocus) |
 | `onKeyDown` | `(e) => void` | — | Called before internal keyboard handling |
 | `onFocus` | `() => void` | — | Called when focus enters the component from outside (moves between editor and slots don't re-fire) |
 | `onBlur` | `() => void` | — | Called when focus leaves the component entirely |

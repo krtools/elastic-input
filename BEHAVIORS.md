@@ -939,6 +939,14 @@ Pressing **Alt+Shift+F** pretty-prints the current query in-place using `formatQ
 
 Whitespace-only input is trimmed to an empty string by `formatQuery` (tested in `formatQuery.test.ts` → "trims whitespace-only input to empty string").
 
+### 7.15 Select All on Keyboard Focus (`selectAllOnTabFocus`)
+
+When `features.selectAllOnTabFocus` is enabled (default: `false`), gaining focus via keyboard (Tab/Shift+Tab) selects the entire pre-existing query — typing then replaces it, matching native inputs. Mouse/touch focus places the caret normally; an empty input is a no-op; the dropdown stays closed (a full selection spans multiple tokens — same ambiguity rule as triple-click).
+
+Modality detection: a document-level `pointerdown` timestamp — focus without a recent pointerdown is keyboard-driven. (`:focus-visible` can't be used: browsers apply it to editable elements on every focus.)
+
+- **Tests:** `SelectAllOnTabFocus.browser.test.tsx` → all 6 (single input, tabbing between two instances, mouse click, empty input, collapseOnBlur rebuild, off by default)
+
 ---
 
 ## 8. Dropdown Positioning
@@ -1538,6 +1546,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `formatQuery` | `boolean` | `false` | Enable Alt+Shift+F to pretty-print the query in-place; see §7.14 |
 | `savedSearches` | `boolean` | `!!savedSearches` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character. Defaults to `true` when a `savedSearches` prop is provided. |
 | `historySearch` | `boolean` | `!!searchHistory` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character. Defaults to `true` when a `searchHistory` prop is provided. |
+| `selectAllOnTabFocus` | `boolean` | `false` | Keyboard focus (Tab) selects the whole query; mouse focus places the caret; see §7.15 |
 
 #### Prop Identity Stability
 

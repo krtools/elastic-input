@@ -362,6 +362,9 @@ export interface FeaturesConfig {
   /** Enable Ctrl+Shift+Arrow to navigate between clauses (field:value, groups, NOT expressions).
    *  The selection jumps to the next/previous clause, entering multi-clause groups and NOT wrappers. @default false */
   clauseNavigation?: boolean;
+  /** Select the entire query when the input gains focus via keyboard (Tab/Shift+Tab),
+   *  matching native input behavior. Mouse/touch focus places the caret normally. @default false */
+  selectAllOnTabFocus?: boolean;
 }
 
 /**

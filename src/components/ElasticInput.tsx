@@ -261,6 +261,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
   const clauseNavigation = featuresConfig?.clauseNavigation ?? false;
+  const selectAllOnTabFocus = featuresConfig?.selectAllOnTabFocus ?? false;
   const formatQueryConfig = featuresConfig?.formatQuery;
   const enableFormatQuery = !!formatQueryConfig;
   const formatQueryOptions = typeof formatQueryConfig === 'object' ? formatQueryConfig : undefined;
@@ -354,6 +355,9 @@ export function ElasticInput(props: ElasticInputProps) {
   // displayed suggestions; null when nothing is displayed. Used to discard
   // held results when the task changes during the spinner-delay window.
   const displayedTaskRef = React.useRef<string | null>(null);
+  // Last pointerdown time — focus without a recent one means keyboard focus
+  // (:focus-visible can't distinguish modality for editable elements).
+  const lastPointerDownRef = React.useRef(0);
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
@@ -1381,6 +1385,14 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, [dropdownAlignToInput, dropdownMaxHeightPx]);
 
+  // Track pointer activity for keyboard-focus detection (selectAllOnTabFocus)
+  React.useEffect(() => {
+    if (!selectAllOnTabFocus) return;
+    const onPointerDown = () => { lastPointerDownRef.current = Date.now(); };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [selectAllOnTabFocus]);
+
   // Close dropdown when the editor is scrolled (wheel, scrollbar drag, touch swipe)
   React.useEffect(() => {
     const editor = editorRef.current;
@@ -1451,13 +1463,15 @@ export function ElasticInput(props: ElasticInputProps) {
       // Expanding: rebuild HTML with proper <br> tags
       const toks = stateRef.current.tokens;
       if (toks.length > 0) {
-        // Same DOM-focus gate as the paren-match effect (see comment there)
+        // Same DOM-focus gate as the paren-match effect (see comment there).
+        // Preserves a full range, not just the caret, so a select-all from
+        // keyboard focus survives this rebuild.
         const domFocused = document.activeElement === editorRef.current;
-        const offset = domFocused ? getCaretCharOffset(editorRef.current) : -1;
-        const html = buildHighlightedHTML(toks, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
+        const sel = domFocused ? getSelectionCharRange(editorRef.current) : null;
+        const html = buildHighlightedHTML(toks, colors, { cursorOffset: sel ? sel.start : -1, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;
-        if (domFocused && offset >= 0) {
-          setCaretCharOffset(editorRef.current, offset);
+        if (sel) {
+          setSelectionCharRange(editorRef.current, sel.start, sel.end);
         }
       }
     }
@@ -2085,25 +2099,38 @@ export function ElasticInput(props: ElasticInputProps) {
   // gains focus.
   const handleFocus = React.useCallback((e: React.FocusEvent) => {
     // Focus moves within the component don't re-enter: isFocused is already true
-    if (!isInternalNode(e.relatedTarget as Node | null)) {
+    const fromOutside = !isInternalNode(e.relatedTarget as Node | null);
+    if (fromOutside) {
       setIsFocused(true);
       onFocusProp?.();
     }
     if (e.target !== editorRef.current) return;
+    // No recent pointerdown = keyboard focus (Tab/Shift+Tab)
+    const selectAll = selectAllOnTabFocus && fromOutside &&
+      Date.now() - lastPointerDownRef.current > 300;
     // Defer suggestion update so isFocused state is committed
     const id = requestAnimationFrame(() => {
       rafIdsRef.current.delete(id);
-      if (editorRef.current) {
-        const toks = stateRef.current.tokens;
-        const offset = toks.length > 0 ? getCaretCharOffset(editorRef.current) : 0;
-        // Restore cursorOffset from DOM — blur teardown sets it to -1
-        setCursorOffset(offset);
-        setSelectionEnd(offset);
-        triggerSuggestionsFromNavigation(toks, offset);
+      if (!editorRef.current) return;
+      const len = currentValueRef.current.length;
+      if (selectAll && len > 0) {
+        setSelectionCharRange(editorRef.current, 0, len);
+        setCursorOffset(0);
+        setSelectionEnd(len);
+        // Full selection spans multiple tokens — ambiguous context, no
+        // dropdown (same rule as triple-click)
+        closeDropdown();
+        return;
       }
+      const toks = stateRef.current.tokens;
+      const offset = toks.length > 0 ? getCaretCharOffset(editorRef.current) : 0;
+      // Restore cursorOffset from DOM — blur teardown sets it to -1
+      setCursorOffset(offset);
+      setSelectionEnd(offset);
+      triggerSuggestionsFromNavigation(toks, offset);
     });
     rafIdsRef.current.add(id);
-  }, [isInternalNode, triggerSuggestionsFromNavigation, onFocusProp]);
+  }, [isInternalNode, triggerSuggestionsFromNavigation, onFocusProp, selectAllOnTabFocus, closeDropdown]);
 
   const handleBlur = React.useCallback((e: React.FocusEvent) => {
     // Focus moving to another part of the component (a slot button, the

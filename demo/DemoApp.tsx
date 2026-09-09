@@ -446,6 +446,7 @@ export function DemoApp() {
   const [savedSearchesEnabled, setSavedSearchesEnabled] = React.useState(true);
   const [historySearchEnabled, setHistorySearchEnabled] = React.useState(true);
   const [clauseNavigation, setClauseNavigation] = React.useState(true);
+  const [selectAllOnTabFocus, setSelectAllOnTabFocus] = React.useState(false);
 
   // Selection options
   const [autoSelect, setAutoSelect] = React.useState(false);
@@ -705,6 +706,7 @@ export function DemoApp() {
                     savedSearches: savedSearchesEnabled,
                     historySearch: historySearchEnabled,
                     clauseNavigation,
+                    selectAllOnTabFocus,
                     formatQuery: true,
                   }}
                   validateValue={demoValidateValue}
@@ -985,6 +987,7 @@ export function DemoApp() {
               <OptionToggle label="#saved-search syntax" checked={savedSearchesEnabled} onChange={setSavedSearchesEnabled} theme={theme} />
               <OptionToggle label="!history syntax" checked={historySearchEnabled} onChange={setHistorySearchEnabled} theme={theme} />
               <OptionToggle label="Clause nav (Ctrl+Alt+Arrow)" checked={clauseNavigation} onChange={setClauseNavigation} theme={theme} />
+              <OptionToggle label="Select all on tab focus" checked={selectAllOnTabFocus} onChange={setSelectAllOnTabFocus} theme={theme} />
             </OptionGroup>
 
             <OptionGroup label="Hints" theme={theme}>

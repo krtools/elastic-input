@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`features.selectAllOnTabFocus`** — Keyboard focus (Tab/Shift+Tab) selects the whole pre-existing query so typing replaces it, matching native inputs. Mouse/touch focus places the caret normally; off by default.
+
 ## 0.13.0 — 2026-09-08
 
 ### Behavior Changes

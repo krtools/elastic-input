@@ -394,7 +394,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // effect applies it separately when constructing a replacement engine.
   React.useEffect(() => {
     engineRef.current.setDefaultField(defaultFieldConfig);
-  }, [defaultFieldConfig]);
+  }, [defaultFieldConfig, engineRef]);
 
   // --- State ---
   const [tokens, setTokens] = React.useState<Token[]>([]);
@@ -519,7 +519,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (document.activeElement === editorRef.current) {
       setCaretCharOffset(editorRef.current, offset);
     }
-  }, [colors]);
+  }, [colors, classNames?.token, fieldTypeMap]);
 
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     // Plain mode: skip Lexer/Parser/Validator, no highlighting or autocomplete
@@ -599,7 +599,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange, applyHighlight, plainModeLength]);
+  }, [colors, onChange, onValidationChange, applyHighlight, plainModeLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
 
   // Apply renderFieldHint in a field value context. If a hint suggestion already
   // exists it gets customContent replaced; otherwise a new hint is injected at the top.
@@ -619,7 +619,7 @@ export function ElasticInput(props: ElasticInputProps) {
       { text: '', label: '', type: 'hint' as const, customContent: custom, replaceStart: context.start ?? 0, replaceEnd: context.end ?? 0 },
       ...suggestions,
     ];
-  }, [renderFieldHint]);
+  }, [renderFieldHint, engineRef]);
 
   /** Try to show a "no results" message via renderNoResults. Returns true if shown. */
   const tryShowNoResults = React.useCallback((context: CursorContext): boolean => {
@@ -639,7 +639,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDatePicker(false);
     showDropdownAtPosition(32, 300);
     return true;
-  }, [renderNoResults]);
+  }, [renderNoResults, showDropdownAtPosition]);
 
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
     const result = engineRef.current.getSuggestions(toks, offset);
@@ -988,7 +988,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults, cancelPendingDropdownShow, defaultFieldConfig?.showFieldSuggestions, engineRef, parseDateProp]);
 
   // Keep the ref current so processInput always calls the latest version
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
@@ -1084,7 +1084,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
       rafIdsRef.current.add(id);
     }
-  }, [colors, onChange, onValidationChange]);
+  }, [colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const acceptSuggestion = React.useCallback((
     suggestion: Suggestion,
@@ -1174,7 +1174,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (Array.isArray(searchHistory)) {
       engineRef.current.updateSearchHistory(searchHistory);
     }
-  }, [savedSearches, searchHistory]);
+  }, [savedSearches, searchHistory, engineRef]);
 
   // Rebuild engine/validator when resolved fields change
   React.useEffect(() => {
@@ -1275,13 +1275,16 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Cleanup debounce timer and abort in-flight fetches
   React.useEffect(() => {
+    // The Set instance is created once and never reassigned, so capturing it
+    // here reads the same collection the unmount cleanup needs.
+    const rafIds = rafIdsRef.current;
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
       if (navDelayTimerRef.current) clearTimeout(navDelayTimerRef.current);
       if (loadingDelayTimerRef.current) clearTimeout(loadingDelayTimerRef.current);
-      rafIdsRef.current.forEach(id => cancelAnimationFrame(id));
-      rafIdsRef.current.clear();
+      rafIds.forEach(id => cancelAnimationFrame(id));
+      rafIds.clear();
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -1314,7 +1317,7 @@ export function ElasticInput(props: ElasticInputProps) {
     }
     // Reset manual activation when open changes
     manualActivationContextRef.current = null;
-  }, [dropdownOpen]);
+  }, [dropdownOpen, dropdownMode, dropdownOpenIsCallback]);
 
   // After the dropdown renders, check if it overflows the viewport and nudge left.
   // This handles custom content (renderFieldHint grids, etc.) that may be wider
@@ -1446,7 +1449,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (domFocused && savedOffset >= 0) {
       setCaretCharOffset(editorRef.current, savedOffset);
     }
-  }, [cursorOffset, selectionEnd, isFocused, colors]);
+  }, [cursorOffset, selectionEnd, isFocused, colors, classNames?.token, fieldTypeMap]);
 
   // collapseOnBlur: swap <br> ↔ space when collapsed state changes
   const isCollapsed = collapseOnBlur && !isFocused;
@@ -1475,7 +1478,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }
     }
-  }, [isCollapsed, colors]);
+  }, [isCollapsed, colors, classNames?.token, fieldTypeMap]);
 
   // --- Event handlers ---
 
@@ -1584,7 +1587,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(entry.value, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange, closeDropdown]);
+  }, [colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const getDropdownPageSize = React.useCallback((): number => {
     const list = dropdownListRef.current;
@@ -2064,7 +2067,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, engineRef, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

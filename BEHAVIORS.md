@@ -1440,8 +1440,9 @@ colors={{ valueTypes: { string: '#0550ae', number: '#0a3069', date: '#8250df', b
 - Bare terms (no field) are unaffected — they use the default `text` color.
 - Values for unknown fields (not in `fields`) are unaffected — they use the default `fieldValue` color.
 - Omitted type keys fall back to `fieldValue`.
+- Fields that resolve asynchronously (or change identity at runtime, e.g. switching field sets) apply their type colors to all subsequent highlighting — the highlight callbacks track the current field-type map rather than the one captured at mount.
 
-- **Tests:** `CssClasses.test.ts` → "valueTypes per-field-type coloring" (7 tests)
+- **Tests:** `CssClasses.test.ts` → "valueTypes per-field-type coloring" (7 tests); `AsyncFieldsHighlight.browser.test.tsx` → async-resolved fields color keystrokes typed after resolution
 
 ### 9.5.4 Matching Parenthesis Highlighting
 

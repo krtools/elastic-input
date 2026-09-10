@@ -4,7 +4,9 @@ import path from 'path';
 
 export default defineConfig({
   test: {
-    exclude: ['**/node_modules/**', '**/browser/**'],
+    // .claude holds task worktrees — full repo copies whose tests would
+    // silently double (or contradict) the suite
+    exclude: ['**/node_modules/**', '**/browser/**', '**/.claude/**'],
   },
   plugins: [
     dts({

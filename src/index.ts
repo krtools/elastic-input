@@ -5,6 +5,10 @@
 // Core component
 export { ElasticInput } from './components/ElasticInput';
 
+// Standalone date-selection calendar (pure, fully controlled)
+export { Calendar } from './components/Calendar';
+export type { CalendarProps } from './components/Calendar';
+
 // Standalone syntax highlighting (pure function — no React/DOM required)
 export { buildHighlightedHTML } from './components/HighlightedContent';
 export type { HighlightOptions } from './components/HighlightedContent';

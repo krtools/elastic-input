@@ -1772,6 +1772,7 @@ All elements receive static `ei-*` classes unconditionally. These are always pre
 | Validation tooltip | `ei-tooltip` |
 | Date picker portal | `ei-datepicker-portal` |
 | Date picker container | `ei-datepicker` |
+| Standalone calendar container | `ei-calendar` |
 | Date picker toggle | `ei-datepicker-toggle` |
 | Date picker header | `ei-datepicker-header` |
 | Date picker days grid | `ei-datepicker-days` |
@@ -1839,3 +1840,13 @@ Examples:
 The active stop index resets to -1 on any typing input, so the next Ctrl+Alt+Arrow finds the nearest clause from the current cursor.
 
 - **Tests:** `clauseNavigation.test.ts` — "collectClauseStops" (11 tests), "findNextClauseStop" (10 tests)
+
+---
+
+## 14. Standalone Calendar Component
+
+`Calendar` (exported) is the pure date grid used inside ElasticInput's date picker: fully controlled (`mode`, `start`, `end`, `onChange` with Date objects), no mode toggle, no presets, no query-syntax serialization, no chrome — put it in your own popover/panel. `children` render below the grid (preset buttons, clear actions). In range mode the in-progress first click renders internally and only completed selections fire `onChange` (sorted ascending); `end` is ignored in single mode. The view auto-navigates when the controlled selection changes.
+
+The internal `DateRangePicker` composes Calendar with the input's concerns: the single/range toggle, query-syntax presets (`now-7d`, `[a TO b]`), and string serialization via `formatDate`.
+
+- **Tests:** `Calendar.browser.test.tsx` → "Calendar (standalone)" suite (6 tests) and "DateRangePicker composition via ElasticInput" (toggle + calendar + presets render; day click inserts `YYYY-MM-DD`; preset click inserts its query value)

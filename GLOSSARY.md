@@ -46,7 +46,8 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **suggestion** | A single item in the dropdown |
 | **hint** | A non-selectable dropdown item (e.g. `#saved-search`, `!history`, type placeholders) |
 | **selected index** | Which dropdown item is highlighted for keyboard accept (Enter/Tab). `-1` means nothing selected. |
-| **date picker** | The calendar popup for date-type fields |
+| **date picker** | The calendar popup for date-type fields: mode toggle + calendar + presets (internal `DateRangePicker`) |
+| **calendar** | The pure, fully-controlled date grid (exported `Calendar`): Dates in/out, no toggle/presets/serialization |
 | **squiggly** | The wavy underline indicating a validation error or warning |
 | **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `RANGE`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
 | **caret** / **cursor** | The text insertion point in the input |

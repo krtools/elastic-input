@@ -134,6 +134,24 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 
 † Needs a stable identity across renders — see [Prop Stability](#prop-stability).
 
+## Standalone Calendar
+
+The date grid inside the date picker is exported as `Calendar` — a pure, fully-controlled component that speaks Date objects. No mode toggle, no presets, no query syntax, no chrome: bring your own popover and footer content.
+
+```tsx
+import { Calendar } from 'elastic-input';
+
+function DueDateField({ value, onChange }: { value: Date | null; onChange: (d: Date) => void }) {
+  return (
+    <Calendar mode="single" start={value} onChange={onChange}>
+      <button onClick={() => onChange(new Date())}>Today</button>
+    </Calendar>
+  );
+}
+```
+
+In range mode, `onChange(start, end)` fires only when the second click completes the range (sorted ascending) — the in-progress selection renders but isn't reported. `children` render below the grid.
+
 ## Prop Stability
 
 Almost every prop can be written inline: event handlers, `styles`, `classNames`, `features`, renderers, and `validateValue` are all wired through refs or destructured to primitives internally, so a new identity per render costs nothing.

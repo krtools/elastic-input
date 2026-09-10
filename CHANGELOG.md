@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Standalone `Calendar` component** — The date grid inside the date picker is now exported as a pure, fully-controlled component: Dates in/out via `mode`/`start`/`end`/`onChange`, `children` as a footer slot. The single/range toggle, query-syntax presets, and string serialization stay in ElasticInput's internal wrapper.
+
 ## 0.14.0 — 2026-09-09
 
 ### Features

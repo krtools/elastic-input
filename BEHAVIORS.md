@@ -1777,7 +1777,7 @@ All elements receive static `ei-*` classes unconditionally. These are always pre
 | Date picker toggle | `ei-datepicker-toggle` |
 | Date picker header | `ei-datepicker-header` |
 | Date picker days grid | `ei-datepicker-days` |
-| Date picker day button | `ei-datepicker-day` |
+| Date picker day button | `ei-datepicker-day` + `ei-datepicker-day--today` / `--selected` / `--in-range` / `--other-month` |
 | Date picker presets | `ei-datepicker-presets` |
 
 Token type class suffixes (kebab-case of `TokenType`): `field-name`, `colon`, `value`, `quoted-value`, `and`, `or`, `not`, `comparison-op`, `lparen`, `rparen`, `saved-search`, `history-ref`, `prefix-op`, `wildcard`, `regex`, `range`, `tilde`, `boost`, `unknown`.

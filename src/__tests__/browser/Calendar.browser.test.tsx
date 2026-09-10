@@ -115,6 +115,43 @@ describe('Calendar (standalone)', () => {
     expect(headerText()).toContain('March 2026');
     expect(calls.length).toBe(0);
   });
+
+  it('buttons are type="button" and not tab stops, so a click never submits a form', async () => {
+    const submits: number[] = [];
+    renderInto(React.createElement(
+      'form',
+      { onSubmit: (e: React.FormEvent) => { e.preventDefault(); submits.push(1); } },
+      React.createElement(Calendar, { mode: 'single', start: new Date(2026, 6, 10), onChange: () => {} }),
+    ));
+
+    const buttons = Array.from(document.querySelectorAll('.ei-calendar button')) as HTMLButtonElement[];
+    expect(buttons.length).toBeGreaterThanOrEqual(35 + 5); // 5-week grid + nav/label
+    for (const b of buttons) {
+      expect(b.type).toBe('button');
+      expect(b.tabIndex).toBe(-1);
+    }
+
+    await page.elementLocator(dayButton(15)).click();
+    await page.elementLocator(document.querySelector('.ei-datepicker-header > button') as HTMLElement).click();
+    expect(submits.length).toBe(0);
+  });
+
+  it('marks today and selection state with modifier classes', () => {
+    const today = new Date();
+    renderInto(React.createElement(Calendar, {
+      mode: 'range',
+      start: new Date(today.getFullYear(), today.getMonth(), 1),
+      end: today,
+      onChange: () => {},
+    }));
+
+    const todayCell = document.querySelector('.ei-datepicker-day--today') as HTMLElement;
+    expect(todayCell).not.toBeNull();
+    expect(todayCell.textContent).toBe(String(today.getDate()));
+    expect(todayCell.classList.contains('ei-datepicker-day--selected')).toBe(true);
+    expect(document.querySelectorAll('.ei-datepicker-day--in-range').length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.ei-datepicker-day--other-month').length).toBeGreaterThan(0);
+  });
 });
 
 describe('DateRangePicker composition via ElasticInput', () => {
@@ -136,6 +173,10 @@ describe('DateRangePicker composition via ElasticInput', () => {
     await openPicker();
     expect(document.querySelector('.ei-datepicker .ei-datepicker-toggle')).not.toBeNull();
     expect(document.querySelector('.ei-datepicker .ei-calendar')).not.toBeNull();
+    for (const b of Array.from(document.querySelectorAll('.ei-datepicker button')) as HTMLButtonElement[]) {
+      expect(b.type).toBe('button');
+      expect(b.tabIndex).toBe(-1);
+    }
 
     await page.elementLocator(dayButton(15)).click();
     const deadline = Date.now() + 3000;

@@ -42,6 +42,9 @@ function getDecadeStart(year: number): number {
   return Math.floor(year / 10) * 10;
 }
 
+// Never submit an enclosing form; not tab stops (the grid is mouse-driven)
+const BUTTON_PROPS = { type: 'button' as const, tabIndex: -1 };
+
 /**
  * Pure date-selection calendar: day grid with month/year drill-down,
  * controlled selection, no chrome, no mode toggle, no serialization.
@@ -192,8 +195,15 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
 
     return (
       <button
+        {...BUTTON_PROPS}
         key={key}
-        className="ei-datepicker-day"
+        className={cx(
+          'ei-datepicker-day',
+          isToday && 'ei-datepicker-day--today',
+          isSelected && 'ei-datepicker-day--selected',
+          inRange && 'ei-datepicker-day--in-range',
+          isOtherMonth && 'ei-datepicker-day--other-month',
+        )}
         style={dayStyle}
         onClick={() => selectDate(date)}
         onMouseEnter={(e) => {
@@ -260,10 +270,11 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
     <div className={cx('ei-calendar', className)} style={styles.container} onMouseLeave={() => setHoverDate(null)}>
       <div className="ei-datepicker-header" style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <button style={styles.navButton} onClick={navigatePrevBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&laquo;</button>
-          <button style={styles.navButton} onClick={navigatePrev} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&lsaquo;</button>
+          <button {...BUTTON_PROPS} style={styles.navButton} onClick={navigatePrevBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&laquo;</button>
+          <button {...BUTTON_PROPS} style={styles.navButton} onClick={navigatePrev} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&lsaquo;</button>
         </div>
         <button
+          {...BUTTON_PROPS}
           style={{
             ...styles.monthLabel,
             backgroundColor: 'transparent',
@@ -283,8 +294,8 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
           {headerLabel}
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <button style={styles.navButton} onClick={navigateNext} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&rsaquo;</button>
-          <button style={styles.navButton} onClick={navigateNextBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&raquo;</button>
+          <button {...BUTTON_PROPS} style={styles.navButton} onClick={navigateNext} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&rsaquo;</button>
+          <button {...BUTTON_PROPS} style={styles.navButton} onClick={navigateNextBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&raquo;</button>
         </div>
       </div>
 
@@ -313,6 +324,7 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
 
             return (
               <button
+                {...BUTTON_PROPS}
                 key={name}
                 style={{
                   ...(isCurrent ? gridCellCurrentStyle : gridCellStyle),
@@ -356,6 +368,7 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
 
             return (
               <button
+                {...BUTTON_PROPS}
                 key={year}
                 style={{
                   ...(isCurrent ? gridCellCurrentStyle : gridCellStyle),

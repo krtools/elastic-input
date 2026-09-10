@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Calendar buttons no longer submit enclosing forms or act as tab stops** — Every button in `Calendar` and the date picker (day/month/year cells, navigation, mode toggle, presets) is now `type="button"` with `tabIndex={-1}`.
+- **Day-cell state classes** — Day buttons carry `ei-datepicker-day--today`, `--selected`, `--in-range`, and `--other-month` modifiers for external styling.
+
 ## 0.15.0 — 2026-09-10
 
 ### Features

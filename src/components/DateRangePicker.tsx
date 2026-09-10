@@ -60,6 +60,8 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
       <div className="ei-datepicker-toggle" style={{ ...styles.rangeToggle, margin: '12px 12px 0' }}>
         {(['single', 'range'] as const).map(m => (
           <button
+            type="button"
+            tabIndex={-1}
             key={m}
             style={{
               ...styles.rangeToggleButton,
@@ -91,7 +93,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
             }}
           >
             {filteredPresets.map(p => (
-              <button key={`${p.type ?? 'both'}-${p.value}`} style={styles.quickOption} onClick={() => onSelect(p.value)}>
+              <button type="button" tabIndex={-1} key={`${p.type ?? 'both'}-${p.value}`} style={styles.quickOption} onClick={() => onSelect(p.value)}>
                 {p.label}
               </button>
             ))}

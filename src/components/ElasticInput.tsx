@@ -8,7 +8,7 @@ import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, ClassNamesConfig, InputStatus, SlotContent } from '../types';
+import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -120,6 +120,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     const container = document.createElement('div');
     document.body.appendChild(container);
     portalRef.current = container;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- portal container is created imperatively on mount; one deliberate re-render once it exists
     setReady(true);
     return () => {
       document.body.removeChild(container);
@@ -127,6 +128,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     };
   }, []);
 
+  // eslint-disable-next-line react-hooks/refs -- portal container gate: reading the mount-effect-owned ref during render is how the portal waits for its container
   if (!ready || !portalRef.current) return null;
 
   const mergedStyleConfig = mergeStyles(styleConfig);
@@ -156,6 +158,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         className={datePickerClassName}
       />
     </div>,
+    // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above; stable for the life of the component
     portalRef.current
   );
 }
@@ -287,6 +290,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // engine/validator rebuild effect (keyed on resolvedFields) doesn't fire.
   React.useEffect(() => {
     if (Array.isArray(fieldsProp)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizing prop → state; the shallow-equal guard below keeps identity stable, which is the point of this effect
       setFieldsLoading(false);
       setResolvedFields(prev => arrayShallowEqual(prev, fieldsProp) ? prev : fieldsProp);
       return;
@@ -338,11 +342,11 @@ export function ElasticInput(props: ElasticInputProps) {
   // Ref mirror of the datePickerEl state, for synchronous access in the blur guard
   const datePickerElRef = React.useRef<HTMLDivElement | null>(null);
   const currentValueRef = React.useRef(value || defaultValue || '');
-  const debounceTimerRef = React.useRef<any>(null);
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isComposingRef = React.useRef(false);
   const keyConsumedByDropdownRef = React.useRef(false);
   const undoStackRef = React.useRef(new UndoStack());
-  const typingGroupTimerRef = React.useRef<any>(null);
+  const typingGroupTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
 
   const rafIdsRef = React.useRef<Set<number>>(new Set());
@@ -387,6 +391,7 @@ export function ElasticInput(props: ElasticInputProps) {
   });
   const validatorRef = useLazyRef(() => new Validator(initialFields));
   const validateValueRef = React.useRef(validateValue);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref pattern: keeps per-call callbacks current without re-keying effects on their identity
   validateValueRef.current = validateValue;
 
   // Keep the engine's default field current when the prop changes (in an
@@ -409,8 +414,12 @@ export function ElasticInput(props: ElasticInputProps) {
   const [datePickerEl, setDatePickerEl] = React.useState<HTMLDivElement | null>(null);
   const [validationErrors, setValidationErrors] = React.useState<ValidationError[]>([]);
   const [isFocused, setIsFocused] = React.useState(false);
+  // eslint-disable-next-line react-hooks/refs -- initial-render read of the value/defaultValue snapshot; the ref only diverges after input events
   const [isEmpty, setIsEmpty] = React.useState(!currentValueRef.current);
-  const [isPlainMode, setIsPlainMode] = React.useState(
+  // Only the setter is consumed — the flag's re-render is what plain-mode
+  // rendering keys off; reads go through the `plain` local in processInput.
+  const [, setIsPlainMode] = React.useState(
+    // eslint-disable-next-line react-hooks/refs -- same initial-render snapshot read as isEmpty above
     plainModeLength != null && currentValueRef.current.length >= plainModeLength
   );
   const [cursorOffset, setCursorOffset] = React.useState(0);
@@ -425,6 +434,7 @@ export function ElasticInput(props: ElasticInputProps) {
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
     fieldsLoading,
   });
+  // eslint-disable-next-line react-hooks/refs -- stateRef pattern: handlers read the latest committed state without subscribing to it; render-phase mirror is the mechanism
   stateRef.current = {
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
@@ -599,7 +609,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange, applyHighlight, plainModeLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
+  }, [onChange, onValidationChange, applyHighlight, plainModeLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
 
   // Apply renderFieldHint in a field value context. If a hint suggestion already
   // exists it gets customContent replaced; otherwise a new hint is injected at the top.
@@ -651,7 +661,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     // Dropdown open gating
     if (dropdownOpenIsCallback) {
-      const decision = (dropdownOpen as (ctx: DropdownOpenContext) => boolean | null)({
+      const decision = dropdownOpen({
         trigger: dropdownTriggerRef.current,
         context: result.context,
         suggestions: result.suggestions,
@@ -761,7 +771,7 @@ export function ElasticInput(props: ElasticInputProps) {
       // exists yet the parser returns the preceding COLON / COMPARISON_OP token
       // — in that case we insert *after* the operator rather than replacing it.
       const ctxToken = result.context.token;
-      if (ctxToken && (ctxToken.type === 'COLON' || ctxToken.type === 'COMPARISON_OP')) {
+      if (ctxToken && (ctxToken.type === TokenType.COLON || ctxToken.type === TokenType.COMPARISON_OP)) {
         datePickerReplaceRef.current = { start: ctxToken.end, end: ctxToken.end };
       } else if (ctxToken) {
         datePickerReplaceRef.current = { start: ctxToken.start, end: ctxToken.end };
@@ -988,9 +998,10 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, computeDropdownPosition, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults, cancelPendingDropdownShow, defaultFieldConfig?.showFieldSuggestions, engineRef, parseDateProp]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults, cancelPendingDropdownShow, defaultFieldConfig, engineRef, parseDateProp]);
 
   // Keep the ref current so processInput always calls the latest version
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref pattern (see validateValueRef above)
   updateSuggestionsRef.current = updateSuggestionsFromTokens;
 
   const closeDropdown = React.useCallback(() => {
@@ -1209,6 +1220,11 @@ export function ElasticInput(props: ElasticInputProps) {
         updateSuggestionsRef.current(stateRef.current.tokens, offset);
       }
     }
+    // Deliberately keyed on the field/engine options only: savedSearches /
+    // searchHistory may be inline arrays (identity churn per render) and
+    // processInput changes identity with its own deps — including them would
+    // rebuild the engine, and drop its state, on unrelated renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedFields, maxSuggestions, showSavedSearchHint, showHistoryHint]);
 
   // Expose imperative API
@@ -1244,7 +1260,7 @@ export function ElasticInput(props: ElasticInputProps) {
             // Same as Enter: accept the highlighted suggestion first, then
             // search with the post-accept query — an external button must
             // never submit a different string than the Enter key would.
-            acceptSuggestion(selected!, 'Enter', (newValue, newAst) => {
+            acceptSuggestion(selected, 'Enter', (newValue, newAst) => {
               if (onSearch) onSearch(newValue, newAst);
             });
           } else {
@@ -1295,7 +1311,7 @@ export function ElasticInput(props: ElasticInputProps) {
       // Evaluate callback to decide if the dropdown should close
       const s = stateRef.current;
       if (s.cursorContext) {
-        const decision = (dropdownOpen as (ctx: DropdownOpenContext) => boolean | null)({
+        const decision = dropdownOpen({
           trigger: 'modeChange',
           context: s.cursorContext,
           suggestions: s.suggestions,
@@ -1311,6 +1327,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }
     } else if (dropdownMode === 'never') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- closing UI in response to a prop change is this effect's entire job; runs only when dropdown.open changes
       setShowDropdown(false);
       setShowDatePicker(false);
       setSuggestions([]);
@@ -1609,7 +1626,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const s = stateRef.current;
     // Physical key code — immune to Alt/Option character remapping on macOS
-    const code = (e.nativeEvent as KeyboardEvent).code;
+    const code = e.nativeEvent.code;
 
     // Alt+Shift+F — format query (opt-in via features.formatQuery)
     if (enableFormatQuery && code === 'KeyF' && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey) {
@@ -1769,6 +1786,7 @@ export function ElasticInput(props: ElasticInputProps) {
         : Math.max(state.level - 1, -1);
 
       if (newLevel === state.level) return; // already at boundary
+      // eslint-disable-next-line react-hooks/immutability -- expandSelRef holds mutable per-gesture state (the cached range hierarchy); mutating it is the design
       state.level = newLevel;
 
       if (newLevel < 0) {
@@ -2102,7 +2120,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // gains focus.
   const handleFocus = React.useCallback((e: React.FocusEvent) => {
     // Focus moves within the component don't re-enter: isFocused is already true
-    const fromOutside = !isInternalNode(e.relatedTarget as Node | null);
+    const fromOutside = !isInternalNode(e.relatedTarget);
     if (fromOutside) {
       setIsFocused(true);
       onFocusProp?.();
@@ -2139,7 +2157,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // Focus moving to another part of the component (a slot button, the
     // dropdown, the date picker) is not a blur — keep the dropdown, the
     // suggestions, and the focus state intact.
-    if (isInternalNode(e.relatedTarget as Node | null)) return;
+    if (isInternalNode(e.relatedTarget)) return;
     setIsFocused(false);
     cancelPendingDropdownShow();
     setShowDropdown(false);
@@ -2337,6 +2355,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // through setState (processInput/applyNewValue), so reading the value ref
   // during render is always fresh.
   const status: InputStatus = {
+    // eslint-disable-next-line react-hooks/refs -- see comment above: every value change also sets state, so this render-phase read is never stale
     value: currentValueRef.current,
     ast,
     errors: validationErrors,
@@ -2347,8 +2366,17 @@ export function ElasticInput(props: ElasticInputProps) {
   };
   const resolveSlot = (content: SlotContent | undefined): React.ReactNode =>
     typeof content === 'function' ? (content as (s: InputStatus) => React.ReactNode)(status) : content;
+  // eslint-disable-next-line react-hooks/refs -- resolveSlot only forwards the status snapshot built above
   const prefixContent = resolveSlot(prefix);
+  // eslint-disable-next-line react-hooks/refs -- resolveSlot only forwards the status snapshot built above
   const suffixContent = resolveSlot(suffix);
+  // Squiggles need the wrap element itself (their coordinate space); it exists
+  // from the first commit onward and ValidationSquiggles re-measures on every
+  // errors/cursor change, so a stale-null first render is fine.
+  // eslint-disable-next-line react-hooks/refs
+  const editorWrapEl = editorWrapRef.current;
+  // eslint-disable-next-line react-hooks/refs -- reads container width lazily; recomputed every render
+  const dropdownFixedWidth = getDropdownFixedWidth();
 
   return (
     <div
@@ -2397,7 +2425,7 @@ export function ElasticInput(props: ElasticInputProps) {
           cursorOffset={cursorOffset}
           colors={colors}
           styles={stylesProp}
-          containerRef={editorWrapRef.current}
+          containerRef={editorWrapEl}
           classNames={classNames ? { squiggly: classNames.squiggly, tooltip: classNames.tooltip } : undefined}
         />
       </div>
@@ -2420,7 +2448,7 @@ export function ElasticInput(props: ElasticInputProps) {
         colors={colors}
         styles={stylesProp}
         visible={showDropdown}
-        fixedWidth={getDropdownFixedWidth()}
+        fixedWidth={dropdownFixedWidth}
         renderHistoryItem={renderHistoryItem}
         renderSavedSearchItem={renderSavedSearchItem}
         renderDropdownHeader={renderDropdownHeader}

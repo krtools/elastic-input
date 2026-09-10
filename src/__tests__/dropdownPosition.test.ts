@@ -36,7 +36,7 @@ describe('adjustFlippedPosition', () => {
 
   // Minimal caret rect — adjustFlippedPosition only reads top/bottom
   function caretRect(top: number, bottom: number): DOMRect {
-    return { top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON() { return {}; } } as DOMRect;
+    return { top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON() { return {}; } };
   }
 
   it('returns null when an unflipped dropdown fits below', () => {

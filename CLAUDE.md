@@ -14,9 +14,10 @@ npx vitest run src/__tests__/Lexer.test.ts          # Single test file
 npx vitest run -t "flags unknown fields"            # Single test by name
 npm run test:browser # Browser integration tests (Playwright)
 npx tsc --noEmit     # Type check without emitting
+npm run lint         # ESLint (flat config, type-aware; src/ and demo/)
 ```
 
-**After every change**, run all four: `npx tsc --noEmit`, `npx vitest run`, `npm run test:browser`, `npx vite build`. TypeScript errors, browser regressions, and build failures are not caught by vitest alone.
+**After every change**, run all five: `npx tsc --noEmit`, `npx vitest run`, `npm run test:browser`, `npx vite build`, `npm run lint`. TypeScript errors, browser regressions, build failures, and lint findings are not caught by vitest alone.
 
 ## Architecture
 

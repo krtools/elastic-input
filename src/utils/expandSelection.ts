@@ -62,17 +62,15 @@ function collectAncestors(node: ASTNode, offset: number, out: SelectionRange[]):
   if (offset < node.start || offset > node.end) return false;
 
   // Recurse into children first so we collect innermost nodes
-  let childContains = false;
-
   switch (node.type) {
     case 'BooleanExpr':
-      childContains = collectAncestors(node.left, offset, out) || childContains;
-      childContains = collectAncestors(node.right, offset, out) || childContains;
+      collectAncestors(node.left, offset, out);
+      collectAncestors(node.right, offset, out);
       break;
     case 'Group':
     case 'Not':
     case 'FieldGroup':
-      childContains = collectAncestors(node.expression, offset, out) || childContains;
+      collectAncestors(node.expression, offset, out);
       break;
     // Leaf nodes: FieldValue, BareTerm, SavedSearch, HistoryRef, Range, Regex, Error
   }

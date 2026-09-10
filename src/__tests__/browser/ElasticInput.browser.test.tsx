@@ -3,6 +3,7 @@ import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig, SuggestionItem, DropdownOpenContext } from '../../types';
+import { ASTNode } from '../../parser/ast';
 import { findNodeAtOffset, setCaretCharOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
 
@@ -740,9 +741,9 @@ describe('ElasticInput browser tests', () => {
       // Closer to the demo: includes fetchSuggestions, multiple onChange state updates
       function DemoLikeWrapper({ fields }: { fields: FieldConfig[] }) {
         const [value, setValue] = React.useState('');
-        const [lastQuery, setLastQuery] = React.useState('');
-        const [lastAST, setLastAST] = React.useState<any>(null);
-        const handleChange = React.useCallback((q: string, ast: any) => {
+        const [, setLastQuery] = React.useState('');
+        const [, setLastAST] = React.useState<ASTNode | null>(null);
+        const handleChange = React.useCallback((q: string, ast: ASTNode | null) => {
           setLastQuery(q);
           setLastAST(ast);
           setValue(q);

@@ -11,7 +11,8 @@ import {
   demoValidateValue,
 } from './DemoConfig';
 import { formatQuery } from '../src/utils/formatQuery';
-import { lightTheme, darkTheme, getAppStyles } from './styles';
+import { lightTheme, darkTheme, getAppStyles, ThemeColors } from './styles';
+import { ColorConfig } from '../src/types';
 
 type TabId = 'crm' | 'logs' | 'ecommerce' | 'spreadsheet';
 
@@ -144,7 +145,7 @@ const EXAMPLE_QUERIES: Record<TabId, ExampleQuery[]> = {
 // --- Options panel helpers ---
 
 function OptionToggle({ label, checked, onChange, theme }: {
-  label: string; checked: boolean; onChange: (v: boolean) => void; theme: any;
+  label: string; checked: boolean; onChange: (v: boolean) => void; theme: ThemeColors;
 }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: theme.text }}>
@@ -155,7 +156,7 @@ function OptionToggle({ label, checked, onChange, theme }: {
 }
 
 function OptionSelect<T extends string | number>({ label, value, options, onChange, theme }: {
-  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; theme: any;
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; theme: ThemeColors;
 }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
@@ -184,7 +185,7 @@ function OptionSelect<T extends string | number>({ label, value, options, onChan
 }
 
 function OptionNumber({ label, value, onChange, min, max, theme }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; theme: any;
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; theme: ThemeColors;
 }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
@@ -213,7 +214,7 @@ function OptionNumber({ label, value, onChange, min, max, theme }: {
 }
 
 function OptionColor({ label, value, onChange, theme }: {
-  label: string; value: string; onChange: (v: string) => void; theme: any;
+  label: string; value: string; onChange: (v: string) => void; theme: ThemeColors;
 }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
@@ -228,7 +229,7 @@ function OptionColor({ label, value, onChange, theme }: {
   );
 }
 
-function OptionGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: any }) {
+function OptionGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: ThemeColors }) {
   return (
     <div style={{ marginBottom: '12px' }}>
       <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.5px', color: theme.textSecondary, marginBottom: '6px' }}>
@@ -257,7 +258,7 @@ const SPREADSHEET_COLUMNS: SpreadsheetColumn[] = [
 
 const SPREADSHEET_ROWS = 3;
 
-function SpreadsheetDemo({ theme, colors }: { theme: any; colors: any }) {
+function SpreadsheetDemo({ theme, colors }: { theme: ThemeColors; colors: ColorConfig }) {
   const [cells, setCells] = React.useState<string[][]>(
     () => Array.from({ length: SPREADSHEET_ROWS }, () => SPREADSHEET_COLUMNS.map(() => ''))
   );
@@ -482,7 +483,7 @@ export function DemoApp() {
   const [controlledValue, setControlledValue] = React.useState('');
 
   const inputApiRef = React.useRef<ElasticInputAPI | null>(null);
-  (window as any).elasticInput = inputApiRef;
+  (window as unknown as { elasticInput: React.RefObject<ElasticInputAPI | null> }).elasticInput = inputApiRef;
 
   const theme = isDark ? darkTheme : lightTheme;
   // Stable identity: ColorConfig is a dependency of ElasticInput's internal

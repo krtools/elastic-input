@@ -187,7 +187,7 @@ describe('Tab/Enter while async value suggestions are in flight', () => {
   });
 
   it('ArrowDown onto the spinner + Enter submits the raw query intact', async () => {
-    const { d, searches } = setup();
+    const { searches } = setup();
 
     const editor = page.elementLocator(editorEl());
     await editor.click();

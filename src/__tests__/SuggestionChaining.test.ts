@@ -220,26 +220,26 @@ describe('Suggestion chaining — full query building flow', () => {
     // Step 1: type "is" → select "is_vip:"
     let result = getSuggestions(engine, 'is');
     let sugg = result.suggestions.find(s => s.text === 'is_vip:')!;
-    let { newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, 'is', sugg);
+    let { newValue, nextResult } = acceptAndGetNext(engine, 'is', sugg);
     expect(newValue).toBe('is_vip:');
 
     // Step 2: boolean suggestions appear → select "true"
     sugg = nextResult.suggestions.find(s => s.text === 'true')!;
     expect(sugg).toBeDefined();
-    ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue, sugg));
+    ({ newValue, nextResult } = acceptAndGetNext(engine, newValue, sugg));
     expect(newValue).toBe('is_vip:true');
 
     // Step 3: type space, get operator suggestions → select "AND "
     result = getSuggestions(engine, newValue + ' ');
     sugg = result.suggestions.find(s => s.text === 'AND ')!;
     expect(sugg).toBeDefined();
-    ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue + ' ', sugg));
+    ({ newValue, nextResult } = acceptAndGetNext(engine, newValue + ' ', sugg));
     expect(newValue).toBe('is_vip:true AND ');
 
     // Step 4: field suggestions appear → select "price:"
     sugg = nextResult.suggestions.find(s => s.text === 'price:')!;
     expect(sugg).toBeDefined();
-    ({ newValue, newCursorPos, nextResult } = acceptAndGetNext(engine, newValue, sugg));
+    ({ newValue, nextResult } = acceptAndGetNext(engine, newValue, sugg));
     expect(newValue).toBe('is_vip:true AND price:');
 
     // Step 5: number hint appears

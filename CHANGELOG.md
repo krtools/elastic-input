@@ -6,6 +6,14 @@
 
 - **Standalone `Calendar` component** — The date grid inside the date picker is now exported as a pure, fully-controlled component: Dates in/out via `mode`/`start`/`end`/`onChange`, `children` as a footer slot. The single/range toggle, query-syntax presets, and string serialization stay in ElasticInput's internal wrapper.
 
+### Fixes
+
+- **Per-type value colors now track async/changed fields** — Highlight and validation callbacks closed over the field-type map (and lexer options, default field, class names) captured at mount, so `colors.valueTypes` never applied to input typed after async `fields` resolved or after the fields set changed. Dependency arrays now list what the callbacks read; regression test in `AsyncFieldsHighlight.browser.test.tsx`.
+
+### Tooling
+
+- **ESLint 9 flat config** — typescript-eslint `recommendedTypeChecked` + react + react-hooks (v7 compiler rules) over `src/` and `demo/`; `npm run lint` added to the check suite and `prepack`. Intentional patterns (stateRef, portal-container gates, latest-value refs) carry inline disables with reasons.
+
 ## 0.14.0 — 2026-09-09
 
 ### Features

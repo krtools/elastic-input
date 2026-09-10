@@ -168,7 +168,6 @@ describe('findNextClauseStop', () => {
     const sequence: string[] = [];
     let idx = -1;
     let cursor = 0;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const r = findNextClauseStop(stops, idx, cursor, 'forward');
       if (!r) break;
@@ -185,7 +184,6 @@ describe('findNextClauseStop', () => {
     const sequence: string[] = [];
     let idx = -1;
     let cursor = 0;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const r = findNextClauseStop(stops, idx, cursor, 'forward');
       if (!r) break;

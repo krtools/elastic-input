@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DropdownOpenContext, DropdownOpenProp } from '../types';
-import { CursorContext } from '../parser/Parser';
 
 /**
  * Tests for the dropdown.open callback contract.
@@ -13,7 +12,7 @@ import { CursorContext } from '../parser/Parser';
 function makeContext(overrides: Partial<DropdownOpenContext> = {}): DropdownOpenContext {
   return {
     trigger: 'input',
-    context: { type: 'FIELD_NAME', partial: 'sta', fieldName: undefined } as CursorContext,
+    context: { type: 'FIELD_NAME', partial: 'sta', fieldName: undefined },
     suggestions: [],
     isOpen: false,
     value: 'sta',
@@ -65,7 +64,7 @@ describe('dropdown.open callback contract', () => {
   it('callback receives cursor context', () => {
     const spy = vi.fn((_ctx: DropdownOpenContext) => null);
     const ctx = makeContext({
-      context: { type: 'FIELD_VALUE', partial: 'act', fieldName: 'status' } as CursorContext,
+      context: { type: 'FIELD_VALUE', partial: 'act', fieldName: 'status' },
     });
     spy(ctx);
     expect(spy.mock.calls[0][0].context.type).toBe('FIELD_VALUE');
@@ -84,7 +83,7 @@ describe('dropdown.open callback contract', () => {
   it('callback receives suggestions array', () => {
     const spy = vi.fn((_ctx: DropdownOpenContext) => null);
     const suggs = [{ text: 'status:', label: 'Status', type: 'field' as const, replaceStart: 0, replaceEnd: 3 }];
-    spy(makeContext({ suggestions: suggs as any }));
+    spy(makeContext({ suggestions: suggs }));
     expect(spy.mock.calls[0][0].suggestions).toHaveLength(1);
     expect(spy.mock.calls[0][0].suggestions[0].text).toBe('status:');
   });
@@ -120,17 +119,17 @@ describe('dropdown.open callback contract', () => {
     it('suppress when no suggestions', () => {
       const open: DropdownOpenProp = (ctx) => ctx.suggestions.length > 0 ? null : false;
       expect(evaluate(open, makeContext({ suggestions: [] }))).toBe('hide');
-      expect(evaluate(open, makeContext({ suggestions: [{ text: 'x' }] as any }))).toBe('engine-decides');
+      expect(evaluate(open, makeContext({ suggestions: [{ text: 'x', label: 'x', replaceStart: 0, replaceEnd: 1 }] }))).toBe('engine-decides');
     });
 
     it('show only for field value context', () => {
       const open: DropdownOpenProp = (ctx) =>
         ctx.context.type === 'FIELD_VALUE' ? null : false;
       expect(evaluate(open, makeContext({
-        context: { type: 'FIELD_VALUE', partial: '', fieldName: 'status' } as CursorContext,
+        context: { type: 'FIELD_VALUE', partial: '', fieldName: 'status' },
       }))).toBe('engine-decides');
       expect(evaluate(open, makeContext({
-        context: { type: 'FIELD_NAME', partial: 'sta' } as CursorContext,
+        context: { type: 'FIELD_NAME', partial: 'sta' },
       }))).toBe('hide');
     });
 
@@ -138,10 +137,10 @@ describe('dropdown.open callback contract', () => {
       const open: DropdownOpenProp = (ctx) =>
         ctx.context.type === 'OPERATOR' ? false : null;
       expect(evaluate(open, makeContext({
-        context: { type: 'OPERATOR', partial: 'AN' } as CursorContext,
+        context: { type: 'OPERATOR', partial: 'AN' },
       }))).toBe('hide');
       expect(evaluate(open, makeContext({
-        context: { type: 'FIELD_NAME', partial: 'sta' } as CursorContext,
+        context: { type: 'FIELD_NAME', partial: 'sta' },
       }))).toBe('engine-decides');
     });
 

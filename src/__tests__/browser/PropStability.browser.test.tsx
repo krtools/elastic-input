@@ -42,7 +42,9 @@ let lastErrors: ValidationError[] = [];
 function ChurningFieldsHarness({ initialFields }: { initialFields: FieldConfig[] }) {
   const [fieldElements, setFieldElements] = React.useState(initialFields);
   const [, setTick] = React.useState(0);
+  // eslint-disable-next-line react-hooks/globals -- test harness: module-level hooks let the test drive re-renders from outside the tree
   forceRender = () => setTick(t => t + 1);
+  // eslint-disable-next-line react-hooks/globals -- test harness (see above)
   setHarnessFields = setFieldElements;
   return React.createElement(ElasticInput, {
     fields: [...fieldElements],
@@ -58,6 +60,7 @@ function ChurningFieldsHarness({ initialFields }: { initialFields: FieldConfig[]
  */
 function ChurningLoaderHarness() {
   const [, setTick] = React.useState(0);
+  // eslint-disable-next-line react-hooks/globals -- test harness (see ChurningFieldsHarness)
   forceRender = () => setTick(t => t + 1);
   return React.createElement(ElasticInput, {
     fields: () => Promise.resolve([...[STATUS_FIELD, SOURCE_FIELD]]),
@@ -155,11 +158,13 @@ describe('fields prop identity resilience', () => {
 describe('useLazyRef', () => {
   it('runs the initializer exactly once across re-renders', async () => {
     let inits = 0;
-    let seenValues: object[] = [];
+    const seenValues: object[] = [];
     function Probe() {
       const [, setTick] = React.useState(0);
+      // eslint-disable-next-line react-hooks/globals -- test harness (see ChurningFieldsHarness)
       forceRender = () => setTick(t => t + 1);
       const ref = useLazyRef(() => { inits++; return { tag: 'probe' }; });
+      // eslint-disable-next-line react-hooks/refs -- the render-phase read IS the behavior under test (useLazyRef retains one instance)
       seenValues.push(ref.current);
       return null;
     }

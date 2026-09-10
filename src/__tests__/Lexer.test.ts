@@ -25,7 +25,6 @@ function lexValues(input: string, options?: LexerOptions) {
 describe('Lexer', () => {
   describe('basic tokens', () => {
     it('tokenizes a simple field:value pair', () => {
-      const tokens = lex('status:active');
       expect(lexTypes('status:active')).toEqual([
         TokenType.FIELD_NAME, TokenType.COLON, TokenType.VALUE,
       ]);
@@ -60,7 +59,6 @@ describe('Lexer', () => {
     });
 
     it('handles unclosed quotes gracefully', () => {
-      const tokens = lex('name:"John');
       expect(lexTypes('name:"John')).toEqual([
         TokenType.FIELD_NAME, TokenType.COLON, TokenType.QUOTED_VALUE,
       ]);

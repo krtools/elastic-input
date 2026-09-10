@@ -1,5 +1,8 @@
 import { Token, TokenType } from '../lexer/tokens';
-import { ColorConfig, FieldConfig, FieldType } from '../types';
+import { ColorConfig, FieldType } from '../types';
+
+// ColorConfig keys that hold a plain color string (excludes the valueTypes map)
+type ColorKey = Exclude<keyof ColorConfig, 'valueTypes'>;
 import { mergeColors } from '../styles/inlineStyles';
 import { buildRegexHTML } from '../highlighting/regexHighlight';
 import { buildRangeHTML } from '../highlighting/rangeHighlight';
@@ -28,7 +31,7 @@ const TOKEN_CLASS_MAP: Record<TokenType, string> = {
   [TokenType.UNKNOWN]: 'unknown',
 };
 
-const TOKEN_COLOR_MAP: Record<TokenType, keyof ColorConfig> = {
+const TOKEN_COLOR_MAP: Record<TokenType, ColorKey> = {
   [TokenType.FIELD_NAME]: 'fieldName',
   [TokenType.COLON]: 'operator',
   [TokenType.VALUE]: 'fieldValue',

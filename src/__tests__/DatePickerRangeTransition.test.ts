@@ -3,7 +3,6 @@ import { Lexer } from '../lexer/Lexer';
 import { AutocompleteEngine, AutocompleteResult } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig } from '../types';
 import { computeDatePickerInit, shouldRemountDatePicker } from '../components/ElasticInput';
-import { parseDate } from '../utils/dateUtils';
 
 const FIELDS: FieldConfig[] = [
   { name: 'created', label: 'Created Date', type: 'date' },

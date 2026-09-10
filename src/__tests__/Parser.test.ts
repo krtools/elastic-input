@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { ASTNode, ErrorNode, RangeNode } from '../parser/ast';
+import { ASTNode, BareTermNode, ErrorNode, FieldValueNode } from '../parser/ast';
 
 import { LexerOptions } from '../lexer/Lexer';
 
@@ -770,7 +770,7 @@ describe('Parser', () => {
       const { ast, errors } = parseWithErrors('"hello world');
       expect(ast).not.toBeNull();
       expect(ast!.type).toBe('BareTerm');
-      expect((ast as any).value).toBe('hello world');
+      expect((ast as BareTermNode).value).toBe('hello world');
       expect(errors).toHaveLength(1);
       expect(errors[0]).toMatchObject({
         message: 'Missing closing quote',
@@ -783,8 +783,8 @@ describe('Parser', () => {
       const { ast, errors } = parseWithErrors("'hello");
       expect(ast).not.toBeNull();
       expect(ast!.type).toBe('BareTerm');
-      expect((ast as any).value).toBe("'hello");
-      expect((ast as any).quoted).toBe(false);
+      expect((ast as BareTermNode).value).toBe("'hello");
+      expect((ast as BareTermNode).quoted).toBe(false);
       expect(errors).toHaveLength(0);
     });
 
@@ -792,7 +792,7 @@ describe('Parser', () => {
       const { ast, errors } = parseWithErrors('status:"hello world');
       expect(ast).not.toBeNull();
       expect(ast!.type).toBe('FieldValue');
-      expect((ast as any).value).toBe('hello world');
+      expect((ast as FieldValueNode).value).toBe('hello world');
       expect(errors).toHaveLength(1);
       expect(errors[0]).toMatchObject({
         message: 'Missing closing quote',

@@ -171,7 +171,8 @@ export const SAMPLE_HISTORY: HistoryEntry[] = [
 export function mockFetchSavedSearches(partial: string): Promise<SavedSearch[]> {
   const lower = partial.toLowerCase();
   const filtered = SAMPLE_SAVED_SEARCHES
-    .filter(s => s.query.toLowerCase().includes(lower) || String(s.description || '').toLowerCase().includes(lower));
+    .filter(s => s.query.toLowerCase().includes(lower) ||
+      (typeof s.description === 'string' && s.description.toLowerCase().includes(lower)));
   return new Promise(resolve => setTimeout(() => resolve(filtered), 100));
 }
 

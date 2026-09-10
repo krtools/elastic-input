@@ -1,7 +1,7 @@
 import { Token } from '../lexer/tokens';
 import { Lexer } from '../lexer/Lexer';
 import { Parser, CursorContext } from '../parser/Parser';
-import { FieldConfig, SavedSearch, HistoryEntry, SuggestionItem } from '../types';
+import { FieldConfig, SavedSearch, HistoryEntry } from '../types';
 import { Suggestion } from './suggestionTypes';
 import { BOOLEAN_OPERATORS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
 import { getReplacementRange } from '../utils/textUtils';

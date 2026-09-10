@@ -8,7 +8,10 @@ export interface RangePart {
   text: string;
 }
 
-const RANGE_COLOR_MAP: Record<RangePartType, keyof ColorConfig> = {
+// ColorConfig keys that hold a plain color string (excludes the valueTypes map)
+type ColorKey = Exclude<keyof ColorConfig, 'valueTypes'>;
+
+const RANGE_COLOR_MAP: Record<RangePartType, ColorKey> = {
   bracket: 'paren',
   toKeyword: 'booleanOp',
   bareValue: 'fieldValue',

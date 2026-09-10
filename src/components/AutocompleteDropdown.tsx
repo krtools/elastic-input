@@ -122,6 +122,7 @@ export function AutocompleteDropdown({
     }
   }, [selectedIndex, hasHeader]);
 
+  // eslint-disable-next-line react-hooks/refs -- portal container gate: the ref is only set by the mount effect; reading it during render is how the portal waits for its container
   if (!portalRef.current || !visible || suggestions.length === 0 || !position) {
     return null;
   }
@@ -157,7 +158,6 @@ export function AutocompleteDropdown({
         // --- Helpers shared across item types ---
 
         const itemProps = (typeModifier?: string, extraStyle?: React.CSSProperties, title?: string) => ({
-          key: i,
           className: cx('ei-dropdown-item', typeModifier, isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem),
           style: { ...itemStyle, ...extraStyle },
           title,
@@ -173,6 +173,7 @@ export function AutocompleteDropdown({
         const typeBadge = (extraStyle?: React.CSSProperties) => {
           if (renderType === false || !suggestion.type || suggestion.type === 'hint') return null;
           const content = typeof renderType === 'function'
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- Suggestion.description is a documented `any` (may hold a ReactNode)
             ? renderType(suggestion.type, { text: suggestion.text, label: suggestion.label, description: suggestion.description, type: suggestion.type })
             : suggestion.type;
           return content != null ? (
@@ -189,6 +190,7 @@ export function AutocompleteDropdown({
         if (suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!')) {
           return (
             <div
+              key={i}
               {...itemProps('ei-dropdown-item--hint', { opacity: isSelected ? 1 : 0.7 })}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
@@ -256,13 +258,13 @@ export function AutocompleteDropdown({
         if (suggestion.type === 'history' && renderHistoryItem && suggestion.sourceData) {
           const customContent = renderHistoryItem(suggestion.sourceData as HistoryEntry, isSelected);
           if (customContent != null) {
-            return <div {...itemProps('ei-dropdown-item--history', twoRowStyle)}>{customContent}</div>;
+            return <div key={i} {...itemProps('ei-dropdown-item--history', twoRowStyle)}>{customContent}</div>;
           }
         }
         if (suggestion.type === 'savedSearch' && renderSavedSearchItem && suggestion.sourceData) {
           const customContent = renderSavedSearchItem(suggestion.sourceData as SavedSearch, isSelected);
           if (customContent != null) {
-            return <div {...itemProps('ei-dropdown-item--saved-search')}>{customContent}</div>;
+            return <div key={i} {...itemProps('ei-dropdown-item--saved-search')}>{customContent}</div>;
           }
         }
 
@@ -277,7 +279,7 @@ export function AutocompleteDropdown({
           if (suggestion.label !== rawText) title = suggestion.text;
 
           return (
-            <div {...itemProps(typeModifier, twoRowStyle, title)}>
+            <div key={i} {...itemProps(typeModifier, twoRowStyle, title)}>
               <span className="ei-dropdown-item-label" style={{
                 ...getDropdownItemLabelStyle(isSelected),
                 width: '100%',
@@ -297,7 +299,7 @@ export function AutocompleteDropdown({
         // Default single-row layout (fields, values, operators, saved searches without date)
         const itemTypeModifier = suggestion.type === 'savedSearch' ? 'ei-dropdown-item--saved-search' : undefined;
         return (
-          <div {...itemProps(itemTypeModifier)}>
+          <div key={i} {...itemProps(itemTypeModifier)}>
             <span className="ei-dropdown-item-label" style={getDropdownItemLabelStyle(isSelected)}>
               {highlightMatch(suggestion.label, suggestion.matchPartial, isSelected)}
             </span>
@@ -311,5 +313,6 @@ export function AutocompleteDropdown({
     </div>
   );
 
+  // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above; stable for the life of the component
   return ReactDOM.createPortal(content, portalRef.current);
 }

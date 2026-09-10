@@ -67,6 +67,7 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
     if (navKey === prevNavKeyRef.current) return;
     prevNavKeyRef.current = navKey;
     if (navTarget) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate sync: navigate the view when the controlled selection changes; guarded by the navKey compare above
       setViewYear(navTarget.getFullYear());
       setViewMonth(navTarget.getMonth());
     }

@@ -17,7 +17,10 @@ export interface RegexPart {
   text: string;
 }
 
-const REGEX_COLOR_MAP: Record<RegexPartType, keyof ColorConfig> = {
+// ColorConfig keys that hold a plain color string (excludes the valueTypes map)
+type ColorKey = Exclude<keyof ColorConfig, 'valueTypes'>;
+
+const REGEX_COLOR_MAP: Record<RegexPartType, ColorKey> = {
   delimiter: 'regexDelimiter',
   charClass: 'regexCharClass',
   groupOpen: 'regexGroup',

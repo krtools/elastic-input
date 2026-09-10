@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { ValidationError } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
-import { mergeColors, mergeStyles, getSquigglyStyle } from '../styles/inlineStyles';
+import { mergeColors, mergeStyles } from '../styles/inlineStyles';
 import { cx } from '../utils/cx';
 
 interface ValidationSquigglesProps {
@@ -160,6 +160,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
 
     // If errors cleared, update immediately (no DOM measurement needed)
     if (errors.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- rects derive from DOM measurement, not props; clearing synchronously avoids a one-debounce-tick stale squiggle
       setRects([]);
       rectsRef.current = [];
       setHoveredIndex(null);

@@ -166,14 +166,14 @@ export function getDropdownItemStyle(
   };
 }
 
-export function getDropdownItemLabelStyle(isSelected: boolean): React.CSSProperties {
+export function getDropdownItemLabelStyle(_isSelected: boolean): React.CSSProperties {
   return {
     flex: 1,
     fontWeight: 500,
   };
 }
 
-export function getDropdownItemDescStyle(isSelected: boolean): React.CSSProperties {
+export function getDropdownItemDescStyle(_isSelected: boolean): React.CSSProperties {
   return {
     fontSize: '11px',
     opacity: 0.7,

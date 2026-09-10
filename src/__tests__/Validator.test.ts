@@ -977,6 +977,7 @@ describe('Incomplete expression errors', () => {
         value: 'hello',
         position: 'bare_term',
         fieldName: 'status',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- vitest asymmetric matchers are `any`-typed
         fieldConfig: expect.objectContaining({ name: 'status', type: 'string' }),
       }));
     });

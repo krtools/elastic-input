@@ -54,14 +54,14 @@ describe('multiline queries', () => {
 
   describe('validation', () => {
     it('validates multiline queries same as single-line', () => {
-      const { ast, errors: parseErrors } = parse('status:active\nAND name:John');
+      const { ast } = parse('status:active\nAND name:John');
       const validator = new Validator(FIELDS);
       const errors = validator.validate(ast);
       expect(errors).toHaveLength(0);
     });
 
     it('reports errors on correct line positions', () => {
-      const { ast, errors: parseErrors } = parse('status:active\nunknown:value');
+      const { ast } = parse('status:active\nunknown:value');
       const validator = new Validator(FIELDS);
       const errors = validator.validate(ast);
       expect(errors.length).toBeGreaterThan(0);

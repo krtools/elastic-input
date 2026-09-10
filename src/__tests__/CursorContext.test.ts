@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { LexerOptions } from '../lexer/Lexer';
+import { TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 
 const ALL_FEATURES: LexerOptions = { savedSearches: true, historySearch: true };
@@ -210,7 +211,7 @@ describe('getCursorContext', () => {
 
   describe('prefix operator context', () => {
     it('returns FIELD_NAME after - prefix', () => {
-      const ctx = getContext('-');
+      getContext('-');
       // - at end with nothing after is not a PREFIX_OP, so it's a VALUE
       // But -s would be PREFIX_OP + VALUE
     });
@@ -353,7 +354,7 @@ describe('getCursorContext', () => {
       // 'b' character is at index 14, cursor there = offset 14
       const input = 'company:[a TO b]';
       const tokens = new Lexer(input).tokenize();
-      const rangeToken = tokens.find(t => t.type === 'RANGE' as any);
+      const rangeToken = tokens.find(t => t.type === TokenType.RANGE);
 
       // Verify the range token spans correctly
       expect(rangeToken).toBeDefined();

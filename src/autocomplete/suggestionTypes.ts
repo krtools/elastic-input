@@ -1,7 +1,8 @@
 export interface Suggestion {
   text: string;
   label: string;
-  description?: any; // string or React.ReactNode — typed as any to avoid React import in pure types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- string or React.ReactNode; `any` avoids a React import in pure types
+  description?: any;
   type?: string;
   replaceStart: number;
   replaceEnd: number;
@@ -9,8 +10,10 @@ export interface Suggestion {
   /** Higher priority items appear first. Operators=30, hints=20, fields=10. */
   priority?: number;
   /** Custom React content to render instead of the default label/description. Used by `renderFieldHint`. */
-  customContent?: any; // React.ReactNode — typed as any to avoid React import in pure types
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- React.ReactNode; `any` avoids a React import in pure types
+  customContent?: any;
   /** Original source data (HistoryEntry or SavedSearch) for custom renderers. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- HistoryEntry | SavedSearch, kept loose for custom renderers
   sourceData?: any;
 }
 

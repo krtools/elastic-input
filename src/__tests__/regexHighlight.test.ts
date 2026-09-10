@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tokenizeRegexContent, RegexPart } from '../highlighting/regexHighlight';
+import { tokenizeRegexContent } from '../highlighting/regexHighlight';
 
 function types(value: string): string[] {
   return tokenizeRegexContent(value).map(p => p.type);

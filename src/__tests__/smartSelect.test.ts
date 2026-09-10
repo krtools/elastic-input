@@ -69,8 +69,7 @@ describe('getSmartSelectRange', () => {
 
   describe('falls through to select-all', () => {
     it('returns null when caret is in whitespace', () => {
-      const range = smartSelect('hello world', 5, 5);
-      // offset 5 is end of 'hello' which is a VALUE — but let's test actual whitespace
+      // offset 5 is end of 'hello' which is a VALUE — so test actual whitespace
       const range2 = smartSelect('hello  world', 6, 6);
       expect(range2).toBeNull();
     });

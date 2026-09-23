@@ -1132,7 +1132,7 @@ Hovering over a squiggly underline displays a styled tooltip with the error/warn
 
 - Appears just below the squiggly wave by default, or flips above the text line if below would exit the viewport
 - Never covers the text line the mouse is hovering over
-- Positioned horizontally near the mouse cursor, clamped so it doesn't overflow the right edge of the viewport
+- Positioned horizontally near the mouse cursor, clamped so it doesn't overflow the right edge of the viewport — **known bug:** the clamp measures the tooltip with its previous `translateX` still applied and writes the residual as the new absolute shift, so the settled position can overflow and successive moves oscillate (`TooltipClamp.browser.test.tsx`, four `it.fails` cases pending the fix)
 - Uses the configured error/warning color for the border and text
 - Respects the configured font family and z-index from `StyleConfig`
 - Has a widened hover target area (16px height) for easier mouse targeting

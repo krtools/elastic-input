@@ -147,7 +147,9 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
   // threshold; capped at one step per event so a fling can't jump months.
   const containerRef = React.useRef<HTMLDivElement | null>(null);
   const navRef = React.useRef({ next: navigateNext, prev: navigatePrev });
-  navRef.current = { next: navigateNext, prev: navigatePrev };
+  React.useLayoutEffect(() => {
+    navRef.current = { next: navigateNext, prev: navigatePrev };
+  });
   const wheelAccRef = React.useRef(0);
   React.useLayoutEffect(() => {
     const el = containerRef.current;

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Exported standalone utilities** — `normalizeTypographicChars` (the paste normalizer: smart quotes/dashes/NBSP/fullwidth → ASCII), `validateDate` (the Validator's date check, with the `parseDate` hook), and `findMatchingParen`. Pinned by `publicExports.test.ts`.
+
 ## 0.15.1 — 2026-09-10
 
 ### Fixes

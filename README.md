@@ -561,6 +561,26 @@ Pass `HighlightOptions` for matched-paren highlighting:
 buildHighlightedHTML(tokens, DEFAULT_COLORS, { cursorOffset: 5 });
 ```
 
+## Standalone Utilities
+
+Pure functions (no React or DOM), useful outside the input:
+
+```typescript
+import { normalizeTypographicChars, validateDate, findMatchingParen, Lexer } from 'elastic-input';
+
+// Smart quotes, dashes, NBSP, fullwidth chars → ASCII (applied to every paste)
+normalizeTypographicChars('status:“active” — now');   // 'status:"active" - now'
+
+// The date check the Validator uses: ranges, rounding, your parseDate, built-in formats
+validateDate('now-1d/d');                       // null (valid)
+validateDate('[2024-01-01 TO now]');            // null
+validateDate('yesterday');                      // '"yesterday" is not a valid date. …'
+validateDate('yesterday', myParseDate);         // null if myParseDate accepts it
+
+// Paren pairing at a caret offset (IDE rules: char before the caret wins)
+findMatchingParen(new Lexer('(a OR b)').tokenize(), 1);  // { openStart: 0, closeStart: 7 }
+```
+
 ## Query Formatting
 
 Pretty-print messy or minified queries with `formatQuery` — a pure function (no React or DOM required):

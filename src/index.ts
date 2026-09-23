@@ -26,6 +26,11 @@ export { extractValues } from './utils/extractValues';
 export type { ExtractedValue, ExtractedValueKind } from './utils/extractValues';
 export { formatQuery } from './utils/formatQuery';
 export type { FormatQueryOptions } from './utils/formatQuery';
+export { normalizeTypographicChars } from './utils/textUtils';
+export { validateDate } from './validation/dateValidator';
+export type { ParseDateFn } from './validation/dateValidator';
+export { findMatchingParen } from './highlighting/parenMatch';
+export type { ParenMatch } from './highlighting/parenMatch';
 
 // Color and style presets
 export { DEFAULT_COLORS, DARK_COLORS, DEFAULT_STYLES, DARK_STYLES } from './constants';

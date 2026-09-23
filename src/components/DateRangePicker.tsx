@@ -15,6 +15,8 @@ interface DateRangePickerProps {
   presets?: { label: string; value: string; type?: 'single' | 'range' }[];
   /** Custom class name for the date picker container. */
   className?: string;
+  /** Forwarded to Calendar. */
+  wheelNavigation?: boolean;
 }
 
 const DEFAULT_PRESETS: { label: string; value: string; type?: 'single' | 'range' }[] = [
@@ -31,7 +33,7 @@ const DEFAULT_PRESETS: { label: string; value: string; type?: 'single' | 'range'
  * the input owns — the single/range mode toggle, query-syntax presets, and
  * serialization to query-string dates (`YYYY-MM-DD`, `[a TO b]`).
  */
-export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd, presets: presetsProp, className }: DateRangePickerProps) {
+export function DateRangePicker({ onSelect, colors, styles: styleConfig, initialMode, initialStart, initialEnd, presets: presetsProp, className, wheelNavigation = false }: DateRangePickerProps) {
   const [mode, setMode] = React.useState<'single' | 'range'>(initialMode ?? 'single');
   const [start, setStart] = React.useState<Date | null>(initialStart ?? null);
   const [end, setEnd] = React.useState<Date | null>(initialEnd ?? null);
@@ -81,7 +83,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
         onChange={handleChange}
         colors={colors}
         styles={styleConfig}
-        wheelNavigation
+        wheelNavigation={wheelNavigation}
       >
         {filteredPresets.length > 0 && (
           <div

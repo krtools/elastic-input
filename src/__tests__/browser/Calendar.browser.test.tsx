@@ -217,8 +217,8 @@ describe('Calendar (standalone)', () => {
 describe('DateRangePicker composition via ElasticInput', () => {
   const FIELDS: FieldConfig[] = [{ name: 'created', label: 'Created', type: 'date' }];
 
-  async function openPicker() {
-    renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
+  async function openPicker(extra: Record<string, unknown> = {}) {
+    renderInto(React.createElement(ElasticInput, { fields: FIELDS, ...extra }));
     const editor = page.elementLocator(document.querySelector('.ei-editor') as HTMLElement);
     await editor.click();
     await userEvent.type(editor, 'created:');
@@ -244,6 +244,23 @@ describe('DateRangePicker composition via ElasticInput', () => {
       await new Promise(r => setTimeout(r, 50));
     }
     expect(document.querySelector('.ei-editor')?.textContent).toMatch(/^created:\d{4}-\d{2}-15 $/);
+  });
+
+  it('wheel navigation is off by default and opt-in via features.datePickerWheelNavigation', async () => {
+    const wheel = () => (document.querySelector('.ei-calendar') as HTMLElement)
+      .dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
+    const month = () => document.querySelector('.ei-datepicker-header')?.textContent ?? '';
+
+    await openPicker();
+    const before = month();
+    expect(wheel()).toBe(true); // not prevented → page would scroll
+    expect(month()).toBe(before);
+
+    cleanup();
+    await openPicker({ features: { datePickerWheelNavigation: true } });
+    const start = month();
+    expect(wheel()).toBe(false);
+    expect(month()).not.toBe(start);
   });
 
   it('range mode: toggle switches, preset click inserts its query value', async () => {

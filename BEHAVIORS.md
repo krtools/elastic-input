@@ -1548,6 +1548,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `savedSearches` | `boolean` | `!!savedSearches` | Enable `#name` saved-search syntax and autocomplete; when false `#` is a regular character. Defaults to `true` when a `savedSearches` prop is provided. |
 | `historySearch` | `boolean` | `!!searchHistory` | Enable `!query` history-search syntax and autocomplete; when false `!` is a regular character. Defaults to `true` when a `searchHistory` prop is provided. |
 | `selectAllOnTabFocus` | `boolean` | `false` | Keyboard focus (Tab) selects the whole query; mouse focus places the caret; see §7.15 |
+| `datePickerWheelNavigation` | `boolean` | `false` | Mouse wheel over the date picker steps its view (month/year/decade per tick); see §14 |
 
 #### Prop Identity Stability
 
@@ -1848,7 +1849,7 @@ The active stop index resets to -1 on any typing input, so the next Ctrl+Alt+Arr
 
 `Calendar` (exported) is the pure date grid used inside ElasticInput's date picker: fully controlled (`mode`, `start`, `end`, `onChange` with Date objects), no mode toggle, no presets, no query-syntax serialization, no chrome — put it in your own popover/panel. `children` render below the grid (preset buttons, clear actions). In range mode the in-progress first click renders internally and only completed selections fire `onChange` (sorted ascending); `end` is ignored in single mode. The view auto-navigates when the controlled selection changes.
 
-**Wheel navigation** (`wheelNavigation`, default `false`; enabled in ElasticInput's date picker): mouse wheel over the calendar steps the view one unit per tick at the current level — month in days view, year in months view, decade in years view; down = forward, up = back. Page scroll is suppressed over the calendar. Deltas accumulate to a threshold (a mouse tick is one step; a trackpad stream steps once per threshold; a fling is capped at one step per event).
+**Wheel navigation** (`wheelNavigation`, default `false`; opt-in for ElasticInput's date picker via `features.datePickerWheelNavigation`): mouse wheel over the calendar steps the view one unit per tick at the current level — month in days view, year in months view, decade in years view; down = forward, up = back. Page scroll is suppressed over the calendar. Deltas accumulate to a threshold (a mouse tick is one step; a trackpad stream steps once per threshold; a fling is capped at one step per event).
 
 - **Tests:** `Calendar.browser.test.tsx` → "wheelNavigation" suite (days/months/years stepping, page-scroll suppression, trackpad accumulation and line-mode deltas, off by default)
 

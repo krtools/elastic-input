@@ -108,11 +108,12 @@ interface DatePickerPortalProps {
   fixedWidth?: number;
   datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   datePickerClassName?: string;
+  wheelNavigation?: boolean;
   /** Ref callback exposing the portal element for post-render flip re-checks. */
   elRef?: (el: HTMLDivElement | null) => void;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, elRef }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, elRef }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -156,6 +157,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         initialEnd={datePickerInit?.end}
         presets={datePresets}
         className={datePickerClassName}
+        wheelNavigation={wheelNavigation}
       />
     </div>,
     // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above; stable for the life of the component
@@ -265,6 +267,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
   const clauseNavigation = featuresConfig?.clauseNavigation ?? false;
   const selectAllOnTabFocus = featuresConfig?.selectAllOnTabFocus ?? false;
+  const datePickerWheelNavigation = featuresConfig?.datePickerWheelNavigation ?? false;
   const formatQueryConfig = featuresConfig?.formatQuery;
   const enableFormatQuery = !!formatQueryConfig;
   const formatQueryOptions = typeof formatQueryConfig === 'object' ? formatQueryConfig : undefined;
@@ -2469,6 +2472,7 @@ export function ElasticInput(props: ElasticInputProps) {
           fixedWidth={undefined}
           datePresets={datePresetsProp}
           datePickerClassName={classNames?.datePicker}
+          wheelNavigation={datePickerWheelNavigation}
           elRef={el => { datePickerElRef.current = el; setDatePickerEl(el); }}
         />
       ) : null}

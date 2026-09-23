@@ -365,6 +365,9 @@ export interface FeaturesConfig {
   /** Select the entire query when the input gains focus via keyboard (Tab/Shift+Tab),
    *  matching native input behavior. Mouse/touch focus places the caret normally. @default false */
   selectAllOnTabFocus?: boolean;
+  /** Mouse wheel over the date picker steps its view (month/year/decade per tick by view level);
+   *  page scroll is suppressed over the picker. @default false */
+  datePickerWheelNavigation?: boolean;
 }
 
 /**

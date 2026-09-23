@@ -147,8 +147,11 @@ function squigglyBgForColor(hexColor: string) {
 }
 
 export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef, classNames }: ValidationSquigglesProps) {
-  const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
-  const [mousePos, setMousePos] = React.useState<{ x: number; clientY: number }>({ x: 0, clientY: 0 });
+  // One state object so a mousemove renders once (two setStates in a native
+  // listener are not batched in React 16 and ran the clamp twice per move)
+  const [hover, setHover] = React.useState<{ index: number; x: number; clientY: number } | null>(null);
+  const hoveredIndex = hover ? hover.index : null;
+  const mousePos = hover ?? { x: 0, clientY: 0 };
   const [rects, setRects] = React.useState<SquigglyRect[]>([]);
   const rectsRef = React.useRef<SquigglyRect[]>([]);
   const tooltipRef = React.useRef<HTMLDivElement | null>(null);
@@ -163,7 +166,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       // eslint-disable-next-line react-hooks/set-state-in-effect -- rects derive from DOM measurement, not props; clearing synchronously avoids a one-debounce-tick stale squiggle
       setRects([]);
       rectsRef.current = [];
-      setHoveredIndex(null);
+      setHover(null);
       return;
     }
 
@@ -200,15 +203,14 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         }
       }
       if (found >= 0) {
-        setHoveredIndex(found);
-        setMousePos({ x: mx, clientY: e.clientY });
+        setHover({ index: found, x: mx, clientY: e.clientY });
       } else {
-        setHoveredIndex(null);
+        setHover(null);
       }
     };
 
     const handleMouseLeave = () => {
-      setHoveredIndex(null);
+      setHover(null);
     };
 
     const controller = new AbortController();
@@ -217,17 +219,16 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     return () => controller.abort();
   }, [containerRef, editorRef]);
 
-  // Clamp tooltip horizontally after render
-  React.useEffect(() => {
+  // Clamp the tooltip inside the viewport before paint. offsetWidth is layout
+  // width (unaffected by any transform), so the clamp is computed from the
+  // intended `left` each time rather than from a previously shifted box.
+  React.useLayoutEffect(() => {
     const el = tooltipRef.current;
     if (!el || hoveredIndex == null) return;
-    const rect = el.getBoundingClientRect();
-    if (rect.right > window.innerWidth - 8) {
-      const shift = rect.right - window.innerWidth + 8;
-      el.style.transform = `translateX(-${shift}px)`;
-    } else {
-      el.style.transform = '';
-    }
+    const intended = parseFloat(el.style.left) || 0;
+    const maxLeft = window.innerWidth - 8 - el.offsetWidth;
+    const clamped = Math.max(8, Math.min(intended, maxLeft));
+    if (clamped !== intended) el.style.left = `${clamped}px`;
   });
 
   if (rects.length === 0) return null;

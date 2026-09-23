@@ -53,12 +53,11 @@ function tooltipRect(): DOMRect {
 
 const limit = () => window.innerWidth - 8;
 
-// Known bug (documented, unfixed): the clamp effect measures the tooltip with the
-// previous translateX still applied and writes the residual as the new absolute
-// transform, so the settled position overflows and successive moves oscillate.
-// These are it.fails until the fix lands — flip to it() then.
+// Regression tests: the clamp used to measure the tooltip with its previous
+// translateX still applied and wrote the residual as the new absolute shift, so
+// the settled position overflowed and successive moves oscillated.
 describe('validation tooltip clamping', () => {
-  it.fails('first hover: settled position stays within the viewport', async () => {
+  it('first hover: settled position stays within the viewport', async () => {
     const { editorEl, token } = await setupNearRightEdge();
     const r = token.getBoundingClientRect();
     moveMouse(editorEl, r.left + 2, r.top + r.height / 2);
@@ -66,7 +65,7 @@ describe('validation tooltip clamping', () => {
     expect(tooltipRect().right).toBeLessThanOrEqual(limit());
   });
 
-  it.fails('the frame right after a mouse move is clamped', async () => {
+  it('the frame right after a mouse move is clamped', async () => {
     const { editorEl, token } = await setupNearRightEdge();
     const r = token.getBoundingClientRect();
     moveMouse(editorEl, r.left + 2, r.top + r.height / 2);
@@ -74,7 +73,7 @@ describe('validation tooltip clamping', () => {
     expect(tooltipRect().right).toBeLessThanOrEqual(limit());
   });
 
-  it.fails('a second move while clamped stays clamped', async () => {
+  it('a second move while clamped stays clamped', async () => {
     const { editorEl, token } = await setupNearRightEdge();
     const r = token.getBoundingClientRect();
     const y = r.top + r.height / 2;
@@ -86,7 +85,7 @@ describe('validation tooltip clamping', () => {
     expect(tooltipRect().right).toBeLessThanOrEqual(limit());
   });
 
-  it.fails('repeated moves at the same spot settle to one position', async () => {
+  it('repeated moves at the same spot settle to one position', async () => {
     const { editorEl, token } = await setupNearRightEdge();
     const r = token.getBoundingClientRect();
     const y = r.top + r.height / 2;

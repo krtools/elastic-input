@@ -796,6 +796,9 @@ Enter's behavior depends on what is being selected:
 
 When no dropdown is open, Enter submits the search — and also cancels any pending async work (debounce timer, in-flight fetch, delayed spinner), so a superseded fetch can't pop the dropdown open over the search results. "Open" means visibly open (suggestions present), not just the internal flag — a stale flag over an emptied list can't swallow the submit. Close/clear paths also cancel any pending caret-following dropdown-show frame, so a frame armed by an earlier keystroke can't resurrect the dropdown state after a synchronous close. Enter with an **inert item** (spinner, error, no-results) highlighted closes the dropdown and submits the raw query. Enter is deliberately **not** blocked during loading windows (unlike Tab, §7.2.2): it means "search what I typed", which matches its behavior on non-matching partials with loaded fields.
 
+**Known bug — Enter with the date picker open:** the submit path is gated on `!showDatePicker` and no other branch handles Enter, so it falls through to the browser, which inserts a newline (`created:[2026-09-01 TO 2026-09-16]|` → value gains `
+`, no `onSearch`, picker stays open, caret visually stuck on the `]`). Pending fix: close the picker and submit, matching the dropdown-open-nothing-selected case. `DatePickerEnter.browser.test.tsx` holds two `it.fails` cases.
+
 - **Tests:** `SuggestionChaining.test.ts` → "Enter on field value sets shouldSubmit flag", "Enter on field value at end appends trailing space", "Enter on field name does NOT submit", "Enter on operator does NOT submit", "Enter on saved search does NOT submit"; `LoadingKeys.browser.test.tsx` → "Enter still submits the raw partial while fields load", "ArrowDown onto the spinner + Enter submits the raw query intact", "Enter during the silent debounce window leaves no ghost dropdown behind"
 
 ### 7.4 Ctrl+Enter — Always Submit

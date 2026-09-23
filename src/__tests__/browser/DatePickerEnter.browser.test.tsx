@@ -41,11 +41,8 @@ async function typeRangeWithPickerOpen() {
   return { editorEl, searches, getValue: () => api!.getValue() };
 }
 
-// Known bug (documented, unfixed): with the date picker open, Enter matches no
-// keydown branch (the submit path is gated on !showDatePicker and nothing else
-// handles it), so the browser inserts a newline. it.fails until the fix lands.
 describe('Enter with the date picker open', () => {
-  it.fails('submits the query instead of inserting a newline', async () => {
+  it('submits the query instead of inserting a newline', async () => {
     const { searches, getValue } = await typeRangeWithPickerOpen();
     await userEvent.keyboard('{Enter}');
     await new Promise(r => setTimeout(r, 100));
@@ -53,7 +50,7 @@ describe('Enter with the date picker open', () => {
     expect(searches).toEqual([QUERY]);
   });
 
-  it.fails('closes the picker and leaves the caret where it was', async () => {
+  it('closes the picker and leaves the caret where it was', async () => {
     const { editorEl, getValue } = await typeRangeWithPickerOpen();
     await userEvent.keyboard('{Enter}');
     await new Promise(r => setTimeout(r, 100));

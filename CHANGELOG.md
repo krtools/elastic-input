@@ -5,6 +5,7 @@
 ### Fixes
 
 - **Validation tooltip stays inside the viewport** — The clamp measured the tooltip with its previous shift still applied and wrote the residual as the new shift, so near the right edge the settled tooltip overflowed and jumped between positions on successive moves. `left` is now clamped from the layout width in a layout effect, and hover state is batched into one render per move.
+- **Enter with the date picker open now submits** — It previously matched no key handler and fell through to the browser, which inserted a newline (e.g. with the caret at the end of a typed date range, where the picker is still open). It now closes the picker and submits, like Enter with the dropdown open and nothing selected.
 
 ## 0.16.0 — 2026-09-22
 

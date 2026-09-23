@@ -2076,6 +2076,16 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
+    // Enter with the date picker open: close it and submit, like Enter with
+    // the suggestion dropdown open and nothing selected. Without this branch
+    // Enter fell through to the browser and inserted a newline.
+    if (s.showDatePicker && e.key === 'Enter') {
+      e.preventDefault();
+      closeDropdown();
+      if (onSearch) onSearch(currentValueRef.current, s.ast, e);
+      return;
+    }
+
     // Note: gate on "effectively open" (visible content), not the showDropdown
     // flag alone — a stale flag with an emptied suggestion list must not
     // swallow the submit.

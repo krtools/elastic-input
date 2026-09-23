@@ -152,6 +152,8 @@ function DueDateField({ value, onChange }: { value: Date | null; onChange: (d: D
 
 In range mode, `onChange(start, end)` fires only when the second click completes the range (sorted ascending) — the in-progress selection renders but isn't reported. `children` render below the grid.
 
+Pass `wheelNavigation` to step the view with the mouse wheel (month/year/decade per tick by view level; page scroll suppressed over the calendar).
+
 ## Prop Stability
 
 Almost every prop can be written inline: event handlers, `styles`, `classNames`, `features`, renderers, and `validateValue` are all wired through refs or destructured to primitives internally, so a new identity per render costs nothing.

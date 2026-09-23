@@ -81,6 +81,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
         onChange={handleChange}
         colors={colors}
         styles={styleConfig}
+        wheelNavigation
       >
         {filteredPresets.length > 0 && (
           <div

@@ -25,6 +25,10 @@ export interface CalendarProps {
   onChange: (start: Date, end: Date | null) => void;
   /** Rendered below the grid — preset buttons, a clear action, whatever. */
   children?: React.ReactNode;
+  /** Mouse wheel over the calendar steps the view: down = forward, up = back,
+   *  one month/year/decade per tick depending on the current view level.
+   *  Page scroll is suppressed while over the calendar. @default false */
+  wheelNavigation?: boolean;
   /** Color overrides. Merged with `DEFAULT_COLORS`. */
   colors?: ColorConfig;
   /** Structural style overrides. Merged with `DEFAULT_STYLES`. */
@@ -50,7 +54,7 @@ const BUTTON_PROPS = { type: 'button' as const, tabIndex: -1 };
  * controlled selection, no chrome, no mode toggle, no serialization.
  * Used internally by ElasticInput's date picker; exported for standalone use.
  */
-export function Calendar({ mode, start, end: endProp, onChange, children, colors, styles: styleConfig, className }: CalendarProps) {
+export function Calendar({ mode, start, end: endProp, onChange, children, colors, styles: styleConfig, className, wheelNavigation = false }: CalendarProps) {
   const end = mode === 'range' ? (endProp ?? null) : null;
 
   // View month: in range mode prefer the end date so "now" is visible
@@ -135,6 +139,37 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
     if (viewLevel === 'days') setViewLevel('months');
     else if (viewLevel === 'months') setViewLevel('years');
   };
+
+  // Wheel navigation. Native non-passive listener: React's delegated onWheel
+  // is passive in Chrome, so preventDefault (page-scroll suppression) would
+  // be ignored. Deltas accumulate to one threshold so a mouse tick (≈100px)
+  // steps once and a trackpad's stream of small deltas steps once per
+  // threshold; capped at one step per event so a fling can't jump months.
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const navRef = React.useRef({ next: navigateNext, prev: navigatePrev });
+  navRef.current = { next: navigateNext, prev: navigatePrev };
+  const wheelAccRef = React.useRef(0);
+  React.useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!wheelNavigation || !el) return;
+    const WHEEL_STEP = 40;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const dy = e.deltaMode === 0 ? e.deltaY : e.deltaY * WHEEL_STEP;
+      // Direction change resets the accumulator
+      if (Math.sign(dy) !== Math.sign(wheelAccRef.current)) wheelAccRef.current = 0;
+      wheelAccRef.current += dy;
+      if (wheelAccRef.current >= WHEEL_STEP) {
+        wheelAccRef.current = 0;
+        navRef.current.next();
+      } else if (wheelAccRef.current <= -WHEEL_STEP) {
+        wheelAccRef.current = 0;
+        navRef.current.prev();
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [wheelNavigation]);
 
   const selectMonth = (month: number) => {
     setViewMonth(month);
@@ -267,7 +302,7 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
   const navBtnLeave = (e: React.MouseEvent) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent'; };
 
   return (
-    <div className={cx('ei-calendar', className)} style={styles.container} onMouseLeave={() => setHoverDate(null)}>
+    <div ref={containerRef} className={cx('ei-calendar', className)} style={styles.container} onMouseLeave={() => setHoverDate(null)}>
       <div className="ei-datepicker-header" style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
           <button {...BUTTON_PROPS} style={styles.navButton} onClick={navigatePrevBig} onMouseEnter={navBtnEnter} onMouseLeave={navBtnLeave}>&laquo;</button>

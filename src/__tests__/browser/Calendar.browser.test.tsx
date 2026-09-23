@@ -136,6 +136,66 @@ describe('Calendar (standalone)', () => {
     expect(submits.length).toBe(0);
   });
 
+  describe('wheelNavigation', () => {
+    function wheel(deltaY: number, deltaMode = 0): boolean {
+      const el = document.querySelector('.ei-calendar') as HTMLElement;
+      // dispatchEvent returns false when a listener called preventDefault
+      return el.dispatchEvent(new WheelEvent('wheel', { deltaY, deltaMode, bubbles: true, cancelable: true }));
+    }
+
+    it('steps a month per tick in days view (down = forward, up = back) and suppresses page scroll', () => {
+      renderInto(React.createElement(Calendar, {
+        mode: 'single', start: new Date(2026, 6, 10), onChange: () => {}, wheelNavigation: true,
+      }));
+      expect(headerText()).toContain('July 2026');
+      expect(wheel(100)).toBe(false);
+      expect(headerText()).toContain('August 2026');
+      wheel(100);
+      expect(headerText()).toContain('September 2026');
+      wheel(-100);
+      expect(headerText()).toContain('August 2026');
+    });
+
+    it('steps a year in months view and a decade in years view', async () => {
+      renderInto(React.createElement(Calendar, {
+        mode: 'single', start: new Date(2026, 6, 10), onChange: () => {}, wheelNavigation: true,
+      }));
+      const label = () => document.querySelector('.ei-datepicker-header > button') as HTMLElement;
+      await page.elementLocator(label()).click(); // → months view
+      expect(headerText()).toContain('2026');
+      wheel(100);
+      expect(headerText()).toContain('2027');
+      await page.elementLocator(label()).click(); // → years view
+      expect(headerText()).toContain('2020–2029');
+      wheel(100);
+      expect(headerText()).toContain('2030–2039');
+      wheel(-100);
+      expect(headerText()).toContain('2020–2029');
+    });
+
+    it('accumulates small trackpad deltas into single steps and honors line-mode deltas', () => {
+      renderInto(React.createElement(Calendar, {
+        mode: 'single', start: new Date(2026, 6, 10), onChange: () => {}, wheelNavigation: true,
+      }));
+      wheel(15); wheel(15);
+      expect(headerText()).toContain('July 2026');   // 30 < threshold
+      wheel(15);
+      expect(headerText()).toContain('August 2026'); // 45 ≥ threshold → one step
+      wheel(500);
+      expect(headerText()).toContain('September 2026'); // a fling is still one step
+      wheel(1, 1); // deltaMode 1 = one line → treated as a full tick
+      expect(headerText()).toContain('October 2026');
+    });
+
+    it('is off by default: no navigation, page scroll not suppressed', () => {
+      renderInto(React.createElement(Calendar, {
+        mode: 'single', start: new Date(2026, 6, 10), onChange: () => {},
+      }));
+      expect(wheel(100)).toBe(true);
+      expect(headerText()).toContain('July 2026');
+    });
+  });
+
   it('marks today and selection state with modifier classes', () => {
     const today = new Date();
     renderInto(React.createElement(Calendar, {

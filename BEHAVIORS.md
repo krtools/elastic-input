@@ -1848,6 +1848,10 @@ The active stop index resets to -1 on any typing input, so the next Ctrl+Alt+Arr
 
 `Calendar` (exported) is the pure date grid used inside ElasticInput's date picker: fully controlled (`mode`, `start`, `end`, `onChange` with Date objects), no mode toggle, no presets, no query-syntax serialization, no chrome — put it in your own popover/panel. `children` render below the grid (preset buttons, clear actions). In range mode the in-progress first click renders internally and only completed selections fire `onChange` (sorted ascending); `end` is ignored in single mode. The view auto-navigates when the controlled selection changes.
 
+**Wheel navigation** (`wheelNavigation`, default `false`; enabled in ElasticInput's date picker): mouse wheel over the calendar steps the view one unit per tick at the current level — month in days view, year in months view, decade in years view; down = forward, up = back. Page scroll is suppressed over the calendar. Deltas accumulate to a threshold (a mouse tick is one step; a trackpad stream steps once per threshold; a fling is capped at one step per event).
+
+- **Tests:** `Calendar.browser.test.tsx` → "wheelNavigation" suite (days/months/years stepping, page-scroll suppression, trackpad accumulation and line-mode deltas, off by default)
+
 The internal `DateRangePicker` composes Calendar with the input's concerns: the single/range toggle, query-syntax presets (`now-7d`, `[a TO b]`), and string serialization via `formatDate`.
 
 - **Tests:** `Calendar.browser.test.tsx` → "Calendar (standalone)" suite (6 tests) and "DateRangePicker composition via ElasticInput" (toggle + calendar + presets render; day click inserts `YYYY-MM-DD`; preset click inserts its query value)

@@ -5,6 +5,7 @@
 ### Features
 
 - **Exported standalone utilities** — `normalizeTypographicChars` (the paste normalizer: smart quotes/dashes/NBSP/fullwidth → ASCII), `validateDate` (the Validator's date check, with the `parseDate` hook), and `findMatchingParen`. Pinned by `publicExports.test.ts`.
+- **Calendar wheel navigation** — `wheelNavigation` prop: mouse wheel over the calendar steps the view (month in days view, year in months view, decade in years view; down = forward). Page scroll is suppressed over the calendar. Enabled in ElasticInput's date picker.
 
 ### Fixes
 

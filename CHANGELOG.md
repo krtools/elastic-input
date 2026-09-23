@@ -6,6 +6,10 @@
 
 - **Exported standalone utilities** — `normalizeTypographicChars` (the paste normalizer: smart quotes/dashes/NBSP/fullwidth → ASCII), `validateDate` (the Validator's date check, with the `parseDate` hook), and `findMatchingParen`. Pinned by `publicExports.test.ts`.
 
+### Fixes
+
+- **`isValidDateString` accepts rounding syntax** — `now/d` and `now-1d/d` (which the built-in presets emit) now pass the fallback date-shape check, matching what the Validator already accepted one layer up.
+
 ## 0.15.1 — 2026-09-10
 
 ### Fixes

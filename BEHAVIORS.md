@@ -1285,7 +1285,7 @@ Range expressions (`RangeNode`) are validated by checking each bound against the
 | `boolean` | Ranges not supported | `is_vip:[true TO false]` ✗ |
 | `string`, `ip` | No validation (lexicographic OK) | `name:[abc TO def]` ✓ |
 
-Rounding syntax (`now/d`, `now-1d/d`) is accepted for date ranges. Unknown fields produce an "Unknown field" error.
+Rounding syntax (`now/d`, `now-1d/d`) is accepted for date ranges — both by `validateSingleDate` and by the `isValidDateString` fallback it wraps (tested in `DatePicker.test.ts` → "accepts rounding syntax"). Unknown fields produce an "Unknown field" error.
 
 Ranges inside `FieldGroup` nodes are validated against the group's field config.
 

@@ -118,6 +118,13 @@ describe('isValidDateString', () => {
     expect(isValidDateString('now-30m')).toBe(true);
   });
 
+  it('accepts rounding syntax (matches what validateDate accepts)', () => {
+    expect(isValidDateString('now/d')).toBe(true);
+    expect(isValidDateString('now-1d/d')).toBe(true);
+    expect(isValidDateString('now+2h/h')).toBe(true);
+    expect(isValidDateString('now/x')).toBe(false);
+  });
+
   it('rejects invalid strings', () => {
     expect(isValidDateString('abc')).toBe(false);
     expect(isValidDateString('not-a-date')).toBe(false);

@@ -3,8 +3,8 @@ const DATE_FORMATS = [
   /^\d{4}\/\d{2}\/\d{2}$/,                  // 2024/01/15
   /^\d{2}\/\d{2}\/\d{4}$/,                  // 01/15/2024
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,  // ISO 8601
-  /^now$/i,                                   // Relative
-  /^now[+-]\d+[dhms]$/i,                     // now-7d, now+1h
+  /^now(\/[dhms])?$/i,                        // now, now/d (rounding)
+  /^now[+-]\d+[dhms](\/[dhms])?$/i,          // now-7d, now+1h, now-1d/d
 ];
 
 export function isValidDateString(value: string): boolean {

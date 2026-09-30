@@ -323,10 +323,13 @@ export interface DropdownConfig {
    *  empty partial. When false, the first item is only pre-selected after the user
    *  starts typing a partial match. @default false */
   autoSelect?: boolean;
-  /** When true, Home/End keys navigate to the first/last dropdown item while the
-   *  dropdown is open and an item is already selected. When no item is selected
-   *  (index = -1), the keys pass through for normal text cursor movement. @default false */
-  homeEndKeys?: boolean;
+  /** Home/End navigate to the first/last dropdown item while the dropdown is open and
+   *  an item is selected; with no item selected the keys move the text caret.
+   *  - `true` — always jump within the dropdown
+   *  - `'once'` — jump within the dropdown, but if the highlight is already on the
+   *    first (Home) or last (End) item, let the key through to the text caret
+   *  @default false */
+  homeEndKeys?: boolean | 'once';
   /** Called when the engine returns zero suggestions. Return a React element to display
    *  in the dropdown (e.g. "No results for …"), or null/undefined to hide the dropdown.
    *  Not called during async loading (the spinner handles that). */

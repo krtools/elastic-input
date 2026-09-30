@@ -36,6 +36,7 @@ import {
 } from '../styles/inlineStyles';
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
 import { UndoStack } from '../utils/undoStack';
+import { resolveHomeEndKey } from '../utils/homeEndKeys';
 
 // ---------------------------------------------------------------------------
 // DatePickerPortal — small portal wrapper for the date picker
@@ -1931,21 +1932,16 @@ export function ElasticInput(props: ElasticInputProps) {
           return;
         }
         case 'Home':
-          if (homeEndKeys && s.selectedSuggestionIndex >= 0) {
+        case 'End': {
+          const target = resolveHomeEndKey(homeEndKeys, e.key, s.selectedSuggestionIndex, s.suggestions.length);
+          if (target !== null) {
             e.preventDefault();
             keyConsumedByDropdownRef.current = true;
-            setSelectedSuggestionIndex(0);
+            setSelectedSuggestionIndex(target);
             return;
           }
           break; // fall through to default cursor behavior
-        case 'End':
-          if (homeEndKeys && s.selectedSuggestionIndex >= 0) {
-            e.preventDefault();
-            keyConsumedByDropdownRef.current = true;
-            setSelectedSuggestionIndex(s.suggestions.length - 1);
-            return;
-          }
-          break; // fall through to default cursor behavior
+        }
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];

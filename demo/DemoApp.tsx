@@ -451,7 +451,8 @@ export function DemoApp() {
 
   // Selection options
   const [autoSelect, setAutoSelect] = React.useState(false);
-  const [homeEndKeys, setHomeEndKeys] = React.useState(false);
+  const [homeEndMode, setHomeEndMode] = React.useState<'off' | 'always' | 'once'>('off');
+  const homeEndKeys = homeEndMode === 'always' ? true : homeEndMode === 'once' ? 'once' as const : false;
 
   // Hint options
   const [showSavedSearchHint, setShowSavedSearchHint] = React.useState(true);
@@ -962,7 +963,17 @@ export function DemoApp() {
               />
               <OptionToggle label="No results message" checked={showNoResults} onChange={setShowNoResults} theme={theme} />
               <OptionToggle label="Auto-select first" checked={autoSelect} onChange={setAutoSelect} theme={theme} />
-              <OptionToggle label="Home/End keys" checked={homeEndKeys} onChange={setHomeEndKeys} theme={theme} />
+              <OptionSelect
+                label="Home/End keys"
+                value={homeEndMode}
+                options={[
+                  { value: 'off' as const, label: 'Off (text caret)' },
+                  { value: 'always' as const, label: 'Always (dropdown)' },
+                  { value: 'once' as const, label: 'Once (then text caret)' },
+                ]}
+                onChange={setHomeEndMode}
+                theme={theme}
+              />
               <OptionToggle label="Operator suggestions" checked={showOperators} onChange={setShowOperators} theme={theme} />
               <OptionToggle label="Show on navigation" checked={navTrigger} onChange={setNavTrigger} theme={theme} />
               <OptionSelect

@@ -885,6 +885,8 @@ The dropdown's selected index determines which item is highlighted and which Ent
 - **Arrow key wrapping**: ArrowDown on the last item wraps to the first; ArrowUp on the first item wraps to the last.
 - **PageDown/PageUp**: jumps by one visible "page" of items (calculated from the dropdown's visible height divided by item height). PageDown clamps to the last item; PageUp clamps to the first (index 0, does not deselect).
 - **Home/End** (when `dropdown.homeEndKeys` is `true`): Home jumps to the first item; End jumps to the last. Only intercepted when an item is already selected (index >= 0) — otherwise the keys pass through for normal text cursor movement.
+- **Home/End** (when `dropdown.homeEndKeys` is `'once'`): as above, except the key passes through to the text caret when the highlight is already on the first (Home) or last (End) item. So End pressed twice reaches the end of the text; because a typed partial auto-selects the first item, Home usually passes through on the first press, and a single-item list passes both through. After a pass-through the dropdown re-evaluates for the new caret position like any other caret move. Decision logic is the pure `resolveHomeEndKey` (`src/utils/homeEndKeys.ts`).
+- **Tests:** `homeEndKeys.test.ts` (9 tests across `false`/`true`/`'once'`); `HomeEndKeys.browser.test.tsx` → "End jumps to the last item first, then moves the text caret to the end", "Home moves the text caret immediately when the first item is already highlighted", "Home jumps to the first item when the highlight is elsewhere", plus unchanged-behavior cases for `true` and `false`
 - **Loading state** ("Searching..." for async fields): no item is pre-selected. Enter closes the dropdown and submits the search (does not block on pending fetch). Same applies to error items.
 
 - **Tests:** `SuggestionChaining.test.ts` → "number field returns a hint suggestion with empty text", "Tab on a hint should \"exit\" the field — trailing space confirms the value"
@@ -1537,7 +1539,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `renderNoResults` | `(ctx: { cursorContext, partial }) => ReactNode` | — | Custom "no results" message when suggestions are empty; null hides the dropdown |
 | `renderType` | `boolean \| (type, suggestion) => ReactNode` | `true` | Controls the type badge in dropdown items; `false` hides it, callback customizes per-item |
 | `autoSelect` | `boolean` | `false` | Pre-select the first suggestion even with an empty partial; see §7.10 |
-| `homeEndKeys` | `boolean` | `false` | Home/End navigate to first/last dropdown item when one is selected; see §7.10 |
+| `homeEndKeys` | `boolean \| 'once'` | `false` | Home/End navigate to first/last dropdown item when one is selected; `'once'` lets the key through to the text caret when already at that end; see §7.10 |
 
 #### `FeaturesConfig` Sub-Properties
 

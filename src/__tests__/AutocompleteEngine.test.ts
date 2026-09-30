@@ -250,6 +250,16 @@ describe('AutocompleteEngine', () => {
       expect(labels).toContain('OR');
     });
 
+    it('caret at the colon with a space before the next value: unfiltered values, inserted at the caret', () => {
+      // is_vip:| asdf — previously filtered by "asdf", which matched nothing
+      const result = getSuggestions('is_vip: asdf', 7);
+      const values = result.suggestions.filter(s => s.type !== 'hint');
+      expect(values.map(s => s.label)).toEqual(expect.arrayContaining(['true', 'false']));
+      for (const s of values) {
+        expect([s.replaceStart, s.replaceEnd]).toEqual([7, 7]);
+      }
+    });
+
     it('right after a field group closes, offers operators — not that field\'s values', () => {
       // is_vip is boolean: inside the group the engine offers true/false
       expect(suggestionLabels('is_vip:(true OR )', 16)).toContain('false');

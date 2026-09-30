@@ -147,6 +147,38 @@ describe('getCursorContext', () => {
       expect(ctx.partial).toBe('act');
       expect(ctx.fieldName).toBe('status');
     });
+
+    describe('caret at the colon with whitespace before the next value', () => {
+      it('starts from an empty partial and no token (insert at caret)', () => {
+        // status:| asdf — the parse reads asdf as the value, but the caret is
+        // separated from it, so autocomplete must not filter by it
+        const ctx = getContext('status: asdf', 7);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: '' });
+        expect(ctx.token).toBeUndefined();
+      });
+
+      it('caret touching the value after the gap still edits that value', () => {
+        // status: |asdf
+        const ctx = getContext('status: asdf', 8);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'asdf' });
+        expect(ctx.token!.value).toBe('asdf');
+      });
+
+      it('no gap is unchanged: the adjacent value is the partial', () => {
+        // status:|asdf
+        const ctx = getContext('status:asdf', 7);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', partial: 'asdf' });
+        expect(ctx.token!.value).toBe('asdf');
+      });
+
+      it('applies to every value shape: quoted, wildcard, and range', () => {
+        expect(getContext('status: "a b"', 7)).toMatchObject({ partial: '' });
+        expect(getContext('status: act*', 7)).toMatchObject({ partial: '' });
+        const range = getContext('created: [2024-01-01 TO 2024-12-31]', 8);
+        expect(range).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'created', partial: '' });
+        expect(range.token).toBeUndefined();
+      });
+    });
   });
 
   describe('operator context', () => {

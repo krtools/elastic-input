@@ -774,21 +774,23 @@ export class Parser {
       if (!fieldName && cursorOffset === currentToken.start) {
         return { type: 'FIELD_NAME', partial: '', token: currentToken };
       }
-      // If cursor is at the end of the colon and a value token follows,
-      // include that value token so replacements cover it
+      // If cursor is at the end of the colon and a value token follows
+      // directly, include that value token so replacements cover it. With
+      // whitespace in between (`field:| value`) the caret is separated from
+      // that value — the parse still reads it as the field's value, but any
+      // keystroke here detaches it, so autocomplete starts from an empty
+      // partial and inserts at the caret.
       if (cursorOffset === currentToken.end) {
-        for (let i = colonIdx + 1; i < tokens.length; i++) {
-          if (tokens[i].type === TokenType.WHITESPACE) continue;
-          if (tokens[i].type === TokenType.VALUE ||
-              tokens[i].type === TokenType.QUOTED_VALUE ||
-              tokens[i].type === TokenType.WILDCARD ||
-              tokens[i].type === TokenType.RANGE) {
-            const partial = tokens[i].type === TokenType.QUOTED_VALUE
-              ? tokens[i].value.slice(1, tokens[i].value.endsWith('"') || tokens[i].value.endsWith("'") ? -1 : undefined)
-              : tokens[i].value;
-            return { type: 'FIELD_VALUE', partial, fieldName, token: tokens[i] };
-          }
-          break;
+        const next = tokens[colonIdx + 1];
+        if (next && (
+            next.type === TokenType.VALUE ||
+            next.type === TokenType.QUOTED_VALUE ||
+            next.type === TokenType.WILDCARD ||
+            next.type === TokenType.RANGE)) {
+          const partial = next.type === TokenType.QUOTED_VALUE
+            ? next.value.slice(1, next.value.endsWith('"') || next.value.endsWith("'") ? -1 : undefined)
+            : next.value;
+          return { type: 'FIELD_VALUE', partial, fieldName, token: next };
         }
       }
       return { type: 'FIELD_VALUE', partial: '', fieldName, token: undefined };

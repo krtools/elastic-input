@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- **Autocomplete at `field:| value`** — With the caret right after the colon and a space before the next value, the dropdown filtered by that value and usually showed nothing. It now starts from an empty partial and inserts at the caret. Applies to all field types, so a date field opens the picker empty there.
 - **Field-group autocomplete stops at the closing paren** — With the caret right after `)` in `field:(a OR b)`, the dropdown still offered that field's values as if the caret were inside the group. It now offers operators/fields, the same as after a plain group or a trailing space. Ranges are unchanged: the caret after `]` still opens the date picker.
 
 ## 0.16.1 — 2026-09-23

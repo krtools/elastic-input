@@ -719,6 +719,15 @@ export class Parser {
       }
     }
 
+    // A caret touching the end of a closing paren is outside the group. Anchor
+    // on the paren so the enclosing-group scan balances it, instead of starting
+    // from the last token inside (which made `field:(a OR b)|` look like it was
+    // still inside the field group).
+    if (currentToken?.type === TokenType.RPAREN && cursorOffset === currentToken.end) {
+      prevNonWsToken = currentToken;
+      currentToken = undefined;
+    }
+
     // Helper: scan backwards from a token index to find an enclosing field group.
     // Looks for the pattern FIELD_NAME COLON LPAREN by tracking unmatched LPAREN depth.
     // Returns the field name if found, empty string otherwise.

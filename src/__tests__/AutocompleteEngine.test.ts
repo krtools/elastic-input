@@ -250,6 +250,15 @@ describe('AutocompleteEngine', () => {
       expect(labels).toContain('OR');
     });
 
+    it('right after a field group closes, offers operators — not that field\'s values', () => {
+      // is_vip is boolean: inside the group the engine offers true/false
+      expect(suggestionLabels('is_vip:(true OR )', 16)).toContain('false');
+      const labels = suggestionLabels('is_vip:(true OR false)');
+      expect(labels).toContain('AND');
+      expect(labels).not.toContain('true');
+      expect(labels).not.toContain('false');
+    });
+
     it('also suggests fields in operator context (implicit AND)', () => {
       const result = getSuggestions('status:active ');
       const fieldSuggs = result.suggestions.filter(s => s.text.endsWith(':'));

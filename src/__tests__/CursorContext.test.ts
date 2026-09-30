@@ -415,6 +415,46 @@ describe('getCursorContext', () => {
       expect(ctx.fieldName).toBeUndefined();
     });
 
+    describe('closing paren is a boundary', () => {
+      it('caret right after the closing paren is outside the field group', () => {
+        // status:(active OR lead)|
+        const ctx = getContext('status:(active OR lead)');
+        expect(ctx.type).toBe('OPERATOR');
+        expect(ctx.fieldName).toBeUndefined();
+      });
+
+      it('matches the trailing-space case', () => {
+        expect(getContext('status:(active OR lead)').type)
+          .toBe(getContext('status:(active OR lead) ').type);
+      });
+
+      it('caret before the closing paren is still inside (touching the last value)', () => {
+        // status:(active OR lead|)
+        const ctx = getContext('status:(active OR lead)', 22);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'lead' });
+      });
+
+      it('caret before the closing paren after a space is still inside', () => {
+        // status:(active OR lead |)
+        const ctx = getContext('status:(active OR lead )', 23);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: '' });
+      });
+
+      it('after an inner closing paren the caret is still inside the outer field group', () => {
+        // status:((a OR b)| OR c)
+        const ctx = getContext('status:((a OR b) OR c)', 16);
+        expect(ctx).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status' });
+      });
+
+      it('after the outer closing paren of a nested field group it is outside', () => {
+        expect(getContext('status:((a OR b) OR c)').type).toBe('OPERATOR');
+      });
+
+      it('plain group is unchanged', () => {
+        expect(getContext('(status:active)').type).toBe('OPERATOR');
+      });
+    });
+
     it('handles nested parens — inner group is plain, not field group', () => {
       // status:((a OR b) AND |)  — cursor is inside a nested field group
       const ctx = getContext('status:((a OR b) AND )', 21);

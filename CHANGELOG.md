@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Field-group autocomplete stops at the closing paren** — With the caret right after `)` in `field:(a OR b)`, the dropdown still offered that field's values as if the caret were inside the group. It now offers operators/fields, the same as after a plain group or a trailing space. Ranges are unchanged: the caret after `]` still opens the date picker.
+
 ## 0.16.1 — 2026-09-23
 
 ### Fixes

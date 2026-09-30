@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- **Accepting a suggestion after `field: ` no longer eats the colon** — With the caret past a colon or comparison operator and no value yet, suggestions replaced the operator (`is_vip: ` → `is_viptrue `) and the date picker inserted before a `>` (`created:>` → `created:2026-09-15>`). Both now insert at the caret and leave the rest of the query, including the gap, as typed.
 - **Autocomplete at `field:| value`** — With the caret right after the colon and a space before the next value, the dropdown filtered by that value and usually showed nothing. It now starts from an empty partial and inserts at the caret. Applies to all field types, so a date field opens the picker empty there.
 - **Field-group autocomplete stops at the closing paren** — With the caret right after `)` in `field:(a OR b)`, the dropdown still offered that field's values as if the caret were inside the group. It now offers operators/fields, the same as after a plain group or a trailing space. Ranges are unchanged: the caret after `]` still opens the date picker.
 

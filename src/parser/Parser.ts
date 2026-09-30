@@ -850,7 +850,10 @@ export class Parser {
           : currentToken.value;
         return { type: 'FIELD_VALUE', partial, fieldName, token: currentToken };
       }
-      return { type: 'FIELD_VALUE', partial: '', fieldName, token: prevNonWsToken };
+      // No value yet: report no token so consumers insert at the caret. (This
+      // used to return the operator token, whose range then got replaced —
+      // accepting a suggestion after `field: ` ate the colon.)
+      return { type: 'FIELD_VALUE', partial: '', fieldName, token: undefined };
     }
 
     // Currently typing a value after a field:

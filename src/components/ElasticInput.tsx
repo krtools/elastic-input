@@ -770,14 +770,11 @@ export function ElasticInput(props: ElasticInputProps) {
       setDatePickerInit(init);
 
       // Save the replacement range for handleDateSelect.
-      // For RANGE context the token covers `[... TO ...]`.
-      // For FIELD_VALUE the token is the value being edited, but when no value
-      // exists yet the parser returns the preceding COLON / COMPARISON_OP token
-      // — in that case we insert *after* the operator rather than replacing it.
+      // For RANGE context the token covers `[... TO ...]`; for FIELD_VALUE it
+      // is the value being edited. With no value yet there is no token and
+      // the date is inserted at the caret.
       const ctxToken = result.context.token;
-      if (ctxToken && (ctxToken.type === TokenType.COLON || ctxToken.type === TokenType.COMPARISON_OP)) {
-        datePickerReplaceRef.current = { start: ctxToken.end, end: ctxToken.end };
-      } else if (ctxToken) {
+      if (ctxToken) {
         datePickerReplaceRef.current = { start: ctxToken.start, end: ctxToken.end };
       } else {
         datePickerReplaceRef.current = { start: offset, end: offset };

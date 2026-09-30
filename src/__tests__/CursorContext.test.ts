@@ -171,6 +171,21 @@ describe('getCursorContext', () => {
         expect(ctx.token!.value).toBe('asdf');
       });
 
+      it('caret past the colon with no value yet reports no token (insert at caret)', () => {
+        // The operator token used to be reported here, and its range got replaced
+        expect(getContext('status: ')).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: '' });
+        expect(getContext('status: ').token).toBeUndefined();
+        // status: | asdf — in the middle of a two-space gap
+        expect(getContext('status:  asdf', 8)).toMatchObject({ type: 'FIELD_VALUE', partial: '' });
+        expect(getContext('status:  asdf', 8).token).toBeUndefined();
+      });
+
+      it('caret after a comparison operator reports no token', () => {
+        expect(getContext('price:>')).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'price', partial: '' });
+        expect(getContext('price:>').token).toBeUndefined();
+        expect(getContext('price:> ').token).toBeUndefined();
+      });
+
       it('applies to every value shape: quoted, wildcard, and range', () => {
         expect(getContext('status: "a b"', 7)).toMatchObject({ partial: '' });
         expect(getContext('status: act*', 7)).toMatchObject({ partial: '' });

@@ -260,6 +260,14 @@ describe('AutocompleteEngine', () => {
       }
     });
 
+    it('after `field: ` with no value, suggestions insert at the caret instead of replacing the colon', () => {
+      const values = getSuggestions('is_vip: ').suggestions.filter(s => s.type !== 'hint');
+      expect(values.length).toBeGreaterThan(0);
+      for (const s of values) {
+        expect([s.replaceStart, s.replaceEnd]).toEqual([8, 8]);
+      }
+    });
+
     it('right after a field group closes, offers operators — not that field\'s values', () => {
       // is_vip is boolean: inside the group the engine offers true/false
       expect(suggestionLabels('is_vip:(true OR )', 16)).toContain('false');

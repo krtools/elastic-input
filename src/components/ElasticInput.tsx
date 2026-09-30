@@ -1050,20 +1050,23 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [triggerOnNavigation, navigationDelay, updateSuggestionsFromTokens, closeDropdown]);
 
+  // Record a whole-value replacement as its own undo entry (ends any typing
+  // group so it doesn't get folded into the last keystrokes).
+  const recordUndoEntry = React.useCallback((value: string, cursorPos: number) => {
+    if (typingGroupTimerRef.current) {
+      clearTimeout(typingGroupTimerRef.current);
+      typingGroupTimerRef.current = null;
+    }
+    undoStackRef.current.push({ value, cursorPos });
+  }, []);
+
   const applyNewValue = React.useCallback((
     newValue: string,
     newCursorPos: number,
     thenDo?: (newTokens: Token[], newAst: ASTNode | null) => void,
   ) => {
     currentValueRef.current = newValue;
-
-    // Record transactional operation in undo stack
-    // Clear typing group so this is its own entry
-    if (typingGroupTimerRef.current) {
-      clearTimeout(typingGroupTimerRef.current);
-      typingGroupTimerRef.current = null;
-    }
-    undoStackRef.current.push({ value: newValue, cursorPos: newCursorPos });
+    recordUndoEntry(newValue, newCursorPos);
 
     const lexer = new Lexer(newValue, lexerOptions);
     const newTokens = lexer.tokenize();
@@ -1096,7 +1099,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
       rafIdsRef.current.add(id);
     }
-  }, [colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [recordUndoEntry, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const acceptSuggestion = React.useCallback((
     suggestion: Suggestion,
@@ -1235,6 +1238,7 @@ export function ElasticInput(props: ElasticInputProps) {
         getValue: () => currentValueRef.current,
         setValue: (v: string) => {
           currentValueRef.current = v;
+          recordUndoEntry(v, v.length);
           processInput(v, false);
         },
         focus: () => editorRef.current?.focus(),
@@ -1271,7 +1275,7 @@ export function ElasticInput(props: ElasticInputProps) {
         },
       });
     }
-  }, [inputRef, processInput, acceptSuggestion, closeDropdown, onSearch]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, onSearch, recordUndoEntry]);
 
   // Process initial value
   React.useEffect(() => {
@@ -1282,13 +1286,16 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle controlled value changes
+  // Handle controlled value changes. A parent echoing onChange is a no-op
+  // here (equal value); a genuine external change is an edit and gets its
+  // own undo entry.
   React.useEffect(() => {
     if (value !== undefined && value !== currentValueRef.current) {
       currentValueRef.current = value;
+      recordUndoEntry(value, value.length);
       processInput(value, false);
     }
-  }, [value, processInput]);
+  }, [value, processInput, recordUndoEntry]);
 
   // Cleanup debounce timer and abort in-flight fetches
   React.useEffect(() => {

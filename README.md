@@ -251,7 +251,7 @@ let api;
 
 // Later:
 api.getValue();              // Returns current query string
-api.setValue('status:active');// Sets query programmatically
+api.setValue('status:active');// Sets query programmatically (undoable with Ctrl+Z)
 api.focus();                 // Focuses the input
 api.blur();                  // Blurs the input
 api.getAST();                // Returns the parsed AST

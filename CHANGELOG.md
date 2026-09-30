@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **`api.setValue` and controlled `value` changes are undoable** — Programmatic replacements bypassed the undo stack, so after e.g. an `onSearch` handler translated the query and set it back, Ctrl+Z jumped past the translated value to the state before the last typed keystrokes. They now push their own undo entry; setting the current value again adds nothing.
+
 ## 0.17.0 — 2026-09-30
 
 ### Features

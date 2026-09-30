@@ -1711,8 +1711,10 @@ The following operations each push a distinct undo entry, breaking any current t
 - Selecting a date from the date picker
 - Selecting a history ref (`!`) or saved search (`#`)
 - Paste (typing group is broken before the paste text is inserted)
+- `api.setValue(v)` and a changed controlled `value` prop — a programmatic replacement is an edit, so Ctrl+Z returns to what was there before it (e.g. an `onSearch` handler that translates the query and sets it back: Ctrl+Z restores the typed query, not the state before the last typed keystrokes). Setting the current value again adds nothing (stack deduplication); a parent merely echoing `onChange` is therefore a no-op.
 
-- **Implementation:** `applyNewValue()` clears the typing group timer and pushes a new entry.
+- **Implementation:** `recordUndoEntry()` clears the typing group timer and pushes a new entry; used by `applyNewValue()`, `api.setValue`, and the controlled-value effect.
+- **Tests:** `UndoSetValue.browser.test.tsx` → "onSearch translating the query via api.setValue: Ctrl+Z restores the typed query", "api.setValue with the same value adds no undo entry", "a controlled value change from the parent is undoable"
 
 ### 11.3 Undo (Ctrl+Z)
 

@@ -1711,6 +1711,10 @@ When the input text length reaches or exceeds `plainModeLength`, the component s
 
 When the text drops back below the threshold (e.g. user deletes content), highlighting, autocomplete, and validation resume automatically.
 
+The editor shows the value however it arrived — typed, present on mount (`value` / `defaultValue`), or set programmatically (`api.setValue`, `api.set`, a controlled `value` change) — and a programmatic change never focuses a blurred editor.
+
+- **Tests:** `PlainMode.browser.test.tsx` → "mount with a long value", "mount with a long defaultValue", "api.setValue on an empty editor", "a controlled value change from empty", "one long value replaced by another", "api.set places the caret in the plain text", "does not focus a blurred editor", "typing past the threshold keeps the text and the caret", "a short value after a long one is highlighted again"
+
 Set `plainModeLength` to `0` or omit to disable this behavior.
 
 ## 11. Undo / Redo

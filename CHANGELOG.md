@@ -11,6 +11,7 @@
 ### Fixes
 
 - **`api.submit()` with a "no results" item highlighted** — Arrowing onto the `renderNoResults` item and then calling `submit()` did nothing: `onSearch` never fired. It now closes the dropdown and submits the query as typed, the same as Enter.
+- **Plain mode showed a blank or stale editor for values that weren't typed** — With `plainModeLength` reached, a value present on mount or set through `api.setValue` / a controlled `value` was only rendered when it replaced a highlighted one. An empty editor stayed blank, and one long value replaced by another kept showing the old text.
 
 ## 0.17.2 — 2026-10-01
 

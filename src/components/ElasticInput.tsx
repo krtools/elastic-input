@@ -552,10 +552,14 @@ export function ElasticInput(props: ElasticInputProps) {
       setShowDatePicker(false);
       if (editorRef.current) {
         const offset = getCaretCharOffset(editorRef.current);
-        // Strip any leftover HTML highlighting — show plain text
-        if (editorRef.current.querySelector('span')) {
+        // Show plain text: strip leftover highlighting, and write the text
+        // when it didn't come from typing (mount, setValue, controlled value)
+        if (editorRef.current.querySelector('span') || getPlainText(editorRef.current) !== text) {
           editorRef.current.textContent = text;
-          setCaretCharOffset(editorRef.current, offset);
+          // Setting a caret on a blurred contentEditable would focus it
+          if (document.activeElement === editorRef.current) {
+            setCaretCharOffset(editorRef.current, offset);
+          }
         }
         setCursorOffset(offset);
         setSelectionEnd(offset);

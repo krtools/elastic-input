@@ -785,6 +785,18 @@ Guardrails against keyboard traps:
 
 - **Tests:** `LoadingKeys.browser.test.tsx` → "blocks Tab mid-partial, then completes once fields arrive", "does not block Tab from an empty input (no keyboard trap)", "does not block Tab after the fields loader rejects", "blocks Tab while the spinner shows, then accepts once results land", "ArrowDown onto the spinner + Tab does not wipe the partial"; `suggestionGuards.test.ts` → guard membership matrix
 
+#### 7.2.3 Intercepting an Accept (`onAcceptSuggestion`)
+
+`onAcceptSuggestion` is called just before a suggestion is inserted, whichever way it was accepted: Tab, Enter, a click, `onTab` returning `accept`, `api.submit()`, `api.acceptSuggestion()`. It also fires for the `#` / `!` trigger hints. It does not fire for date picker selections, or for items that cannot be accepted (inert items, informational hints). The context is:
+
+- `suggestion` — the suggestion, with `replaceStart`/`replaceEnd` resolved to the range of `query` the default insert would replace
+- `cursorContext` — the context it was offered for; use `cursorContext.type` (`FIELD_NAME`, `FIELD_VALUE`, …) to tell a field from a value, since a field suggestion's `type` is the field's data type
+- `query` — the query before the insert
+
+Returning nothing (or `true`) keeps the default insert. Returning `false` skips it, so the handler can make the edit itself with `api.set()` as a single undo step. The rest of the accept still runs against whatever the handler left: Enter on a field value submits, `api.submit()` searches, `onTab` actions apply, and otherwise suggestions are re-evaluated at the new caret. If the handler changed the value but did not return `false`, the default insert is skipped anyway — its offsets no longer apply.
+
+- **Tests:** `OnAcceptSuggestion.browser.test.tsx` → "receives the suggestion, cursor context, query and replace range; no return keeps the default insert", "fires for Enter, a click, and api.acceptSuggestion()", "true is the same as no return", "Tab: encloses the field value in parens with the caret between them, as one edit", "Enter: encloses the field value in parens with the caret between them, as one edit", "click: same result", "mid-query: only the partial is replaced", "other suggestions still insert normally", "Enter on a value still submits, with the value the handler set", "api.submit() still searches, with the value the handler set", "false without an edit inserts nothing", "an edit without returning false is not followed by the default insert"
+
 ### 7.3 Enter — Accept & Possibly Submit
 
 Enter's behavior depends on what is being selected:
@@ -1514,6 +1526,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `prefix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, before the editor; see §10.4 |
 | `suffix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, after the editor; see §10.4 |
 | `onTab` | `(context: TabContext) => TabActionResult` | — | Override Tab key behavior; see §7.2.1 |
+| `onAcceptSuggestion` | `(context: AcceptSuggestionContext) => boolean \| void` | — | Called before a suggestion is inserted; return `false` to skip the default insert; see §7.2.3 |
 | `datePresets` | `{ label, value, type? }[]` | built-in (range) | Custom date picker presets; `type` filters to `'single'`/`'range'`/both; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
@@ -1651,11 +1664,13 @@ The placeholder overlays the editor inside the editor wrap and inherits `inputPa
 | `openDropdown()` | Shows suggestions for the current caret position — the Ctrl+Space action. Opens in `'manual'` and `'input'` modes too; a `dropdown.open` callback sees `trigger: 'ctrlSpace'`. Reads the live caret, so it is correct right after `setValue()`. No-op when the input is not focused or `dropdown.open` is `'never'`. |
 | `closeDropdown()` | Closes the suggestion dropdown or date picker and cancels any pending suggestion fetch. |
 | `acceptSuggestion()` | Accepts the highlighted suggestion without submitting — the default Tab action (trailing space after a complete term, suggestions re-evaluated at the new caret). Returns `false` and changes nothing when the dropdown is closed, nothing is highlighted, or the highlighted item is inert or a non-trigger hint. `getValue()`, `getAST()` and `getValidationErrors()` reflect the accepted text immediately. |
+| `set({ value?, selection? })` | Updates the value and/or selection as one edit: one undo entry, one `onChange`. `selection` is a caret offset or `{ start, end }`, clamped to the value. Omitted properties are left unchanged; setting the current value again does nothing. Closes the dropdown. Never steals focus — the selection is applied only while the input is focused. API reads are current immediately afterwards. |
 
 - **Tests (`submit`):** `Slots.browser.test.tsx` → "submits the post-accept query when a value suggestion is highlighted (Enter parity)", "accepts a highlighted field name, then submits the result", "submits the raw query when no dropdown is open", "submits the raw query and closes the dropdown when nothing is highlighted", "submits the raw query when a no-results item is highlighted"
 - **Tests (`openDropdown`):** `ImperativeDropdown.browser.test.tsx` → "opens in 'manual' mode, where typing alone does not", "called from onSearch, brings the dropdown back after Enter accepts and submits", "without it, the dropdown stays closed after Enter accepts and submits", "uses the live caret after api.setValue in the same tick", "reports trigger 'ctrlSpace' to a dropdown.open callback", "does nothing when dropdown.open is 'never'", "does nothing when the input is not focused"
 - **Tests (`closeDropdown`):** `ImperativeDropdown.browser.test.tsx` → "closes the suggestion dropdown", "closes the date picker"
 - **Tests (`acceptSuggestion`):** `ImperativeDropdown.browser.test.tsx` → "accepts a highlighted field name", "accepts a highlighted value with a trailing space and does not submit", "returns false and changes nothing when no suggestion is highlighted", "returns false for a highlighted inert item", "from onKeyDown: Enter accepts without submitting, and the API reads are already current"
+- **Tests (`set`):** `ApiSet.browser.test.tsx` → "sets value and caret as one edit: one onChange, one undo step", "accepts a selection range and clamps it to the value", "selection only: moves the caret without an onChange or an undo entry", "setting the current value again does nothing", "value only: leaves the caret where it was", "closes the dropdown", "does not steal focus when the input is unfocused", "API reads are current immediately, even inside a React event handler"
 
 ### 10.4 Prefix/Suffix Slots (`prefix`, `suffix`)
 

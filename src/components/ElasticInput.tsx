@@ -8,7 +8,7 @@ import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
-import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, SlotContent } from '../types';
+import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -204,7 +204,7 @@ export function ElasticInput(props: ElasticInputProps) {
     colors, styles: stylesProp, placeholder, className, classNames, style,
     dropdown: dropdownConfig, features: featuresConfig,
     inputRef, datePresets: datePresetsProp,
-    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp,
+    onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp, onAcceptSuggestion,
     validateValue,
     parseDate: parseDateProp,
     plainModeLength,
@@ -546,6 +546,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setIsEmpty(text.length === 0);
       setSuggestions([]);
       stateRef.current.tokens = [];
+      stateRef.current.ast = null;
+      stateRef.current.validationErrors = [];
       setShowDropdown(false);
       setShowDatePicker(false);
       if (editorRef.current) {
@@ -596,8 +598,11 @@ export function ElasticInput(props: ElasticInputProps) {
       setSelectionEnd(offset);
 
       // Update stateRef synchronously so other effects in the same flush
-      // (e.g. paren-match) see the correct tokens instead of stale state.
+      // (e.g. paren-match) and API reads right after a programmatic change
+      // see the new tokens/AST/errors instead of stale state.
       stateRef.current.tokens = newTokens;
+      stateRef.current.ast = newAst;
+      stateRef.current.validationErrors = newErrors;
 
       if (updateDropdown) {
         updateSuggestionsRef.current(newTokens, offset);
@@ -609,6 +614,8 @@ export function ElasticInput(props: ElasticInputProps) {
       setIsEmpty(text.length === 0);
       // Update stateRef synchronously (same reason as above)
       stateRef.current.tokens = newTokens;
+      stateRef.current.ast = newAst;
+      stateRef.current.validationErrors = newErrors;
     }
 
     if (onChange) onChange(text, newAst);
@@ -1133,26 +1140,60 @@ export function ElasticInput(props: ElasticInputProps) {
     // one would replace the typed partial with nothing. Guarded here as well
     // as at the call sites so no path can wipe user input.
     if (isInertSuggestion(suggestion)) return;
+    const isTriggerHint = suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!');
+    // Other hints are informational — nothing to insert
+    if (suggestion.type === 'hint' && !isTriggerHint) return;
+
     const s = stateRef.current;
     const ctx = s.autocompleteContext;
+    const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
+    const shouldSubmit = !isTriggerHint && key === 'Enter' && ctx === 'FIELD_VALUE';
+    const replaceStart = isTriggerHint ? suggestion.replaceStart : Math.min(suggestion.replaceStart, s.cursorOffset);
+    const replaceEnd = Math.max(suggestion.replaceEnd, s.selectionEnd);
+
+    if (onAcceptSuggestion) {
+      const query = currentValueRef.current;
+      const result = onAcceptSuggestion({
+        suggestion: { ...suggestion, replaceStart, replaceEnd },
+        cursorContext: s.cursorContext || { type: 'EMPTY' as const, partial: '' },
+        query,
+      });
+      // A changed value means the handler already edited the input — the
+      // default insert's offsets no longer apply, so that counts as handled.
+      if (result === false || currentValueRef.current !== query) {
+        if (isCompleteTerm) dropdownTriggerRef.current = 'navigation';
+        // The rest of the accept runs against whatever the handler left
+        const id = requestAnimationFrame(() => {
+          rafIdsRef.current.delete(id);
+          const value = currentValueRef.current;
+          const ast = stateRef.current.ast;
+          if (afterAccept) {
+            afterAccept(value, ast);
+          } else if (shouldSubmit) {
+            if (onSearch) onSearch(value, ast, triggerEvent);
+          } else if (editorRef.current && document.activeElement === editorRef.current) {
+            updateSuggestionsFromTokens(stateRef.current.tokens, getCaretCharOffset(editorRef.current));
+          }
+        });
+        rafIdsRef.current.add(id);
+        return;
+      }
+    }
+
     // For complete terms (values, saved searches, history), mark as navigation so
     // 'input'-mode gating prevents the dropdown from re-opening after acceptance.
     // For field names, keep the trigger as 'input' so value suggestions appear.
-    const isCompleteTerm = ctx === 'FIELD_VALUE' || ctx === 'SAVED_SEARCH' || ctx === 'HISTORY_REF';
     if (isCompleteTerm) {
       dropdownTriggerRef.current = 'navigation';
     }
 
-    // Special hint items (#, !) — insert the trigger char and show suggestions
-    if (suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!')) {
-      const char = suggestion.text;
-      const replaceStart = suggestion.replaceStart;
-      const replaceEnd = Math.max(suggestion.replaceEnd, s.selectionEnd);
+    const before = currentValueRef.current.slice(0, replaceStart);
+    const after = currentValueRef.current.slice(replaceEnd);
 
-      const before = currentValueRef.current.slice(0, replaceStart);
-      const after = currentValueRef.current.slice(replaceEnd);
-      const newValue = before + char + after;
-      const newCursorPos = before.length + char.length;
+    // Special hint items (#, !) — insert the trigger char and show suggestions
+    if (isTriggerHint) {
+      const newValue = before + suggestion.text + after;
+      const newCursorPos = before.length + suggestion.text.length;
 
       applyNewValue(newValue, newCursorPos, (newTokens, newAst) => {
         if (afterAccept) {
@@ -1163,16 +1204,6 @@ export function ElasticInput(props: ElasticInputProps) {
       });
       return;
     }
-
-    if (suggestion.type === 'hint') return;
-
-    const isFieldValue = s.autocompleteContext === 'FIELD_VALUE';
-
-    const replaceStart = Math.min(suggestion.replaceStart, s.cursorOffset);
-    const replaceEnd = Math.max(suggestion.replaceEnd, s.selectionEnd);
-
-    const before = currentValueRef.current.slice(0, replaceStart);
-    const after = currentValueRef.current.slice(replaceEnd);
 
     let trailingSpace = '';
     let finalAfter = after;
@@ -1187,8 +1218,6 @@ export function ElasticInput(props: ElasticInputProps) {
     const newValue = before + suggestion.text + trailingSpace + finalAfter;
     const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
 
-    const shouldSubmit = key === 'Enter' && isFieldValue;
-
     applyNewValue(newValue, newCursorPos, (newTokens, newAst) => {
       if (afterAccept) {
         afterAccept(newValue, newAst);
@@ -1198,7 +1227,7 @@ export function ElasticInput(props: ElasticInputProps) {
         updateSuggestionsFromTokens(newTokens, newCursorPos);
       }
     });
-  }, [applyNewValue, updateSuggestionsFromTokens, onSearch, trailingSpaceOnAccept]);
+  }, [applyNewValue, updateSuggestionsFromTokens, onSearch, onAcceptSuggestion, trailingSpaceOnAccept]);
 
   // --- Lifecycle ---
 
@@ -1312,6 +1341,29 @@ export function ElasticInput(props: ElasticInputProps) {
           if (!selected || !isAcceptableSuggestion(selected)) return false;
           acceptSuggestion(selected, 'Tab');
           return true;
+        },
+        set: ({ value, selection }: InputUpdate) => {
+          const next = value ?? currentValueRef.current;
+          const valueChanged = next !== currentValueRef.current;
+          if (!valueChanged && selection === undefined) return;
+          const clamp = (n: number) => Math.max(0, Math.min(n, next.length));
+          const range = selection === undefined ? null
+            : typeof selection === 'number' ? { start: clamp(selection), end: clamp(selection) }
+            : { start: clamp(selection.start), end: clamp(selection.end) };
+          // Held suggestions carry offsets into the old value/caret
+          closeDropdown();
+          if (valueChanged) {
+            currentValueRef.current = next;
+            recordUndoEntry(next, range ? range.end : next.length);
+            processInput(next, false);
+          }
+          // Setting a range on a blurred contentEditable would focus it
+          const editor = editorRef.current;
+          if (range && editor && document.activeElement === editor) {
+            setSelectionCharRange(editor, range.start, range.end);
+            setCursorOffset(range.start);
+            setSelectionEnd(range.end);
+          }
         },
       });
     }

@@ -127,6 +127,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `prefix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, before the editor (e.g. an icon) |
 | `suffix` | `ReactNode \| (status: InputStatus) => ReactNode` | — | Content inside the input box, after the editor (e.g. a search button) |
 | `onTab` | `(context) => TabActionResult` | — | Override Tab key behavior (accept/blur/submit) |
+| `onAcceptSuggestion` | `(context) => boolean \| void` | — | Called before a suggestion is inserted; return `false` to make the edit yourself |
 | `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
 | `plainModeLength` | `number` | — | Character count at which highlighting, autocomplete, and validation are disabled for performance |
@@ -260,6 +261,7 @@ api.submit();                // Submits like Enter: accepts a highlighted sugges
 api.openDropdown();          // Shows suggestions at the caret (same as Ctrl+Space)
 api.closeDropdown();         // Closes the dropdown or date picker
 api.acceptSuggestion();      // Accepts the highlighted suggestion without submitting; false if there is none
+api.set({ value, selection });// Value and caret/selection as one edit (one undo step, one onChange)
 ```
 
 These compose with `onSearch` and `onKeyDown` to change what Enter does:
@@ -277,6 +279,26 @@ These compose with `onSearch` and `onKeyDown` to change what Enter does:
 ```
 
 `openDropdown()` does nothing while the input is unfocused or when `dropdown.open` is `'never'`. A `dropdown.open` callback sees it as `trigger: 'ctrlSpace'`.
+
+`set()` takes `{ value?, selection? }`, where `selection` is a caret offset or `{ start, end }`; whatever you omit stays as it is. It closes the dropdown and never steals focus.
+
+### Customizing what a suggestion inserts
+
+`onAcceptSuggestion` fires just before a suggestion is inserted — by Tab, Enter, a click, or the API. Return `false` and make the edit yourself with `api.set()`:
+
+```tsx
+// Accepting the `tags` field gives `tags:(|)` with the caret between the parens
+<ElasticInput
+  onAcceptSuggestion={({ suggestion, cursorContext, query }) => {
+    if (cursorContext.type !== 'FIELD_NAME' || suggestion.text !== 'tags:') return;
+    const head = query.slice(0, suggestion.replaceStart) + 'tags:(';
+    api.set({ value: head + ')' + query.slice(suggestion.replaceEnd), selection: head.length });
+    return false;
+  }}
+/>
+```
+
+`suggestion.replaceStart`/`replaceEnd` are the range of `query` the default insert would have replaced. The rest of the accept still runs: Enter on a value still submits, and suggestions are re-checked at the new caret.
 
 ## Prefix / Suffix Slots
 

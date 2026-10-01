@@ -419,6 +419,34 @@ export interface ElasticInputAPI {
    * `getValidationErrors()` reflect the accepted text immediately.
    */
   acceptSuggestion: () => boolean;
+  /**
+   * Updates the value and/or selection as one edit: one undo entry, one
+   * `onChange`. Omitted properties are left unchanged. Closes the dropdown
+   * (call `openDropdown()` to bring it back). Never steals focus — the
+   * selection is applied only while the input is focused.
+   */
+  set: (update: InputUpdate) => void;
+}
+
+/** Argument to `ElasticInputAPI.set`. */
+export interface InputUpdate {
+  /** The whole new query string. */
+  value?: string;
+  /** Caret offset, or a selected range, in the resulting value. Clamped to its length. */
+  selection?: number | { start: number; end: number };
+}
+
+/** Context passed to the `onAcceptSuggestion` callback. */
+export interface AcceptSuggestionContext {
+  /**
+   * The suggestion about to be inserted. `replaceStart`/`replaceEnd` are the
+   * range of `query` the default insert would replace with `text`.
+   */
+  suggestion: Suggestion;
+  /** Cursor context the suggestion was offered for (`FIELD_NAME`, `FIELD_VALUE`, …). */
+  cursorContext: CursorContext;
+  /** The query before the insert. */
+  query: string;
 }
 
 /** Context passed to the `onTab` callback. */
@@ -597,6 +625,24 @@ export interface ElasticInputProps {
    * ```
    */
   onTab?: (context: TabContext) => TabActionResult;
+  /**
+   * Called just before a suggestion is inserted, however it was accepted
+   * (Tab, Enter, click, `api.submit()`, `api.acceptSuggestion()`). Return
+   * `false` to skip the default insert and make the edit yourself with
+   * `api.set()`; the rest of the accept (Enter's submit, `onTab` actions)
+   * still runs. Not called for date picker selections.
+   *
+   * @example
+   * ```tsx
+   * onAcceptSuggestion={({ suggestion, cursorContext, query }) => {
+   *   if (cursorContext.type !== 'FIELD_NAME' || suggestion.text !== 'tags:') return;
+   *   const head = query.slice(0, suggestion.replaceStart) + 'tags:(';
+   *   api.set({ value: head + ')' + query.slice(suggestion.replaceEnd), selection: head.length });
+   *   return false;
+   * }}
+   * ```
+   */
+  onAcceptSuggestion?: (context: AcceptSuggestionContext) => boolean | void;
   /**
    * Top-level custom validation callback. Called for every value in the query (field values,
    * range bounds, bare terms, field group terms). Return an error string (treated as error

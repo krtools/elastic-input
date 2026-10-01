@@ -39,6 +39,8 @@ export { DEFAULT_COLORS, DARK_COLORS, DEFAULT_STYLES, DARK_STYLES } from './cons
 export type {
   ElasticInputProps,
   ElasticInputAPI,
+  InputUpdate,
+  AcceptSuggestionContext,
   FieldConfig,
   FieldsSource,
   FieldType,

@@ -6,6 +6,10 @@
 
 - **`api.openDropdown()`, `api.closeDropdown()`, `api.acceptSuggestion()`** — Imperative dropdown control. `openDropdown()` is the Ctrl+Space action (call it from `onSearch` to bring the dropdown back after Enter submits); `acceptSuggestion()` accepts the highlighted suggestion without submitting and returns whether there was one, so an `onKeyDown` handler can define its own Enter behaviour.
 
+### Fixes
+
+- **`api.submit()` with a "no results" item highlighted** — Arrowing onto the `renderNoResults` item and then calling `submit()` did nothing: `onSearch` never fired. It now closes the dropdown and submits the query as typed, the same as Enter.
+
 ## 0.17.2 — 2026-10-01
 
 ### Fixes

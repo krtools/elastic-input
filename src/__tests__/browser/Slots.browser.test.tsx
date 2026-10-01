@@ -281,4 +281,27 @@ describe('api.submit()', () => {
     expect(searches[0].query).toBe('');
     expect(dropdownVisible()).toBe(false);
   });
+
+  // Regression: the no-results item passed the "acceptable" check, the accept
+  // was then refused as inert, and onSearch never fired.
+  it('submits the raw query when a no-results item is highlighted', async () => {
+    const { searches, getApi } = setup({
+      dropdown: {
+        suggestDebounceMs: 0,
+        renderNoResults: () => React.createElement('span', null, 'No matches'),
+      },
+    });
+
+    const editor = page.elementLocator(editorEl());
+    await editor.click();
+    await userEvent.type(editor, 'status:zzz');
+    expect(await waitFor(() => document.querySelector('.ei-dropdown-item--no-results') !== null)).toBe(true);
+
+    await userEvent.keyboard('{ArrowDown}');
+    getApi().submit();
+
+    expect(await waitFor(() => searches.length === 1)).toBe(true);
+    expect(searches[0].query).toBe('status:zzz');
+    expect(dropdownVisible()).toBe(false);
+  });
 });

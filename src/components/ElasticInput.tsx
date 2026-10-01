@@ -1279,8 +1279,7 @@ export function ElasticInput(props: ElasticInputProps) {
             ? s.suggestions[s.selectedSuggestionIndex]
             : null;
           const acceptable = selected
-            && selected.type !== 'loading'
-            && selected.type !== 'error'
+            && !isInertSuggestion(selected)
             && selected.type !== 'hint';
           if (acceptable) {
             // Same as Enter: accept the highlighted suggestion first, then

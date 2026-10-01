@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`api.openDropdown()`, `api.closeDropdown()`, `api.acceptSuggestion()`** — Imperative dropdown control. `openDropdown()` is the Ctrl+Space action (call it from `onSearch` to bring the dropdown back after Enter submits); `acceptSuggestion()` accepts the highlighted suggestion without submitting and returns whether there was one, so an `onKeyDown` handler can define its own Enter behaviour.
+
 ## 0.17.2 — 2026-10-01
 
 ### Fixes

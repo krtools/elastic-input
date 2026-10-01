@@ -1011,7 +1011,7 @@ The `DropdownOpenContext` contains:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `trigger` | `'input' \| 'navigation' \| 'ctrlSpace' \| 'modeChange'` | What caused the suggestion update |
+| `trigger` | `'input' \| 'navigation' \| 'ctrlSpace' \| 'modeChange'` | What caused the suggestion update. `'ctrlSpace'` also covers `api.openDropdown()` |
 | `context` | `CursorContext` | Current cursor context (field name, value, operator, etc.) |
 | `suggestions` | `Suggestion[]` | Suggestions the engine computed |
 | `isOpen` | `boolean` | Whether the dropdown is currently open |
@@ -1648,8 +1648,14 @@ The placeholder overlays the editor inside the editor wrap and inherits `inputPa
 | `getAST()` | Returns current parsed AST |
 | `getValidationErrors()` | Returns current validation errors |
 | `submit()` | Submits through the same path as Enter: a highlighted real suggestion is accepted first, then `onSearch` fires with the resulting query; with nothing highlighted, the dropdown closes and `onSearch` fires with the query as-is. Guarantees an external button never submits a different string than the Enter key would. |
+| `openDropdown()` | Shows suggestions for the current caret position — the Ctrl+Space action. Opens in `'manual'` and `'input'` modes too; a `dropdown.open` callback sees `trigger: 'ctrlSpace'`. Reads the live caret, so it is correct right after `setValue()`. No-op when the input is not focused or `dropdown.open` is `'never'`. |
+| `closeDropdown()` | Closes the suggestion dropdown or date picker and cancels any pending suggestion fetch. |
+| `acceptSuggestion()` | Accepts the highlighted suggestion without submitting — the default Tab action (trailing space after a complete term, suggestions re-evaluated at the new caret). Returns `false` and changes nothing when the dropdown is closed, nothing is highlighted, or the highlighted item is inert or a non-trigger hint. `getValue()`, `getAST()` and `getValidationErrors()` reflect the accepted text immediately. |
 
-- **Tests:** `Slots.browser.test.tsx` → "submits the post-accept query when a value suggestion is highlighted (Enter parity)", "accepts a highlighted field name, then submits the result", "submits the raw query when no dropdown is open", "submits the raw query and closes the dropdown when nothing is highlighted"
+- **Tests (`submit`):** `Slots.browser.test.tsx` → "submits the post-accept query when a value suggestion is highlighted (Enter parity)", "accepts a highlighted field name, then submits the result", "submits the raw query when no dropdown is open", "submits the raw query and closes the dropdown when nothing is highlighted"
+- **Tests (`openDropdown`):** `ImperativeDropdown.browser.test.tsx` → "opens in 'manual' mode, where typing alone does not", "called from onSearch, brings the dropdown back after Enter accepts and submits", "without it, the dropdown stays closed after Enter accepts and submits", "uses the live caret after api.setValue in the same tick", "reports trigger 'ctrlSpace' to a dropdown.open callback", "does nothing when dropdown.open is 'never'", "does nothing when the input is not focused"
+- **Tests (`closeDropdown`):** `ImperativeDropdown.browser.test.tsx` → "closes the suggestion dropdown", "closes the date picker"
+- **Tests (`acceptSuggestion`):** `ImperativeDropdown.browser.test.tsx` → "accepts a highlighted field name", "accepts a highlighted value with a trailing space and does not submit", "returns false and changes nothing when no suggestion is highlighted", "returns false for a highlighted inert item", "from onKeyDown: Enter accepts without submitting, and the API reads are already current"
 
 ### 10.4 Prefix/Suffix Slots (`prefix`, `suffix`)
 

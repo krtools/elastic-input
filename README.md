@@ -257,7 +257,26 @@ api.blur();                  // Blurs the input
 api.getAST();                // Returns the parsed AST
 api.getValidationErrors();   // Returns current validation errors
 api.submit();                // Submits like Enter: accepts a highlighted suggestion, then fires onSearch
+api.openDropdown();          // Shows suggestions at the caret (same as Ctrl+Space)
+api.closeDropdown();         // Closes the dropdown or date picker
+api.acceptSuggestion();      // Accepts the highlighted suggestion without submitting; false if there is none
 ```
+
+These compose with `onSearch` and `onKeyDown` to change what Enter does:
+
+```tsx
+// Enter accepts and submits as usual, but the dropdown comes back afterwards
+<ElasticInput onSearch={(query) => { runSearch(query); api.openDropdown(); }} />
+
+// Enter only accepts a highlighted suggestion; it submits when nothing is highlighted
+<ElasticInput
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && api.acceptSuggestion()) e.preventDefault();
+  }}
+/>
+```
+
+`openDropdown()` does nothing while the input is unfocused or when `dropdown.open` is `'never'`. A `dropdown.open` callback sees it as `trigger: 'ctrlSpace'`.
 
 ## Prefix / Suffix Slots
 

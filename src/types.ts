@@ -249,8 +249,8 @@ export interface StyleConfig {
  */
 /** Context passed to a `dropdown.open` callback. */
 export interface DropdownOpenContext {
-  /** What caused this evaluation. */
-  trigger: 'input' | 'navigation' | 'ctrlSpace' | 'modeChange';
+  /** What caused this evaluation. `'ctrlSpace'` also covers `api.openDropdown()`. */
+  trigger:'input' | 'navigation' | 'ctrlSpace' | 'modeChange';
   /** Current cursor context from the parser. */
   context: CursorContext;
   /** Suggestions the engine has computed (may be empty). */
@@ -403,6 +403,22 @@ export interface ElasticInputAPI {
    * the dropdown closes and `onSearch` fires with the query as-is.
    */
   submit: () => void;
+  /**
+   * Shows suggestions for the current caret position — the same action as
+   * Ctrl+Space, so it also opens in `'manual'` and `'input'` modes and a
+   * `dropdown.open` callback sees `trigger: 'ctrlSpace'`. No-op when the
+   * input is not focused or `dropdown.open` is `'never'`.
+   */
+  openDropdown: () => void;
+  /** Closes the dropdown or date picker and cancels any pending suggestion fetch. */
+  closeDropdown: () => void;
+  /**
+   * Accepts the highlighted suggestion without submitting — the same action
+   * as the default Tab. Returns `false` (and does nothing) when no acceptable
+   * suggestion is highlighted. `getValue()`, `getAST()` and
+   * `getValidationErrors()` reflect the accepted text immediately.
+   */
+  acceptSuggestion: () => boolean;
 }
 
 /** Context passed to the `onTab` callback. */

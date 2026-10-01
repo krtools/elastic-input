@@ -1032,6 +1032,17 @@ export function ElasticInput(props: ElasticInputProps) {
     manualActivationContextRef.current = null;
   }, [cancelPendingDropdownShow]);
 
+  // Explicit request for suggestions (Ctrl+Space, api.openDropdown): passes
+  // the 'input'-mode gate and activates 'manual' mode for the current context.
+  const requestSuggestions = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
+    dropdownTriggerRef.current = 'ctrlSpace';
+    if (!dropdownOpenIsCallback && dropdownMode === 'manual') {
+      const result = engineRef.current.getSuggestions(toks, offset);
+      manualActivationContextRef.current = result.context.type;
+    }
+    updateSuggestionsFromTokens(toks, offset, selEnd);
+  }, [dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, engineRef]);
+
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
   const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
@@ -1093,6 +1104,12 @@ export function ElasticInput(props: ElasticInputProps) {
     setSelectionEnd(newCursorPos);
     setShowDropdown(false);
     setShowDatePicker(false);
+
+    // Mirror into stateRef now so API reads right after an accept (getAST,
+    // openDropdown, …) don't see the pre-edit state while React batches.
+    stateRef.current.tokens = newTokens;
+    stateRef.current.ast = newAst;
+    stateRef.current.validationErrors = newErrors;
 
     if (onChange) onChange(newValue, newAst);
     if (onValidationChange) onValidationChange(newErrors);
@@ -1277,9 +1294,29 @@ export function ElasticInput(props: ElasticInputProps) {
             if (onSearch) onSearch(currentValueRef.current, s.ast);
           }
         },
+        openDropdown: () => {
+          const editor = editorRef.current;
+          // The dropdown belongs to the focused editor — blur is what dismisses it
+          if (!editor || document.activeElement !== editor) return;
+          // Live caret, not state: the caller may have just changed the value
+          const { start, end } = getSelectionCharRange(editor);
+          setCursorOffset(start);
+          setSelectionEnd(end);
+          requestSuggestions(stateRef.current.tokens, start, end);
+        },
+        closeDropdown,
+        acceptSuggestion: () => {
+          const s = stateRef.current;
+          const selected = s.showDropdown && s.selectedSuggestionIndex >= 0
+            ? s.suggestions[s.selectedSuggestionIndex]
+            : undefined;
+          if (!selected || !isAcceptableSuggestion(selected)) return false;
+          acceptSuggestion(selected, 'Tab');
+          return true;
+        },
       });
     }
-  }, [inputRef, processInput, acceptSuggestion, closeDropdown, onSearch, recordUndoEntry]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, recordUndoEntry]);
 
   // Process initial value
   React.useEffect(() => {
@@ -1841,12 +1878,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // Ctrl+Space: activate/restore dropdown
     if (e.key === ' ' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
-      dropdownTriggerRef.current = 'ctrlSpace';
-      if (!dropdownOpenIsCallback && dropdownMode === 'manual') {
-        const result = engineRef.current.getSuggestions(s.tokens, s.cursorOffset);
-        manualActivationContextRef.current = result.context.type;
-      }
-      updateSuggestionsFromTokens(s.tokens, s.cursorOffset);
+      requestSuggestions(s.tokens, s.cursorOffset);
       return;
     }
 
@@ -2102,7 +2134,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, engineRef, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

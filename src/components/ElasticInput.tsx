@@ -865,7 +865,13 @@ export function ElasticInput(props: ElasticInputProps) {
         showDropdownAtPosition(newSuggestions.length * 32, 300);
       } else {
         setAutocompleteContext(contextType);
-        if (!tryShowNoResults(result.context)) {
+        // A field that opted out of suggestions has nothing to show by design —
+        // "no results" would report a search that never ran. (Booleans keep
+        // their built-in true/false list, so a miss there is a real miss.)
+        const optedOut = result.context.type === 'FIELD_VALUE'
+          && resolvedField?.suggestions === false
+          && resolvedField.type !== 'boolean';
+        if (optedOut || !tryShowNoResults(result.context)) {
           setShowDropdown(false);
           setShowDatePicker(false);
           setSuggestions([]);

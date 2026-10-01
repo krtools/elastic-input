@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **`renderNoResults` no longer fires for fields with `suggestions: false`** — Typing a value for a field that opted out of suggestions showed the "no results" message, although nothing had been searched. The dropdown now stays closed there.
+
 ## 0.17.1 — 2026-09-30
 
 ### Fixes

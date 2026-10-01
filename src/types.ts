@@ -332,7 +332,8 @@ export interface DropdownConfig {
   homeEndKeys?: boolean | 'once';
   /** Called when the engine returns zero suggestions. Return a React element to display
    *  in the dropdown (e.g. "No results for …"), or null/undefined to hide the dropdown.
-   *  Not called during async loading (the spinner handles that). */
+   *  Not called during async loading (the spinner handles that), nor for the value
+   *  of a field with `suggestions: false` (nothing was searched). */
   renderNoResults?: (context: { cursorContext: CursorContext; partial: string }) => React.ReactNode | null | undefined;
   /** Controls the type badge shown in dropdown items.
    *  - `false` — hide the badge entirely

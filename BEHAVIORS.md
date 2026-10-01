@@ -1538,7 +1538,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `renderHistoryItem` | `(entry, isSelected) => ReactNode` | — | Custom renderer for history suggestion items |
 | `renderSavedSearchItem` | `(search, isSelected) => ReactNode` | — | Custom renderer for saved search suggestion items |
 | `renderHeader` | `(context: CursorContext) => ReactNode` | — | Optional header above the suggestion list; see §4.9 |
-| `renderNoResults` | `(ctx: { cursorContext, partial }) => ReactNode` | — | Custom "no results" message when suggestions are empty; null hides the dropdown |
+| `renderNoResults` | `(ctx: { cursorContext, partial }) => ReactNode` | — | Custom "no results" message when suggestions are empty; null hides the dropdown. Not called for the value of a field with `suggestions: false` — nothing was searched, so there is nothing to report missing (booleans keep their built-in list, so a miss there still counts). Tests: `NoResults.browser.test.tsx` |
 | `renderType` | `boolean \| (type, suggestion) => ReactNode` | `true` | Controls the type badge in dropdown items; `false` hides it, callback customizes per-item |
 | `autoSelect` | `boolean` | `false` | Pre-select the first suggestion even with an empty partial; see §7.10 |
 | `homeEndKeys` | `boolean \| 'once'` | `false` | Home/End navigate to first/last dropdown item when one is selected; `'once'` lets the key through to the text caret when already at that end; see §7.10 |

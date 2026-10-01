@@ -35,6 +35,19 @@ export function hasPendingSuggestion(suggestions: Suggestion[]): boolean {
 }
 
 /**
+ * Whether the engine has a built-in list to search at this cursor context:
+ * field names, operators, boolean values, saved searches, history. The value
+ * of a non-boolean field has none (its values only come from
+ * `fetchSuggestions`), nor does a range. "No results" is only meaningful when
+ * a source was actually searched and came back empty.
+ */
+export function hasSyncSuggestionSource(contextType: string, fieldType?: string): boolean {
+  if (contextType === 'RANGE') return false;
+  if (contextType === 'FIELD_VALUE') return fieldType === 'boolean';
+  return true;
+}
+
+/**
  * Key identifying a completion task: what the user is currently completing.
  * Same key across keystrokes = same task (type-ahead may keep previous
  * results visible while a fresh fetch runs); different key = the held

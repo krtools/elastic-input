@@ -1,7 +1,9 @@
 /**
- * dropdown.renderNoResults must not fire for a field that opted out of
- * suggestions (`suggestions: false`) — nothing was searched, so there are no
- * "results" to report as missing.
+ * dropdown.renderNoResults fires only when a suggestion source was actually
+ * searched and came back empty: an async fetch that returned nothing, or one
+ * of the engine's own lists (field names, boolean values, …). It must not
+ * fire where nothing was searched — a field with `suggestions: false`, any
+ * field value when no `fetchSuggestions` is provided, or inside a range.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
@@ -30,11 +32,14 @@ async function waitFor(fn: () => boolean, timeout = 2000): Promise<boolean> {
   return false;
 }
 
-function setup() {
+/** Long enough for every sync and async path to have settled. */
+const settle = () => new Promise(r => setTimeout(r, 400));
+
+function setup(opts: { fetch: boolean }) {
   const calls: CursorContext[] = [];
   renderInto(React.createElement(ElasticInput, {
     fields: FIELDS,
-    fetchSuggestions: () => Promise.resolve([]),
+    ...(opts.fetch ? { fetchSuggestions: () => Promise.resolve([]) } : {}),
     dropdown: {
       suggestDebounceMs: 0,
       renderNoResults: ({ cursorContext }: { cursorContext: CursorContext }) => {
@@ -47,29 +52,55 @@ function setup() {
   return { editor: page.elementLocator(editorEl), calls };
 }
 
-describe('renderNoResults', () => {
-  it('is not shown for the value of a field with suggestions: false', async () => {
-    const { editor, calls } = setup();
-    await editor.click();
-    await userEvent.type(editor, 'notes:abc');
-    // Give every sync and async path time to settle
-    await new Promise(r => setTimeout(r, 400));
-
-    expect(document.querySelector(NO_RESULTS)).toBeNull();
-    expect(calls.some(c => c.type === 'FIELD_VALUE' && c.fieldName === 'notes')).toBe(false);
-  });
-
-  it('is still shown when a fetched field returns nothing', async () => {
-    const { editor } = setup();
+describe('renderNoResults — shown when a source was searched and came back empty', () => {
+  it('an async fetch that returns nothing', async () => {
+    const { editor } = setup({ fetch: true });
     await editor.click();
     await userEvent.type(editor, 'status:zzz');
     expect(await waitFor(() => document.querySelector(NO_RESULTS) !== null)).toBe(true);
   });
 
-  it('is still shown for a boolean miss, since booleans have a built-in list', async () => {
-    const { editor } = setup();
+  it('a boolean value miss (built-in true/false list)', async () => {
+    const { editor } = setup({ fetch: true });
     await editor.click();
     await userEvent.type(editor, 'is_vip:x');
     expect(await waitFor(() => document.querySelector(NO_RESULTS) !== null)).toBe(true);
+  });
+
+  it('a field-name miss, even with no fetchSuggestions at all', async () => {
+    const { editor } = setup({ fetch: false });
+    await editor.click();
+    await userEvent.type(editor, 'zzz');
+    expect(await waitFor(() => document.querySelector(NO_RESULTS) !== null)).toBe(true);
+  });
+});
+
+describe('renderNoResults — not shown where nothing was searched', () => {
+  it('the value of a field with suggestions: false', async () => {
+    const { editor, calls } = setup({ fetch: true });
+    await editor.click();
+    await userEvent.type(editor, 'notes:abc');
+    await settle();
+    expect(document.querySelector(NO_RESULTS)).toBeNull();
+    expect(calls.some(c => c.type === 'FIELD_VALUE' && c.fieldName === 'notes')).toBe(false);
+  });
+
+  it('any non-boolean field value when no fetchSuggestions is provided', async () => {
+    const { editor, calls } = setup({ fetch: false });
+    await editor.click();
+    await userEvent.type(editor, 'status:zzz');
+    await settle();
+    expect(document.querySelector(NO_RESULTS)).toBeNull();
+    expect(calls.some(c => c.type === 'FIELD_VALUE')).toBe(false);
+  });
+
+  it('inside a range on a non-date field', async () => {
+    const { editor, calls } = setup({ fetch: true });
+    await editor.click();
+    // `[[` types a literal `[` (userEvent key-descriptor syntax)
+    await userEvent.type(editor, 'status:[[a TO b]');
+    await settle();
+    expect(document.querySelector(NO_RESULTS)).toBeNull();
+    expect(calls.some(c => c.type === 'RANGE')).toBe(false);
   });
 });

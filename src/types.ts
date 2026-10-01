@@ -330,10 +330,13 @@ export interface DropdownConfig {
    *    first (Home) or last (End) item, let the key through to the text caret
    *  @default false */
   homeEndKeys?: boolean | 'once';
-  /** Called when the engine returns zero suggestions. Return a React element to display
-   *  in the dropdown (e.g. "No results for …"), or null/undefined to hide the dropdown.
-   *  Not called during async loading (the spinner handles that), nor for the value
-   *  of a field with `suggestions: false` (nothing was searched). */
+  /** Called when a suggestion source was searched and came back empty: an async fetch
+   *  that returned nothing, or one of the built-in lists (field names, boolean values,
+   *  saved searches, history). Return a React element to display in the dropdown
+   *  (e.g. "No results for …"), or null/undefined to hide the dropdown.
+   *  Not called where nothing was searched — during async loading, for a field with
+   *  `suggestions: false`, for field values when no `fetchSuggestions` is provided,
+   *  or inside a range. */
   renderNoResults?: (context: { cursorContext: CursorContext; partial: string }) => React.ReactNode | null | undefined;
   /** Controls the type badge shown in dropdown items.
    *  - `false` — hide the badge entirely

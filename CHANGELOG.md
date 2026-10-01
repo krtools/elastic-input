@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- **`renderNoResults` no longer fires for fields with `suggestions: false`** — Typing a value for a field that opted out of suggestions showed the "no results" message, although nothing had been searched. The dropdown now stays closed there.
+- **`renderNoResults` fires only when something was actually searched** — The message appeared in places with no suggestion source at all: the value of a field with `suggestions: false`, any field value when no `fetchSuggestions` is provided, and inside a range. It is now shown only after an async fetch returns nothing or one of the built-in lists (field names, boolean values, saved searches, history) has no match.
 
 ## 0.17.1 — 2026-09-30
 

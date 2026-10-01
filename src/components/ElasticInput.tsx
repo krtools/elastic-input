@@ -6,7 +6,7 @@ import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
-import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey } from '../autocomplete/suggestionTypes';
+import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
 import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, SlotContent } from '../types';
 import { cx } from '../utils/cx';
@@ -865,13 +865,11 @@ export function ElasticInput(props: ElasticInputProps) {
         showDropdownAtPosition(newSuggestions.length * 32, 300);
       } else {
         setAutocompleteContext(contextType);
-        // A field that opted out of suggestions has nothing to show by design —
-        // "no results" would report a search that never ran. (Booleans keep
-        // their built-in true/false list, so a miss there is a real miss.)
-        const optedOut = result.context.type === 'FIELD_VALUE'
-          && resolvedField?.suggestions === false
-          && resolvedField.type !== 'boolean';
-        if (optedOut || !tryShowNoResults(result.context)) {
+        // "No results" only when a source was actually searched. No fetch ran
+        // on this path, so that means the engine's own lists; a non-boolean
+        // field value or a range has none.
+        const searched = hasSyncSuggestionSource(result.context.type, resolvedField?.type);
+        if (!searched || !tryShowNoResults(result.context)) {
           setShowDropdown(false);
           setShowDatePicker(false);
           setSuggestions([]);

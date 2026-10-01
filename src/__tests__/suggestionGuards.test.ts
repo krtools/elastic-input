@@ -5,6 +5,7 @@ import {
   isAcceptableSuggestion,
   hasPendingSuggestion,
   completionTaskKey,
+  hasSyncSuggestionSource,
 } from '../autocomplete/suggestionTypes';
 
 function sugg(type: string | undefined, text = 'x'): Suggestion {
@@ -73,6 +74,29 @@ describe('completionTaskKey', () => {
 
   it('same type + same field = same task (type-ahead preservation key)', () => {
     expect(completionTaskKey('FIELD_VALUE', 'status')).toBe(completionTaskKey('FIELD_VALUE', 'status'));
+  });
+});
+
+describe('hasSyncSuggestionSource', () => {
+  it('contexts backed by an engine list have a source', () => {
+    for (const type of ['FIELD_NAME', 'OPERATOR', 'EMPTY', 'SAVED_SEARCH', 'HISTORY_REF']) {
+      expect(hasSyncSuggestionSource(type)).toBe(true);
+    }
+  });
+
+  it('a boolean field value has one (true/false)', () => {
+    expect(hasSyncSuggestionSource('FIELD_VALUE', 'boolean')).toBe(true);
+  });
+
+  it('any other field value has none — its values only come from fetchSuggestions', () => {
+    for (const fieldType of ['string', 'number', 'date', 'ip', undefined]) {
+      expect(hasSyncSuggestionSource('FIELD_VALUE', fieldType)).toBe(false);
+    }
+  });
+
+  it('a range has none, whatever the field type', () => {
+    expect(hasSyncSuggestionSource('RANGE')).toBe(false);
+    expect(hasSyncSuggestionSource('RANGE', 'boolean')).toBe(false);
   });
 });
 

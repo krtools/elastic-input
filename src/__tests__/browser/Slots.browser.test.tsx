@@ -205,6 +205,55 @@ describe('internal-focus blur guard', () => {
   });
 });
 
+describe('api.isFocused()', () => {
+  it('is true while focus is in the editor or slot content, and already current inside onFocus/onBlur', async () => {
+    let api: ElasticInputAPI | null = null;
+    const seen: string[] = [];
+    renderInto(
+      React.createElement(ElasticInput, {
+        fields: FIELDS,
+        inputRef: (a: ElasticInputAPI) => { api = a; },
+        onFocus: () => seen.push(`focus:${api!.isFocused()}`),
+        onBlur: () => seen.push(`blur:${api!.isFocused()}`),
+        suffix: React.createElement('button', { id: 'focus-btn' }, 'Go'),
+      }),
+    );
+    expect(api!.isFocused()).toBe(false);
+
+    await page.elementLocator(editorEl()).click();
+    expect(api!.isFocused()).toBe(true);
+
+    const btn = document.querySelector('#focus-btn') as HTMLElement;
+    btn.focus();
+    expect(document.activeElement).toBe(btn);
+    expect(api!.isFocused()).toBe(true);
+
+    btn.blur();
+    expect(api!.isFocused()).toBe(false);
+    expect(seen).toEqual(['focus:true', 'blur:false']);
+  });
+
+  it("'editor' scope is true only while the text editor itself has focus", async () => {
+    let api: ElasticInputAPI | null = null;
+    renderInto(
+      React.createElement(ElasticInput, {
+        fields: FIELDS,
+        inputRef: (a: ElasticInputAPI) => { api = a; },
+        suffix: React.createElement('button', { id: 'focus-btn' }, 'Go'),
+      }),
+    );
+    expect(api!.isFocused('editor')).toBe(false);
+
+    await page.elementLocator(editorEl()).click();
+    expect(api!.isFocused('editor')).toBe(true);
+    expect(api!.isFocused('component')).toBe(true);
+
+    (document.querySelector('#focus-btn') as HTMLElement).focus();
+    expect(api!.isFocused('editor')).toBe(false);
+    expect(api!.isFocused('component')).toBe(true);
+  });
+});
+
 describe('api.submit()', () => {
   function setup(props: Record<string, unknown> = {}) {
     const searches: { query: string; ast: ASTNode | null }[] = [];

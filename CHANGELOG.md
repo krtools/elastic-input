@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`api.isFocused()`** — Returns whether focus is inside the component (editor, slot content, or dropdown); `isFocused('editor')` checks the text editor only.
+
 ## 0.18.0 — 2026-10-01
 
 ### Features

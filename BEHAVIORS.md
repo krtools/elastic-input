@@ -1659,6 +1659,7 @@ The placeholder overlays the editor inside the editor wrap and inherits `inputPa
 | `setValue(value)` | Sets input text programmatically |
 | `focus()` | Focuses the input |
 | `blur()` | Blurs the input |
+| `isFocused(scope?)` | Whether focus is inside the component: the editor, slot content, or the dropdown/date picker (same meaning as `InputStatus.isFocused`). `isFocused('editor')` is true only while the text editor itself has focus. Read from the DOM, so it is already current inside `onFocus`/`onBlur`. |
 | `getAST()` | Returns current parsed AST |
 | `getValidationErrors()` | Returns current validation errors |
 | `submit()` | Submits through the same path as Enter: a highlighted real suggestion is accepted first, then `onSearch` fires with the resulting query; with nothing highlighted, the dropdown closes and `onSearch` fires with the query as-is. Guarantees an external button never submits a different string than the Enter key would. |
@@ -1668,6 +1669,7 @@ The placeholder overlays the editor inside the editor wrap and inherits `inputPa
 | `set({ value?, selection? })` | Updates the value and/or selection as one edit: one undo entry, one `onChange`. `selection` is a caret offset or `{ start, end }`, clamped to the value. Omitted properties are left unchanged; setting the current value again does nothing. Closes the dropdown. Never steals focus — the selection is applied only while the input is focused. API reads are current immediately afterwards. |
 
 - **Tests (`submit`):** `Slots.browser.test.tsx` → "submits the post-accept query when a value suggestion is highlighted (Enter parity)", "accepts a highlighted field name, then submits the result", "submits the raw query when no dropdown is open", "submits the raw query and closes the dropdown when nothing is highlighted", "submits the raw query when a no-results item is highlighted"
+- **Tests (`isFocused`):** `Slots.browser.test.tsx` → "is true while focus is in the editor or slot content, and already current inside onFocus/onBlur", "'editor' scope is true only while the text editor itself has focus"
 - **Tests (`openDropdown`):** `ImperativeDropdown.browser.test.tsx` → "opens in 'manual' mode, where typing alone does not", "called from onSearch, brings the dropdown back after Enter accepts and submits", "without it, the dropdown stays closed after Enter accepts and submits", "uses the live caret after api.setValue in the same tick", "reports trigger 'ctrlSpace' to a dropdown.open callback", "does nothing when dropdown.open is 'never'", "does nothing when the input is not focused"
 - **Tests (`closeDropdown`):** `ImperativeDropdown.browser.test.tsx` → "closes the suggestion dropdown", "closes the date picker"
 - **Tests (`acceptSuggestion`):** `ImperativeDropdown.browser.test.tsx` → "accepts a highlighted field name", "accepts a highlighted value with a trailing space and does not submit", "returns false and changes nothing when no suggestion is highlighted", "returns false for a highlighted inert item", "from onKeyDown: Enter accepts without submitting, and the API reads are already current"

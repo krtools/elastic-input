@@ -447,6 +447,17 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // --- Helpers ---
 
+  // True when a DOM node belongs to this component: the container (editor and
+  // slot content) or one of the body portals (dropdown, date picker). Used to
+  // distinguish focus moves *within* the component from focus leaving it.
+  const isInternalNode = React.useCallback((node: Node | null): boolean => {
+    if (!node) return false;
+    if (containerRef.current?.contains(node)) return true;
+    if (dropdownListRef.current?.contains(node)) return true;
+    if (datePickerElRef.current?.contains(node)) return true;
+    return false;
+  }, []);
+
   // Helper: compute dropdown position. When dropdownAlignToInput is true,
   // position relative to the container instead of the caret.
   const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): { top: number; left: number; flipped?: boolean } | null => {
@@ -1334,6 +1345,10 @@ export function ElasticInput(props: ElasticInputProps) {
         },
         focus: () => editorRef.current?.focus(),
         blur: () => editorRef.current?.blur(),
+        // DOM truth rather than isFocused state, which lags a render behind
+        isFocused: (scope: 'component' | 'editor' = 'component') => scope === 'editor'
+          ? !!editorRef.current && document.activeElement === editorRef.current
+          : isInternalNode(document.activeElement),
         getAST: () => stateRef.current.ast,
         getValidationErrors: () => stateRef.current.validationErrors,
         setSelection: (start: number, end: number) => {
@@ -1408,7 +1423,7 @@ export function ElasticInput(props: ElasticInputProps) {
         },
       });
     }
-  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, recordUndoEntry]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, recordUndoEntry, isInternalNode]);
 
   // Process initial value
   React.useEffect(() => {
@@ -2255,17 +2270,6 @@ export function ElasticInput(props: ElasticInputProps) {
       triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start, selRange.end);
     }
   }, [triggerSuggestionsFromNavigation]);
-
-  // True when a DOM node belongs to this component: the container (editor and
-  // slot content) or one of the body portals (dropdown, date picker). Used to
-  // distinguish focus moves *within* the component from focus leaving it.
-  const isInternalNode = React.useCallback((node: Node | null): boolean => {
-    if (!node) return false;
-    if (containerRef.current?.contains(node)) return true;
-    if (dropdownListRef.current?.contains(node)) return true;
-    if (datePickerElRef.current?.contains(node)) return true;
-    return false;
-  }, []);
 
   // Focus/blur handlers live on the container (focus events bubble), so slot
   // content participates in the component's focus state (focus-within

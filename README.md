@@ -255,6 +255,8 @@ api.getValue();              // Returns current query string
 api.setValue('status:active');// Sets query programmatically (undoable with Ctrl+Z)
 api.focus();                 // Focuses the input
 api.blur();                  // Blurs the input
+api.isFocused();             // True while focus is in the editor, slot content, or dropdown
+api.isFocused('editor');     // True only while the text editor itself has focus
 api.getAST();                // Returns the parsed AST
 api.getValidationErrors();   // Returns current validation errors
 api.submit();                // Submits like Enter: accepts a highlighted suggestion, then fires onSearch

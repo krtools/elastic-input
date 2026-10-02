@@ -390,6 +390,12 @@ export interface ElasticInputAPI {
   focus: () => void;
   /** Blurs the input element. */
   blur: () => void;
+  /**
+   * Whether focus is inside the component — the editor, slot content, or the
+   * dropdown/date picker (same meaning as `InputStatus.isFocused`). Pass
+   * `'editor'` to ask whether the text editor itself has focus.
+   */
+  isFocused: (scope?: 'component' | 'editor') => boolean;
   /** Returns the current parsed AST, or `null` if the input is empty. */
   getAST: () => ASTNode | null;
   /** Returns the current validation errors (including syntax errors). */

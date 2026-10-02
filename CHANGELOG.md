@@ -1,19 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.18.0 — 2026-10-01
 
 ### Features
 
-- **`api.openDropdown()`, `api.closeDropdown()`, `api.acceptSuggestion()`** — Imperative dropdown control. `openDropdown()` is the Ctrl+Space action (call it from `onSearch` to bring the dropdown back after Enter submits); `acceptSuggestion()` accepts the highlighted suggestion without submitting and returns whether there was one, so an `onKeyDown` handler can define its own Enter behaviour.
-- **`api.set({ value, selection })`** — Sets the value and the caret or selection as one edit: one undo step, one `onChange`. Omitted properties stay as they are; it closes the dropdown and never steals focus.
-- **`onAcceptSuggestion`** — Called just before a suggestion is inserted (Tab, Enter, click, or the API) with the suggestion, cursor context, query and the triggering event. Return `false` to skip the default insert and make the edit yourself with `api.set()`, e.g. turning an accepted `tags` field into `tags:(|)`.
+- **`api.openDropdown()`, `api.closeDropdown()`, `api.acceptSuggestion()`** — Imperative dropdown control: open at the caret (same as Ctrl+Space), close, and accept the highlighted suggestion without submitting.
+- **`api.set({ value, selection })`** — Sets the value and caret/selection as a single edit (one undo step, one `onChange`).
+- **`onAcceptSuggestion`** — Called before a suggestion is inserted; return `false` to skip the default insert and make the edit yourself with `api.set()`.
 
 ### Fixes
 
-- **`api.submit()` with a "no results" item highlighted** — Arrowing onto the `renderNoResults` item and then calling `submit()` did nothing: `onSearch` never fired. It now closes the dropdown and submits the query as typed, the same as Enter.
-- **Plain mode showed a blank or stale editor for values that weren't typed** — With `plainModeLength` reached, a value present on mount or set through `api.setValue` / a controlled `value` was only rendered when it replaced a highlighted one. An empty editor stayed blank, and one long value replaced by another kept showing the old text.
-- **Plain mode opened the dropdown with every field** — Focusing, moving the caret, or Ctrl+Space in plain mode showed the full field list, and clicking an item inserted that field at the caret. The dropdown now stays closed in plain mode.
-- **Plain mode respected by undo/redo, selection wrapping, format, and accepts** — These re-highlighted and re-parsed the text even over the `plainModeLength` threshold. They now leave it plain.
+- **`api.submit()` with a "no results" item highlighted** — Did nothing; it now submits the query as typed.
+- **Plain mode: values that weren't typed** — A value present on mount or set programmatically left the editor blank or showing the old text.
+- **Plain mode: dropdown** — Opened with every field on focus, caret movement or Ctrl+Space. It now stays closed.
+- **Plain mode: undo/redo, selection wrapping, format, accepts** — No longer re-highlight or re-parse text over the threshold.
 
 ## 0.17.2 — 2026-10-01
 

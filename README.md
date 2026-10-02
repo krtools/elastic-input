@@ -130,7 +130,7 @@ Implicit AND is supported — `status:active level:ERROR` is equivalent to `stat
 | `onAcceptSuggestion` | `(context) => boolean \| void` | — | Called before a suggestion is inserted; return `false` to make the edit yourself |
 | `validateValue` | `(ctx) => ValidateReturn` | — | Custom validation for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker init |
-| `plainModeLength` | `number` | — | Character count at which highlighting, autocomplete, and validation are disabled for performance |
+| `plainModeLength` | `number` | — | Character count at which highlighting, autocomplete, and validation are disabled for performance (`0` = always plain) |
 | `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Transform or cancel pasted text before insertion; supports async |
 
 † Needs a stable identity across renders — see [Prop Stability](#prop-stability).

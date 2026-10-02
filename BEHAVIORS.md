@@ -1530,7 +1530,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `datePresets` | `{ label, value, type? }[]` | built-in (range) | Custom date picker presets; `type` filters to `'single'`/`'range'`/both; `[]` hides presets |
 | `validateValue` | `(ctx: ValidateValueContext) => ValidateReturn` | — | Custom validation callback for all value types |
 | `parseDate` | `(value: string) => Date \| null` | — | Custom date parser for validation and date picker initialization |
-| `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Set to `0` to disable. |
+| `plainModeLength` | `number` | — | Character count threshold; when exceeded, the input degrades to plain text (no highlighting, autocomplete, or validation). Omit to disable; `0` = always plain. |
 | `interceptPaste` | `(text, event) => string \| null \| Promise<…>` | — | Intercept paste before insertion; see §7.14 |
 | `defaultField` | `string \| DefaultFieldConfig` | — | Implicit field for bare terms; see §4.11 |
 
@@ -1715,7 +1715,15 @@ The editor shows the value however it arrived — typed, present on mount (`valu
 
 - **Tests:** `PlainMode.browser.test.tsx` → "mount with a long value", "mount with a long defaultValue", "api.setValue on an empty editor", "a controlled value change from empty", "one long value replaced by another", "api.set places the caret in the plain text", "does not focus a blurred editor", "typing past the threshold keeps the text and the caret", "a short value after a long one is highlighted again"
 
-Set `plainModeLength` to `0` or omit to disable this behavior.
+Edits that rewrite the editor directly follow the same rule: undo/redo, wrapping a selection, format, and accepting a suggestion that takes the text over the threshold all leave it plain (no tokens, `ast: null`). Undoing back below the threshold highlights again.
+
+The dropdown never opens in plain mode — not on focus, caret movement, Ctrl+Space, or `api.openDropdown()`.
+
+- **Tests:** `PlainMode.browser.test.tsx` → "undo and redo over the threshold", "undo back below the threshold highlights again", "wrapping a selection in parens", "formatting the query", "accepting a suggestion that crosses the threshold", "on focus, caret movement, Ctrl+Space, or api.openDropdown()"
+
+Omit `plainModeLength` to disable this behavior. `0` means always plain.
+
+- **Tests:** `PlainMode.browser.test.tsx` → "is always plain"
 
 ## 11. Undo / Redo
 

@@ -12,6 +12,8 @@
 
 - **`api.submit()` with a "no results" item highlighted** — Arrowing onto the `renderNoResults` item and then calling `submit()` did nothing: `onSearch` never fired. It now closes the dropdown and submits the query as typed, the same as Enter.
 - **Plain mode showed a blank or stale editor for values that weren't typed** — With `plainModeLength` reached, a value present on mount or set through `api.setValue` / a controlled `value` was only rendered when it replaced a highlighted one. An empty editor stayed blank, and one long value replaced by another kept showing the old text.
+- **Plain mode opened the dropdown with every field** — Focusing, moving the caret, or Ctrl+Space in plain mode showed the full field list, and clicking an item inserted that field at the caret. The dropdown now stays closed in plain mode.
+- **Plain mode respected by undo/redo, selection wrapping, format, and accepts** — These re-highlighted and re-parsed the text even over the `plainModeLength` threshold. They now leave it plain.
 
 ## 0.17.2 — 2026-10-01
 

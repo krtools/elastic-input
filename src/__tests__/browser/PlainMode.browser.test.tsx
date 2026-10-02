@@ -118,6 +118,128 @@ describe('plain mode shows values that were not typed', () => {
   });
 });
 
+const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
+const dropdownOpen = () => document.querySelectorAll('.ei-dropdown-item').length > 0;
+const undo = () => userEvent.keyboard('{Control>}z{/Control}');
+const redo = () => userEvent.keyboard('{Control>}y{/Control}');
+
+/** Regression: these edits lexed and highlighted regardless of the threshold. */
+describe('plain mode stays plain through direct edits', () => {
+  it('undo and redo over the threshold', async () => {
+    const { handle, editorEl, editor } = setup();
+    await editor.click();
+    await userEvent.type(editor, 'status:active more');
+    await pause(400); // close the typing undo group
+    await userEvent.type(editor, ' text');
+    await pause(400);
+
+    await undo();
+    expect(await waitFor(() => handle.api!.getValue() === 'status:active more')).toBe(true);
+    expectPlain(editorEl, 'status:active more');
+    expect(handle.api!.getAST()).toBeNull();
+
+    await redo();
+    expect(await waitFor(() => handle.api!.getValue() === 'status:active more text')).toBe(true);
+    expectPlain(editorEl, 'status:active more text');
+
+    // Caret restored to the end of the entry
+    await userEvent.keyboard('Z');
+    expect(await waitFor(() => handle.api!.getValue() === 'status:active more textZ')).toBe(true);
+  });
+
+  it('undo back below the threshold highlights again', async () => {
+    const { handle, editorEl, editor } = setup();
+    await editor.click();
+    await userEvent.type(editor, 'status:x');
+    await pause(400);
+    await userEvent.type(editor, ' and more');
+    await pause(400);
+    expectPlain(editorEl, 'status:x and more');
+
+    await undo();
+    expect(await waitFor(() => handle.api!.getValue() === 'status:x')).toBe(true);
+    expect(editorEl.querySelector('span')).not.toBeNull();
+    expect(handle.api!.getAST()).not.toBeNull();
+  });
+
+  it('wrapping a selection in parens', async () => {
+    const { handle, editorEl } = setup({ defaultValue: LONG });
+    await settle();
+    handle.api!.setSelection(5, 7); // "is"
+
+    await userEvent.keyboard('(');
+    expect(await waitFor(() => handle.api!.getValue() === 'this (is) a long plain value')).toBe(true);
+    expectPlain(editorEl, 'this (is) a long plain value');
+
+    // The inner text stays selected, so typing replaces it
+    await userEvent.keyboard('X');
+    expect(await waitFor(() => handle.api!.getValue() === 'this (X) a long plain value')).toBe(true);
+  });
+
+  it('formatting the query', async () => {
+    const { handle, editorEl, editor } = setup({ features: { formatQuery: true } });
+    await editor.click();
+    await userEvent.type(editor, 'a    AND    b    AND c');
+
+    await userEvent.keyboard('{Alt>}{Shift>}F{/Shift}{/Alt}');
+    expect(await waitFor(() => handle.api!.getValue() === 'a AND b AND c')).toBe(true);
+    expectPlain(editorEl, 'a AND b AND c');
+    expect(handle.api!.getAST()).toBeNull();
+  });
+
+  it('accepting a suggestion that crosses the threshold', async () => {
+    const { handle, editorEl, editor } = setup();
+    await editor.click();
+    await userEvent.type(editor, 'ab sta');
+    expect(await waitFor(() => document.querySelector('.ei-dropdown-item--selected') !== null)).toBe(true);
+
+    await userEvent.keyboard('{Tab}');
+    expect(await waitFor(() => handle.api!.getValue() === 'ab status:')).toBe(true);
+    await settle();
+    expectPlain(editorEl, 'ab status:');
+    expect(dropdownOpen()).toBe(false);
+
+    await userEvent.keyboard('Z');
+    expect(await waitFor(() => handle.api!.getValue() === 'ab status:Z')).toBe(true);
+  });
+});
+
+/**
+ * Regression: with no tokens the engine saw an empty query and offered every
+ * field at any caret position.
+ */
+describe('plain mode never opens the dropdown', () => {
+  it('on focus, caret movement, Ctrl+Space, or api.openDropdown()', async () => {
+    const { handle, editor } = setup({ defaultValue: LONG });
+    await settle();
+
+    await editor.click();
+    await pause(300);
+    expect(dropdownOpen()).toBe(false);
+
+    await userEvent.keyboard('{ArrowLeft}');
+    await pause(300);
+    expect(dropdownOpen()).toBe(false);
+
+    await userEvent.keyboard('{Control>} {/Control}');
+    await pause(300);
+    expect(dropdownOpen()).toBe(false);
+
+    handle.api!.openDropdown();
+    await pause(300);
+    expect(dropdownOpen()).toBe(false);
+  });
+});
+
+describe('plainModeLength: 0', () => {
+  it('is always plain', async () => {
+    const { handle, editorEl } = setup({ plainModeLength: 0, defaultValue: 'status:x' });
+    await settle();
+    expectPlain(editorEl, 'status:x');
+    expect(handle.api!.getAST()).toBeNull();
+  });
+});
+
 describe('plain mode transitions (unchanged)', () => {
   it('typing past the threshold keeps the text and the caret', async () => {
     const { handle, editorEl, editor } = setup();

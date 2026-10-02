@@ -535,9 +535,14 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [colors, classNames?.token, fieldTypeMap]);
 
+  const isPlainLength = React.useCallback(
+    (text: string) => plainModeLength != null && text.length >= plainModeLength,
+    [plainModeLength],
+  );
+
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     // Plain mode: skip Lexer/Parser/Validator, no highlighting or autocomplete
-    const plain = plainModeLength != null && text.length >= plainModeLength;
+    const plain = isPlainLength(text);
     setIsPlainMode(plain);
     if (plain) {
       setTokens([]);
@@ -624,7 +629,20 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [onChange, onValidationChange, applyHighlight, plainModeLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
+  }, [onChange, onValidationChange, applyHighlight, isPlainLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
+
+  // Plain-mode counterpart of the highlighted rewrite done by direct edits
+  // (accept, undo/redo, wrap): show the text unstyled and place the selection.
+  const applyPlainValue = React.useCallback((text: string, selStart: number, selEnd: number) => {
+    currentValueRef.current = text;
+    processInput(text, false);
+    const editor = editorRef.current;
+    if (editor && document.activeElement === editor) {
+      setSelectionCharRange(editor, selStart, selEnd);
+      setCursorOffset(selStart);
+      setSelectionEnd(selEnd);
+    }
+  }, [processInput]);
 
   // Apply renderFieldHint in a field value context. If a hint suggestion already
   // exists it gets customContent replaced; otherwise a new hint is injected at the top.
@@ -667,6 +685,15 @@ export function ElasticInput(props: ElasticInputProps) {
   }, [renderNoResults, showDropdownAtPosition]);
 
   const updateSuggestionsFromTokens = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
+    // Plain mode has no tokens — they would read as an empty query and offer
+    // every field at any caret position.
+    if (isPlainLength(currentValueRef.current)) {
+      cancelPendingDropdownShow();
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      setSuggestions([]);
+      return;
+    }
     const result = engineRef.current.getSuggestions(toks, offset);
     if (!showOperators) {
       result.suggestions = result.suggestions.filter(s => s.type !== 'operator');
@@ -1014,7 +1041,7 @@ export function ElasticInput(props: ElasticInputProps) {
         }
       }, debounceMs);
     }
-  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults, cancelPendingDropdownShow, defaultFieldConfig, engineRef, parseDateProp]);
+  }, [fetchSuggestionsProp, savedSearches, searchHistory, suggestDebounceMs, applyFieldHint, showDropdownAtPosition, dropdownAlignToInput, dropdownOpen, dropdownOpenIsCallback, dropdownMode, showOperators, effectiveMaxSuggestions, loadingDelay, autoSelect, tryShowNoResults, cancelPendingDropdownShow, isPlainLength, defaultFieldConfig, engineRef, parseDateProp]);
 
   // Keep the ref current so processInput always calls the latest version
   // eslint-disable-next-line react-hooks/refs -- latest-value ref pattern (see validateValueRef above)
@@ -1094,6 +1121,15 @@ export function ElasticInput(props: ElasticInputProps) {
     currentValueRef.current = newValue;
     recordUndoEntry(newValue, newCursorPos);
 
+    if (isPlainLength(newValue)) {
+      applyPlainValue(newValue, newCursorPos, newCursorPos);
+      if (thenDo) {
+        const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo([], null); });
+        rafIdsRef.current.add(id);
+      }
+      return;
+    }
+
     const lexer = new Lexer(newValue, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
@@ -1131,7 +1167,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
       rafIdsRef.current.add(id);
     }
-  }, [recordUndoEntry, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [recordUndoEntry, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const acceptSuggestion = React.useCallback((
     suggestion: Suggestion,
@@ -1680,6 +1716,12 @@ export function ElasticInput(props: ElasticInputProps) {
     if (!entry) return;
     currentValueRef.current = entry.value;
 
+    if (isPlainLength(entry.value)) {
+      applyPlainValue(entry.value, entry.selStart ?? entry.cursorPos, entry.cursorPos);
+      closeDropdown();
+      return;
+    }
+
     const lexer = new Lexer(entry.value, lexerOptions);
     const newTokens = lexer.tokenize();
     const parser = new Parser(newTokens);
@@ -1708,7 +1750,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(entry.value, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [isPlainLength, applyPlainValue, colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const getDropdownPageSize = React.useCallback((): number => {
     const list = dropdownListRef.current;
@@ -1813,6 +1855,12 @@ export function ElasticInput(props: ElasticInputProps) {
           typingGroupTimerRef.current = null;
         }
         undo.push({ value: newValue, cursorPos: newSelEnd, selStart: newSelStart });
+
+        if (isPlainLength(newValue)) {
+          applyPlainValue(newValue, newSelStart, newSelEnd);
+          closeDropdown();
+          return;
+        }
 
         const lexer = new Lexer(newValue, lexerOptions);
         const newTokens = lexer.tokenize();
@@ -2189,7 +2237,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, isPlainLength, applyPlainValue, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

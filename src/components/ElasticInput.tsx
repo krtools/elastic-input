@@ -1197,6 +1197,7 @@ export function ElasticInput(props: ElasticInputProps) {
         suggestion: { ...suggestion, replaceStart, replaceEnd },
         cursorContext: s.cursorContext || { type: 'EMPTY' as const, partial: '' },
         query,
+        event: triggerEvent,
       });
       // A changed value means the handler already edited the input — the
       // default insert's offsets no longer apply, so that counts as handled.
@@ -2595,7 +2596,7 @@ export function ElasticInput(props: ElasticInputProps) {
       <AutocompleteDropdown
         suggestions={suggestions}
         selectedIndex={selectedSuggestionIndex}
-        onSelect={(s: Suggestion) => acceptSuggestion(s, 'Tab')}
+        onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
         position={dropdownPosition}
         colors={colors}
         styles={stylesProp}

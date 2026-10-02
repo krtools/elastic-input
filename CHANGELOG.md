@@ -6,7 +6,7 @@
 
 - **`api.openDropdown()`, `api.closeDropdown()`, `api.acceptSuggestion()`** — Imperative dropdown control. `openDropdown()` is the Ctrl+Space action (call it from `onSearch` to bring the dropdown back after Enter submits); `acceptSuggestion()` accepts the highlighted suggestion without submitting and returns whether there was one, so an `onKeyDown` handler can define its own Enter behaviour.
 - **`api.set({ value, selection })`** — Sets the value and the caret or selection as one edit: one undo step, one `onChange`. Omitted properties stay as they are; it closes the dropdown and never steals focus.
-- **`onAcceptSuggestion`** — Called just before a suggestion is inserted (Tab, Enter, click, or the API) with the suggestion, cursor context and query. Return `false` to skip the default insert and make the edit yourself with `api.set()`, e.g. turning an accepted `tags` field into `tags:(|)`.
+- **`onAcceptSuggestion`** — Called just before a suggestion is inserted (Tab, Enter, click, or the API) with the suggestion, cursor context, query and the triggering event. Return `false` to skip the default insert and make the edit yourself with `api.set()`, e.g. turning an accepted `tags` field into `tags:(|)`.
 
 ### Fixes
 

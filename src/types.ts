@@ -447,6 +447,11 @@ export interface AcceptSuggestionContext {
   cursorContext: CursorContext;
   /** The query before the insert. */
   query: string;
+  /**
+   * The key press or click that triggered the accept. `undefined` when it
+   * came from the API (`api.submit()`, `api.acceptSuggestion()`).
+   */
+  event?: React.KeyboardEvent | React.MouseEvent;
 }
 
 /** Context passed to the `onTab` callback. */

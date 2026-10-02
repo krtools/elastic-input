@@ -298,7 +298,7 @@ These compose with `onSearch` and `onKeyDown` to change what Enter does:
 />
 ```
 
-`suggestion.replaceStart`/`replaceEnd` are the range of `query` the default insert would have replaced. The rest of the accept still runs: Enter on a value still submits, and suggestions are re-checked at the new caret.
+`suggestion.replaceStart`/`replaceEnd` are the range of `query` the default insert would have replaced. The context also carries `event`, the key press or click that triggered the accept (`undefined` when it came from the API). The rest of the accept still runs: Enter on a value still submits, and suggestions are re-checked at the new caret.
 
 ## Prefix / Suffix Slots
 

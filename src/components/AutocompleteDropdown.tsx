@@ -28,7 +28,7 @@ import {
 interface AutocompleteDropdownProps {
   suggestions: Suggestion[];
   selectedIndex: number;
-  onSelect: (suggestion: Suggestion) => void;
+  onSelect: (suggestion: Suggestion, event: React.MouseEvent) => void;
   position: { top: number; left: number; flipped?: boolean } | null;
   colors?: ColorConfig;
   styles?: StyleConfig;
@@ -161,7 +161,7 @@ export function AutocompleteDropdown({
           className: cx('ei-dropdown-item', typeModifier, isSelected && 'ei-dropdown-item--selected', classNames?.dropdownItem),
           style: { ...itemStyle, ...extraStyle },
           title,
-          onClick: () => onSelect(suggestion),
+          onClick: (e: React.MouseEvent) => onSelect(suggestion, e),
           onMouseEnter: (e: React.MouseEvent) => {
             (e.currentTarget as HTMLElement).style.backgroundColor = isSelected ? mergedColors.dropdownSelected : mergedColors.dropdownHover;
           },

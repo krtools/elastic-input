@@ -117,6 +117,33 @@ describe('onAcceptSuggestion — notification', () => {
     expect(calls[2].suggestion.text).toBe('complex:');
   });
 
+  it('passes the triggering event: key press, click, or none from the API', async () => {
+    // Read inside the handler — React 16 pools synthetic events
+    const events: (string | null)[] = [];
+    const { handle, editor } = setup(({ event }) => {
+      events.push(event ? `${event.type}:${'key' in event ? event.key : ''}` : null);
+    });
+
+    await typeToHighlighted(editor, 'sta', 'status');
+    await userEvent.keyboard('{Tab}');
+    expect(await waitFor(() => handle.api!.getValue() === 'status:')).toBe(true);
+
+    expect(await waitFor(() => labels().some(l => l.includes('archived')))).toBe(true);
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    expect(await waitFor(() => handle.api!.getValue() === 'status:active ')).toBe(true);
+
+    await userEvent.type(editor, 'comp');
+    expect(await waitFor(() => selectedLabel()?.includes('complex') === true)).toBe(true);
+    await page.elementLocator(items().find(el => el.textContent?.includes('complex'))!).click();
+    expect(await waitFor(() => handle.api!.getValue() === 'status:active complex:')).toBe(true);
+
+    expect(await waitFor(() => labels().some(l => l.includes('beta')))).toBe(true);
+    await userEvent.keyboard('{ArrowDown}');
+    expect(handle.api!.acceptSuggestion()).toBe(true);
+
+    expect(events).toEqual(['keydown:Tab', 'keydown:Enter', 'click:', null]);
+  });
+
   it('true is the same as no return', async () => {
     const { handle, editor } = setup(() => true);
     await typeToHighlighted(editor, 'sta', 'status');

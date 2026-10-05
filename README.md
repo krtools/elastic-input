@@ -259,6 +259,7 @@ api.isFocused();             // True while focus is in the editor, slot content,
 api.isFocused('editor');     // True only while the text editor itself has focus
 api.getAST();                // Returns the parsed AST
 api.getValidationErrors();   // Returns current validation errors
+api.setValidationErrors(errors, query); // Shows errors from outside, e.g. your backend (see Validation)
 api.submit();                // Submits like Enter: accepts a highlighted suggestion, then fires onSearch
 api.openDropdown();          // Shows suggestions at the caret (same as Ctrl+Space)
 api.closeDropdown();         // Closes the dropdown or date picker
@@ -356,6 +357,26 @@ Or use the imperative API:
 ```tsx
 const errors = api.getValidationErrors();
 ```
+
+### Errors From Your Backend
+
+When a submitted query comes back with errors of its own, show them with `api.setValidationErrors`:
+
+```tsx
+<ElasticInput
+  fields={fields}
+  inputRef={(ref) => { api = ref; }}
+  onSearch={async (query) => {
+    const res = await runSearch(query);
+    api.setValidationErrors(
+      res.errors.map((e) => ({ message: e.message, start: e.from, end: e.to })),
+      query, // optional: ignore the call if the input no longer holds this text
+    );
+  }}
+/>
+```
+
+They are underlined immediately, reported with `type: 'EXTERNAL'` alongside the built-in errors, and dropped as soon as the text changes. Each call replaces the previous external errors; `[]` clears them. Use `severity: 'warning'` for anything that shouldn't mark the query invalid.
 
 ### Custom Validators
 

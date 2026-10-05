@@ -398,8 +398,19 @@ export interface ElasticInputAPI {
   isFocused: (scope?: 'component' | 'editor') => boolean;
   /** Returns the current parsed AST, or `null` if the input is empty. */
   getAST: () => ASTNode | null;
-  /** Returns the current validation errors (including syntax errors). */
+  /** Returns the current validation errors (including syntax errors and external ones). */
   getValidationErrors: () => ValidationError[];
+  /**
+   * Adds errors from outside the component (e.g. a backend's response to a
+   * submitted query) on top of the built-in ones. They are underlined
+   * immediately, reported with `type: 'EXTERNAL'`, and dropped at the next
+   * change to the text. Each call replaces the previous external errors;
+   * `[]` clears them. Offsets refer to the text in the input.
+   *
+   * Pass `forQuery` to ignore the call when the input no longer holds that
+   * exact text — a guard for responses that arrive after the user typed on.
+   */
+  setValidationErrors: (errors: ValidationError[], forQuery?: string) => void;
   /** Selects a character range in the input. Focuses the input if not already focused. */
   setSelection: (start: number, end: number) => void;
   /**

@@ -1166,6 +1166,7 @@ Errors are only shown visually after the cursor leaves the error range. This pre
 - Cursor at error start or end → error hidden
 - Cursor outside all error ranges → all errors shown
 - Multiple errors: each independently shown/hidden based on cursor position
+- External errors (§9.4.1) are never deferred
 
 - **Tests:** `ValidationSquiggles.test.ts` → "hides error when cursor is within error range", "hides error when cursor is at error start", "hides error when cursor is at error end", "shows error when cursor is past error range", "shows error when cursor is before error range", "shows one error and hides another based on cursor position", "shows all errors when cursor is outside all error ranges", "hides value error when cursor is on the value being typed", "shows value error once cursor moves to next term"
 
@@ -1206,10 +1207,24 @@ Each error has: `{ message: string, start: number, end: number, field?: string, 
 | `INVALID_VALUE` | Type-specific validation failures | `price:abc`, `created:notadate`, `is_vip:maybe`, `ip:notanip` |
 | `AMBIGUOUS_PRECEDENCE` | Mixed AND/OR without parentheses (warning severity) | `a AND b OR c` |
 | `CUSTOM` | Errors from the `validateValue` callback | Per-consumer logic |
+| `EXTERNAL` | Errors set through `api.setValidationErrors` (§9.4.1) | A backend rejecting a submitted query |
 
 - **Tests:** `Validator.test.ts` → "error types" describe block
 
 - **Tests:** `ValidationSquiggles.test.ts` → "errors include field name for field-specific errors", "errors include field name for unknown fields", "returns empty array for valid input", "returns empty array for empty input"
+
+#### 9.4.1 Setting Errors From Outside (`api.setValidationErrors`)
+
+`api.setValidationErrors(errors, forQuery?)` adds errors the component could not compute itself — typically a backend's response to a submitted query — on top of the built-in ones. They take the usual `{ message, start, end, severity? }` shape, with offsets into the text currently in the input (clamped to it).
+
+- **Shown immediately.** External errors skip deferred display (§9.3): they are underlined even with the caret inside their range, since they describe a query that was already submitted.
+- **Reported like any other error.** They appear with `type: 'EXTERNAL'` in `api.getValidationErrors()`, `onValidationChange`, and the slot `status.errors`; an error-severity one makes `status.isValid` false, a warning does not.
+- **Dropped at the next text change.** Their offsets describe one exact text, so any edit (typing, `setValue`/`set`, undo, accepting a suggestion) removes them, and they do not return if the text later matches again. Caret movement and blur leave them in place.
+- **Each call replaces the previous external errors**; `[]` clears them. Built-in errors are untouched.
+- **`forQuery` (optional)** — when given, the call is ignored unless the input still holds exactly that text. Use it to discard responses that arrive after the user typed on. Without it the errors are applied unconditionally.
+- Works in plain mode.
+
+- **Tests:** `ExternalErrors.browser.test.tsx` → "underlines immediately, even with the caret inside the error range", "is reported with type 'EXTERNAL' through getValidationErrors and onValidationChange", "makes the slot status invalid; a warning does not", "is dropped at the next edit and does not come back when the text returns", "is dropped by undo", "survives caret movement and blur", "forQuery: ignored when the input holds different text, applied when it matches", "each call replaces the previous external errors; [] clears them", "sits alongside built-in errors, which outlive it", "clamps offsets to the text", "works in plain mode"; `ValidationSquiggles.test.ts` → "are never deferred, wherever the cursor is", "normalizeExternalErrors stamps the type and keeps the other properties", "normalizeExternalErrors clamps offsets to the text and keeps end >= start"
 
 ### 9.5 Error Positions
 
@@ -1661,7 +1676,8 @@ The placeholder overlays the editor inside the editor wrap and inherits `inputPa
 | `blur()` | Blurs the input |
 | `isFocused(scope?)` | Whether focus is inside the component: the editor, slot content, or the dropdown/date picker (same meaning as `InputStatus.isFocused`). `isFocused('editor')` is true only while the text editor itself has focus. Read from the DOM, so it is already current inside `onFocus`/`onBlur`. |
 | `getAST()` | Returns current parsed AST |
-| `getValidationErrors()` | Returns current validation errors |
+| `getValidationErrors()` | Returns current validation errors, including external ones |
+| `setValidationErrors(errors, forQuery?)` | Layers external errors (e.g. from a backend) on top of the built-in ones; see §9.4.1 |
 | `submit()` | Submits through the same path as Enter: a highlighted real suggestion is accepted first, then `onSearch` fires with the resulting query; with nothing highlighted, the dropdown closes and `onSearch` fires with the query as-is. Guarantees an external button never submits a different string than the Enter key would. |
 | `openDropdown()` | Shows suggestions for the current caret position — the Ctrl+Space action. Opens in `'manual'` and `'input'` modes too; a `dropdown.open` callback sees `trigger: 'ctrlSpace'`. Reads the live caret, so it is correct right after `setValue()`. No-op when the input is not focused or `dropdown.open` is `'never'`. |
 | `closeDropdown()` | Closes the suggestion dropdown or date picker and cancels any pending suggestion fetch. |

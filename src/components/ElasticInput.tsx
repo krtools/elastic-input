@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
-import { Validator, ValidationError, deduplicateErrors, isQueryValid } from '../validation/Validator';
+import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors } from '../validation/Validator';
 import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
@@ -97,6 +97,31 @@ export function shouldRemountDatePicker(
   const prevEnd = prevInit?.end?.getTime() ?? 0;
   const newEnd = newInit?.end?.getTime() ?? 0;
   return prevEnd !== newEnd;
+}
+
+/** Errors set through `api.setValidationErrors`, and the exact text they describe. */
+interface ExternalErrors {
+  value: string;
+  errors: ValidationError[];
+}
+
+/**
+ * Appends the external errors to the freshly computed built-in ones while the
+ * text is still the one they were set for; at the first edit their offsets no
+ * longer apply and they are dropped for good.
+ */
+function mergeExternalErrors(
+  ref: React.MutableRefObject<ExternalErrors | null>,
+  text: string,
+  builtIn: ValidationError[],
+): ValidationError[] {
+  const external = ref.current;
+  if (!external) return builtIn;
+  if (external.value !== text) {
+    ref.current = null;
+    return builtIn;
+  }
+  return [...builtIn, ...external.errors];
 }
 
 interface DatePickerPortalProps {
@@ -346,6 +371,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // Ref mirror of the datePickerEl state, for synchronous access in the blur guard
   const datePickerElRef = React.useRef<HTMLDivElement | null>(null);
   const currentValueRef = React.useRef(value || defaultValue || '');
+  const externalErrorsRef = React.useRef<ExternalErrors | null>(null);
   const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const isComposingRef = React.useRef(false);
   const keyConsumedByDropdownRef = React.useRef(false);
@@ -556,14 +582,15 @@ export function ElasticInput(props: ElasticInputProps) {
     const plain = isPlainLength(text);
     setIsPlainMode(plain);
     if (plain) {
+      const plainErrors = mergeExternalErrors(externalErrorsRef, text, []);
       setTokens([]);
       setAst(null);
-      setValidationErrors([]);
+      setValidationErrors(plainErrors);
       setIsEmpty(text.length === 0);
       setSuggestions([]);
       stateRef.current.tokens = [];
       stateRef.current.ast = null;
-      stateRef.current.validationErrors = [];
+      stateRef.current.validationErrors = plainErrors;
       setShowDropdown(false);
       setShowDatePicker(false);
       if (editorRef.current) {
@@ -581,7 +608,7 @@ export function ElasticInput(props: ElasticInputProps) {
         setSelectionEnd(offset);
       }
       if (onChange) onChange(text, null);
-      if (onValidationChange) onValidationChange([]);
+      if (onValidationChange) onValidationChange(plainErrors);
       return;
     }
 
@@ -590,7 +617,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
+    const newErrors = mergeExternalErrors(externalErrorsRef, text, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -1146,7 +1173,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
+    const newErrors = mergeExternalErrors(externalErrorsRef, newValue, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
     if (editorRef.current) {
       const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token, fieldTypeMap });
@@ -1351,6 +1378,19 @@ export function ElasticInput(props: ElasticInputProps) {
           : isInternalNode(document.activeElement),
         getAST: () => stateRef.current.ast,
         getValidationErrors: () => stateRef.current.validationErrors,
+        setValidationErrors: (errors: ValidationError[], forQuery?: string) => {
+          const text = currentValueRef.current;
+          // Stale response: the input no longer holds the query these describe
+          if (forQuery !== undefined && forQuery !== text) return;
+          const external = normalizeExternalErrors(errors, text.length);
+          if (external.length === 0 && !externalErrorsRef.current) return;
+          externalErrorsRef.current = external.length > 0 ? { value: text, errors: external } : null;
+          const builtIn = stateRef.current.validationErrors.filter(e => e.type !== 'EXTERNAL');
+          const merged = [...builtIn, ...external];
+          stateRef.current.validationErrors = merged;
+          setValidationErrors(merged);
+          if (onValidationChange) onValidationChange(merged);
+        },
         setSelection: (start: number, end: number) => {
           if (!editorRef.current) return;
           editorRef.current.focus();
@@ -1423,7 +1463,7 @@ export function ElasticInput(props: ElasticInputProps) {
         },
       });
     }
-  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, recordUndoEntry, isInternalNode]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, onValidationChange, recordUndoEntry, isInternalNode]);
 
   // Process initial value
   React.useEffect(() => {
@@ -1743,7 +1783,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const parser = new Parser(newTokens);
     const newAst = parser.parse();
     const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
+    const newErrors = mergeExternalErrors(externalErrorsRef, entry.value, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
@@ -1763,6 +1803,9 @@ export function ElasticInput(props: ElasticInputProps) {
     setCursorOffset(hasSelection ? entry.selStart! : entry.cursorPos);
     setSelectionEnd(entry.cursorPos);
     closeDropdown();
+    stateRef.current.tokens = newTokens;
+    stateRef.current.ast = newAst;
+    stateRef.current.validationErrors = newErrors;
 
     if (onChange) onChange(entry.value, newAst);
     if (onValidationChange) onValidationChange(newErrors);
@@ -1883,7 +1926,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const parser = new Parser(newTokens);
         const newAst = parser.parse();
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end, type: 'SYNTAX_ERROR' as const }));
-        const newErrors = deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]);
+        const newErrors = mergeExternalErrors(externalErrorsRef, newValue, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
         const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });
         editorRef.current.innerHTML = html;
@@ -1896,6 +1939,9 @@ export function ElasticInput(props: ElasticInputProps) {
         setCursorOffset(newSelStart);
         setSelectionEnd(newSelEnd);
         closeDropdown();
+        stateRef.current.tokens = newTokens;
+        stateRef.current.ast = newAst;
+        stateRef.current.validationErrors = newErrors;
 
         if (onChange) onChange(newValue, newAst);
         if (onValidationChange) onValidationChange(newErrors);

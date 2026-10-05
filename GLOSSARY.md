@@ -49,6 +49,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **date picker** | The calendar popup for date-type fields: mode toggle + calendar + presets (internal `DateRangePicker`) |
 | **calendar** | The pure, fully-controlled date grid (exported `Calendar`): Dates in/out, no toggle/presets/serialization |
 | **squiggly** | The wavy underline indicating a validation error or warning |
+| **external error** | A validation error supplied by the consumer through `api.setValidationErrors` (`type: 'EXTERNAL'`), e.g. from a backend; shown immediately and dropped at the next text change |
 | **cursor context** | What the cursor is "in" — determines dropdown behavior: `FIELD_NAME`, `FIELD_VALUE`, `OPERATOR`, `RANGE`, `SAVED_SEARCH`, `HISTORY_REF`, or `EMPTY` |
 | **caret** / **cursor** | The text insertion point in the input |
 | **surround** | Auto-wrapping a text selection with matching delimiters when the user types `(`, `[`, or `"` — e.g. selecting `foo` and pressing `(` produces `(foo)` |

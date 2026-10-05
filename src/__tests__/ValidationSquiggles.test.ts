@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator, ValidationError, ValidateValueFn } from '../validation/Validator';
+import { Validator, ValidationError, ValidateValueFn, isErrorDeferred, normalizeExternalErrors } from '../validation/Validator';
 import { FieldConfig } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -28,9 +28,9 @@ function validate(input: string) {
   return new Validator(FIELDS).validate(ast, ratingValidator);
 }
 
-// Simulate the deferred display logic from ValidationSquiggles
+// The deferred display rule ValidationSquiggles applies
 function getVisibleErrors(errors: ValidationError[], cursorOffset: number): ValidationError[] {
-  return errors.filter(e => !(cursorOffset >= e.start && cursorOffset <= e.end));
+  return errors.filter(e => !isErrorDeferred(e, cursorOffset));
 }
 
 describe('Validation Error Positions', () => {
@@ -189,5 +189,30 @@ describe('onValidationChange callback', () => {
   it('returns empty array for empty input', () => {
     const errors = validate('');
     expect(errors).toHaveLength(0);
+  });
+});
+
+describe('external errors (api.setValidationErrors)', () => {
+  const external: ValidationError = { message: 'backend', start: 0, end: 5, type: 'EXTERNAL' };
+
+  it('are never deferred, wherever the cursor is', () => {
+    expect(isErrorDeferred(external, 0)).toBe(false);
+    expect(isErrorDeferred(external, 3)).toBe(false);
+    expect(isErrorDeferred(external, 5)).toBe(false);
+    expect(isErrorDeferred({ ...external, type: 'CUSTOM' }, 3)).toBe(true);
+  });
+
+  it('normalizeExternalErrors stamps the type and keeps the other properties', () => {
+    const [e] = normalizeExternalErrors([{ message: 'm', start: 2, end: 4, severity: 'warning', type: 'CUSTOM' }], 10);
+    expect(e).toEqual({ message: 'm', start: 2, end: 4, severity: 'warning', type: 'EXTERNAL' });
+  });
+
+  it('normalizeExternalErrors clamps offsets to the text and keeps end >= start', () => {
+    const out = normalizeExternalErrors([
+      { message: 'a', start: -3, end: 999 },
+      { message: 'b', start: 8, end: 2 },
+      { message: 'c', start: 50, end: 60 },
+    ], 10);
+    expect(out.map(e => [e.start, e.end])).toEqual([[0, 10], [8, 8], [10, 10]]);
   });
 });

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { ValidationError } from '../validation/Validator';
+import { ValidationError, isErrorDeferred } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
 import { mergeColors, mergeStyles } from '../styles/inlineStyles';
 import { cx } from '../utils/cx';
@@ -116,8 +116,7 @@ function measureSquigglyRects(
   for (const error of errors) {
     if (measured >= MAX_VISIBLE_ERRORS) break;
 
-    // Deferred display: don't show error if cursor is within the error range
-    if (cursorOffset >= error.start && cursorOffset <= error.end) {
+    if (isErrorDeferred(error, cursorOffset)) {
       continue;
     }
 

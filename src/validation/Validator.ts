@@ -19,7 +19,9 @@ export type ValidationErrorType =
   | 'UNKNOWN_FIELD'
   | 'INVALID_VALUE'
   | 'AMBIGUOUS_PRECEDENCE'
-  | 'CUSTOM';
+  | 'CUSTOM'
+  /** Set by the consumer through `api.setValidationErrors` (e.g. backend errors). */
+  | 'EXTERNAL';
 
 /** A validation or syntax error with character offsets for squiggly underline display. */
 export interface ValidationError {
@@ -44,6 +46,7 @@ const ERROR_TYPE_PRECEDENCE: Record<ValidationErrorType, number> = {
   UNKNOWN_FIELD: 2,
   AMBIGUOUS_PRECEDENCE: 3,
   CUSTOM: 4,
+  EXTERNAL: 5,
 };
 
 /**
@@ -78,6 +81,25 @@ export function deduplicateErrors(errors: ValidationError[]): ValidationError[] 
  */
 export function isQueryValid(errors: ValidationError[]): boolean {
   return !errors.some(e => (e.severity ?? 'error') === 'error');
+}
+
+/**
+ * Deferred display: an error is not underlined while the caret is inside its
+ * range, so nothing flashes mid-typing. External errors describe a query that
+ * was already submitted and always show.
+ */
+export function isErrorDeferred(error: ValidationError, cursorOffset: number): boolean {
+  if (error.type === 'EXTERNAL') return false;
+  return cursorOffset >= error.start && cursorOffset <= error.end;
+}
+
+/** Stamps caller-supplied errors as `EXTERNAL` and clamps their offsets to the text. */
+export function normalizeExternalErrors(errors: ValidationError[], textLength: number): ValidationError[] {
+  const clamp = (n: number) => Math.max(0, Math.min(n, textLength));
+  return errors.map(e => {
+    const start = clamp(e.start);
+    return { ...e, start, end: Math.max(start, clamp(e.end)), type: 'EXTERNAL' as const };
+  });
 }
 
 export class Validator {

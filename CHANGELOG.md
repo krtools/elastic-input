@@ -5,6 +5,7 @@
 ### Features
 
 - **`api.setValidationErrors(errors, forQuery?)`** — Shows errors from outside the component (e.g. a backend) alongside the built-in ones, as `type: 'EXTERNAL'`, until the text changes.
+- **`api.getSelection()`** — Returns the caret or selected range as `{ start, end }` offsets, or `null` when the selection is not in the editor.
 
 ## 0.19.0 — 2026-10-02
 

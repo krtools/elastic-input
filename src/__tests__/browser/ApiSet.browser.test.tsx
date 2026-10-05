@@ -161,3 +161,71 @@ describe('api.set', () => {
     expect(seen[0].errors).toBeGreaterThan(0); // unclosed paren
   });
 });
+
+describe('api.getSelection', () => {
+  it('returns the caret as a collapsed range', async () => {
+    const { handle, editor } = setup();
+    await editor.click();
+    await userEvent.type(editor, 'status:x');
+    expect(handle.api!.getSelection()).toEqual({ start: 8, end: 8 });
+
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}');
+    expect(handle.api!.getSelection()).toEqual({ start: 6, end: 6 });
+  });
+
+  it('round-trips with setSelection and set', async () => {
+    const { handle } = setup({ defaultValue: 'status:active' });
+
+    handle.api!.setSelection(7, 13);
+    expect(handle.api!.getSelection()).toEqual({ start: 7, end: 13 });
+
+    handle.api!.set({ selection: { start: 0, end: 6 } });
+    expect(handle.api!.getSelection()).toEqual({ start: 0, end: 6 });
+  });
+
+  it('reflects a keyboard selection, ordered start to end', async () => {
+    const { handle, editor } = setup();
+    await editor.click();
+    await userEvent.type(editor, 'status:x');
+
+    await userEvent.keyboard('{Shift>}{ArrowLeft}{ArrowLeft}{ArrowLeft}{/Shift}');
+    expect(handle.api!.getSelection()).toEqual({ start: 5, end: 8 });
+  });
+
+  it('is null when the selection is not in the editor', async () => {
+    const { handle } = setup({ defaultValue: 'status:active' });
+    expect(handle.api!.getSelection()).toBeNull();
+
+    // Select text elsewhere on the page
+    const other = document.createElement('p');
+    other.textContent = 'elsewhere';
+    document.body.appendChild(other);
+    try {
+      handle.api!.setSelection(1, 3);
+      expect(handle.api!.getSelection()).toEqual({ start: 1, end: 3 });
+
+      const range = document.createRange();
+      range.selectNodeContents(other);
+      const sel = window.getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      expect(handle.api!.getSelection()).toBeNull();
+    } finally {
+      other.remove();
+    }
+  });
+
+  it('still reports the selection after focus moves to a button', async () => {
+    const { handle, editorEl } = setup({ defaultValue: 'status:active' });
+    const button = document.createElement('button');
+    document.body.appendChild(button);
+    try {
+      handle.api!.setSelection(7, 13);
+      button.focus();
+      expect(document.activeElement).not.toBe(editorEl);
+      expect(handle.api!.getSelection()).toEqual({ start: 7, end: 13 });
+    } finally {
+      button.remove();
+    }
+  });
+});

@@ -1391,6 +1391,15 @@ export function ElasticInput(props: ElasticInputProps) {
           setValidationErrors(merged);
           if (onValidationChange) onValidationChange(merged);
         },
+        getSelection: () => {
+          const editor = editorRef.current;
+          const sel = window.getSelection();
+          if (!editor || !sel || sel.rangeCount === 0) return null;
+          // A selection elsewhere on the page is not ours to report
+          const range = sel.getRangeAt(0);
+          if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) return null;
+          return getSelectionCharRange(editor);
+        },
         setSelection: (start: number, end: number) => {
           if (!editorRef.current) return;
           editorRef.current.focus();

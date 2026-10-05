@@ -260,6 +260,8 @@ api.isFocused('editor');     // True only while the text editor itself has focus
 api.getAST();                // Returns the parsed AST
 api.getValidationErrors();   // Returns current validation errors
 api.setValidationErrors(errors, query); // Shows errors from outside, e.g. your backend (see Validation)
+api.getSelection();          // { start, end } character offsets, or null if the selection is elsewhere
+api.setSelection(0, 6);      // Selects a range and focuses the input
 api.submit();                // Submits like Enter: accepts a highlighted suggestion, then fires onSearch
 api.openDropdown();          // Shows suggestions at the caret (same as Ctrl+Space)
 api.closeDropdown();         // Closes the dropdown or date picker

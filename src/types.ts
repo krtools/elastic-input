@@ -411,6 +411,11 @@ export interface ElasticInputAPI {
    * exact text — a guard for responses that arrive after the user typed on.
    */
   setValidationErrors: (errors: ValidationError[], forQuery?: string) => void;
+  /**
+   * Returns the caret or selected range as character offsets (`start === end`
+   * for a caret), or `null` when the page's selection is not in the editor.
+   */
+  getSelection: () => { start: number; end: number } | null;
   /** Selects a character range in the input. Focuses the input if not already focused. */
   setSelection: (start: number, end: number) => void;
   /**

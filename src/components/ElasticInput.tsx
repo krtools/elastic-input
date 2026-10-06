@@ -392,6 +392,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // Last pointerdown time — focus without a recent one means keyboard focus
   // (:focus-visible can't distinguish modality for editable elements).
   const lastPointerDownRef = React.useRef(0);
+  const lastTabKeyRef = React.useRef(0);
   const datePickerInitRef = React.useRef<DatePickerInit | null>(null);
   const datePickerReplaceRef = React.useRef<{ start: number; end: number } | null>(null);
   // For 'manual' dropdown mode: tracks the context type for which the dropdown
@@ -1610,12 +1611,21 @@ export function ElasticInput(props: ElasticInputProps) {
     };
   }, [dropdownAlignToInput, dropdownMaxHeightPx]);
 
-  // Track pointer activity for keyboard-focus detection (selectAllOnTabFocus)
+  // Track Tab presses and pointer activity for selectAllOnTabFocus: focus
+  // counts as a Tab only when it follows a Tab keydown. Focus with neither
+  // (the window regaining focus, api.focus()) restores the caret as-is.
   React.useEffect(() => {
     if (!selectAllOnTabFocus) return;
     const onPointerDown = () => { lastPointerDownRef.current = Date.now(); };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && !e.altKey && !e.ctrlKey && !e.metaKey) lastTabKeyRef.current = Date.now();
+    };
     document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
+    };
   }, [selectAllOnTabFocus]);
 
   // Close dropdown when the editor is scrolled (wheel, scrollbar drag, touch swipe)
@@ -2338,9 +2348,10 @@ export function ElasticInput(props: ElasticInputProps) {
       onFocusProp?.();
     }
     if (e.target !== editorRef.current) return;
-    // No recent pointerdown = keyboard focus (Tab/Shift+Tab)
+    // Focus right after a Tab keydown, with no pointerdown since = Tab/Shift+Tab
     const selectAll = selectAllOnTabFocus && fromOutside &&
-      Date.now() - lastPointerDownRef.current > 300;
+      Date.now() - lastTabKeyRef.current < 300 &&
+      lastTabKeyRef.current > lastPointerDownRef.current;
     // Defer suggestion update so isFocused state is committed
     const id = requestAnimationFrame(() => {
       rafIdsRef.current.delete(id);

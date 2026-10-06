@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **`selectAllOnTabFocus` no longer selects everything when the window regains focus** — Alt-tabbing back to the browser now restores the caret, like a native input. Keyboard focus is detected from a Tab keydown, so `api.focus()` no longer selects either.
+
 ## 0.20.0 — 2026-10-05
 
 ### Features

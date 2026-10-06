@@ -963,9 +963,9 @@ Whitespace-only input is trimmed to an empty string by `formatQuery` (tested in 
 
 When `features.selectAllOnTabFocus` is enabled (default: `false`), gaining focus via keyboard (Tab/Shift+Tab) selects the entire pre-existing query — typing then replaces it, matching native inputs. Mouse/touch focus places the caret normally; an empty input is a no-op; the dropdown stays closed (a full selection spans multiple tokens — same ambiguity rule as triple-click).
 
-Modality detection: a document-level `pointerdown` timestamp — focus without a recent pointerdown is keyboard-driven. (`:focus-visible` can't be used: browsers apply it to editable elements on every focus.)
+Modality detection: document-level `keydown` and `pointerdown` timestamps — focus counts as a Tab only when it arrives within 300ms of a Tab keydown (Alt/Ctrl/Meta+Tab excluded) with no pointerdown since. Focus with neither signal leaves the caret as it is: the window regaining focus after alt-tab (the browser restores the previous caret, as native inputs do) and `api.focus()` (like `input.focus()`). Tabbing in from the browser's own UI (address bar) is not detected, since that keydown never reaches the page. (`:focus-visible` can't be used: browsers apply it to editable elements on every focus.)
 
-- **Tests:** `SelectAllOnTabFocus.browser.test.tsx` → all 6 (single input, tabbing between two instances, mouse click, empty input, collapseOnBlur rebuild, off by default)
+- **Tests:** `SelectAllOnTabFocus.browser.test.tsx` → "Tab into a pre-filled input selects the whole query; typing replaces it", "tabbing between two instances selects each one in turn", "mouse click places the caret without selecting", "Tab into an empty input is a no-op selection-wise", "survives the collapseOnBlur expand rebuild", "Shift+Tab into a pre-filled input selects too", "the window regaining focus restores the caret instead of selecting", "Tab after returning to the window still selects", "api.focus() places the caret without selecting, like input.focus()", "is off by default"
 
 ---
 

@@ -592,3 +592,28 @@ describe('getCursorContext', () => {
     });
   });
 });
+
+describe('bare wildcard words', () => {
+  // Regression: a bare WILDCARD token fell through to the "empty position"
+  // default, so `asdfasdf*|` offered every field.
+  it('is a field-name context with the word as the partial, like a bare plain word', () => {
+    const ctx = getContext('asdfasdf*');
+    expect(ctx).toMatchObject({ type: 'FIELD_NAME', partial: 'asdfasdf*' });
+    expect(ctx.token).toMatchObject({ type: TokenType.WILDCARD, start: 0, end: 9 });
+    expect(getContext('*asdf')).toMatchObject({ type: 'FIELD_NAME', partial: '*asdf' });
+  });
+
+  it('applies with the caret inside the word', () => {
+    expect(getContext('sta*', 2)).toMatchObject({ type: 'FIELD_NAME', partial: 'sta*' });
+  });
+
+  it('is a value context inside a field group', () => {
+    expect(getContext('status:(act*')).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'act*' });
+  });
+
+  it('leaves the colon case and the position after the word unchanged', () => {
+    expect(getContext('status:act*')).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'act*' });
+    expect(getContext('asdfasdf* ')).toMatchObject({ type: 'FIELD_NAME', partial: '' });
+    expect(getContext('asdfasdf* ').token).toBeUndefined();
+  });
+});

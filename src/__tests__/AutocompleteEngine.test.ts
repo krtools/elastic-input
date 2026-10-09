@@ -898,3 +898,20 @@ describe('AutocompleteEngine', () => {
     });
   });
 });
+
+describe('bare wildcard words', () => {
+  // Regression: `asdfasdf*|` read as an empty position and offered every field
+  it('offers nothing for a bare wildcard word', () => {
+    expect(suggestionTexts('asdfasdf*')).toEqual([]);
+    expect(suggestionTexts('sta*')).toEqual([]);
+    expect(suggestionTexts('*asdf')).toEqual([]);
+  });
+
+  it('with a default field, is that field\'s value context with the wildcard as the partial', () => {
+    const engine = new AutocompleteEngine(FIELDS, [], [], 10);
+    engine.setDefaultField({ name: 'status', showFieldSuggestions: false });
+    const result = engine.getSuggestions(new Lexer('asdfasdf*').tokenize(), 9);
+    expect(result.context).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'asdfasdf*' });
+    expect(result.suggestions.filter(s => s.type !== 'hint')).toEqual([]);
+  });
+});

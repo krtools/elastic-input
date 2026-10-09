@@ -891,8 +891,9 @@ export class Parser {
       return { type: 'FIELD_NAME', partial: currentToken.value, token: currentToken };
     }
 
-    // Currently typing a field name — or a value inside a field group
-    if (currentToken?.type === TokenType.FIELD_NAME || currentToken?.type === TokenType.VALUE) {
+    // Currently typing a field name (or a bare wildcard word — no field name
+    // contains `*`, so it matches nothing) — or a value inside a field group
+    if (currentToken?.type === TokenType.FIELD_NAME || currentToken?.type === TokenType.VALUE || currentToken?.type === TokenType.WILDCARD) {
       const groupField = findEnclosingFieldGroup(tokens.indexOf(currentToken));
       if (groupField) {
         return { type: 'FIELD_VALUE', partial: currentToken.value, fieldName: groupField, token: currentToken };

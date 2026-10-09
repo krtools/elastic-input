@@ -630,3 +630,15 @@ export class Validator {
     return [...this.collectLeaves(node.left), ...this.collectLeaves(node.right)];
   }
 }
+
+/** Structural equality of two error lists: the same errors in the same order. */
+export function errorsEqual(a: ValidationError[], b: ValidationError[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  return a.every((e, i) => {
+    const o = b[i];
+    return e.message === o.message && e.start === o.start && e.end === o.end && e.field === o.field
+      && (e.severity ?? 'error') === (o.severity ?? 'error')
+      && (e.type ?? 'SYNTAX_ERROR') === (o.type ?? 'SYNTAX_ERROR');
+  });
+}

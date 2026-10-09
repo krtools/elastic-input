@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { Validator, ValidateValueFn, deduplicateErrors, isQueryValid, ValidationError } from '../validation/Validator';
+import { Validator, ValidateValueFn, deduplicateErrors, isQueryValid, errorsEqual, ValidationError } from '../validation/Validator';
 import { FieldConfig, ValidateValueContext } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -1230,5 +1230,23 @@ describe('isQueryValid', () => {
     const tokens = new Lexer('status:active').tokenize();
     const ast = new Parser(tokens).parse();
     expect(isQueryValid(new Validator(FIELDS).validate(ast))).toBe(true);
+  });
+});
+
+describe('errorsEqual', () => {
+  const e = (over: Partial<ValidationError> = {}): ValidationError => ({ message: 'm', start: 0, end: 3, ...over });
+
+  it('treats the same errors in the same order as equal, defaults included', () => {
+    expect(errorsEqual([e()], [e({ severity: 'error', type: 'SYNTAX_ERROR' })])).toBe(true);
+    expect(errorsEqual([], [])).toBe(true);
+  });
+
+  it('detects a difference in any property, count, or order', () => {
+    expect(errorsEqual([e()], [e({ message: 'other' })])).toBe(false);
+    expect(errorsEqual([e()], [e({ end: 4 })])).toBe(false);
+    expect(errorsEqual([e()], [e({ severity: 'warning' })])).toBe(false);
+    expect(errorsEqual([e()], [e({ type: 'CUSTOM' })])).toBe(false);
+    expect(errorsEqual([e()], [e(), e()])).toBe(false);
+    expect(errorsEqual([e({ start: 0 }), e({ start: 5 })], [e({ start: 5 }), e({ start: 0 })])).toBe(false);
   });
 });

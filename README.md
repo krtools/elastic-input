@@ -157,9 +157,9 @@ Pass `wheelNavigation` to step the view with the mouse wheel (month/year/decade 
 
 ## Prop Stability
 
-Almost every prop can be written inline: event handlers, `styles`, `classNames`, `features`, renderers, and `validateValue` are all wired through refs or destructured to primitives internally, so a new identity per render costs nothing.
+Almost every prop can be written inline: event handlers, `styles`, `classNames`, `features`, and renderers are all wired through refs or destructured to primitives internally, so a new identity per render costs nothing.
 
-**Three props are compared by identity** and do real work when it changes. Give these a stable reference (module constant, `useMemo`, or `useCallback`):
+**Four props are compared by identity** and do real work when it changes. Give these a stable reference (module constant, `useMemo`, or `useCallback`):
 
 | Prop | What happens on every render if the identity is unstable |
 |------|----------------------------------------------------------|
@@ -167,6 +167,7 @@ Almost every prop can be written inline: event handlers, `styles`, `classNames`,
 | `fields` (async loader) | The loader is called again — a fetch loop. (If it resolves to the same element references, the result is absorbed and nothing rebuilds — but the redundant fetches remain.) |
 | `colors` | The editor's highlighted HTML is rebuilt on every keystroke |
 | `dropdown.open` (callback form) | The callback is re-invoked with `trigger: 'modeChange'`; returning `false` force-closes the dropdown you just opened |
+| `validateValue` | The current query is re-validated (lexed, parsed, validated) on every render. Results are published only when they differ, so nothing loops, but the work is wasted. |
 
 ```tsx
 // ❌ BAD: new identities on every render

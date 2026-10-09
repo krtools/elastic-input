@@ -1589,13 +1589,22 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 
 #### Prop Identity Stability
 
-Most props are identity-insensitive by design: event handlers and renderers only re-create internal `useCallback`s, `validateValue` is read through a ref, and `dropdown`/`features` are destructured to primitives on every render. Props compared by identity, and the library's built-in resilience for each:
+Most props are identity-insensitive by design: event handlers and renderers only re-create internal `useCallback`s, `validateValue` is read through a ref (but see *Re-validation on prop change* below), and `dropdown`/`features` are destructured to primitives on every render. Props compared by identity, and the library's built-in resilience for each:
 
 - **`fields` (array)** — the resolve effect shallow-compares the incoming array against the current resolved fields (same length, same **elements by reference**, via `arrayShallowEqual`) and keeps the previous state when equal, so identity-only churn — a new array per render built from stable element references (`[...FIELDS]`, `FIELDS.filter(...)`) — does **not** fire the rebuild effect (new `AutocompleteEngine`, new `Validator`, full `processInput`: re-lex, re-parse, re-validate, editor `innerHTML` rewrite). The compare is by element reference, not structure: a fully-inline literal that re-creates the element **objects** every render (`fields={[{ name: 'status', … }]}`) still rebuilds per render.
 - **`fields` (async loader)** — the loader itself is still invoked per identity change (an unstable function re-fetches per render; see *Async Field Loading* below), but its **result** goes through the same shallow compare: a loader resolving to a fresh array of the same element references (e.g. spread of a module-level cache) no longer triggers the rebuild/reprocess after resolution — this also breaks the resolve→rebuild→re-render fetch loop for cached loaders.
 - **`colors`** — a dependency of the paren-match re-highlight effect; identity churn bypasses the match-key dedup (`colorsChanged`) and rewrites the editor `innerHTML` on every keystroke. See §9.5.6 and §9.5.7 — unstable `colors` was the amplifier that sustained the reverse-typing bug.
 - **`dropdown.open` (callback form)** — a dependency of the proactive-close effect; each new identity re-invokes it with `trigger: 'modeChange'`, and a `false` return closes the dropdown and clears suggestions.
 - **`defaultField` (object form)** — normalized into a config memoized on its primitive members (`name`, `showFieldSuggestions`), so a fresh inline object per render does not re-run the `setDefaultField` effect.
+
+#### Re-validation on prop change
+
+Props that change what counts as valid re-validate the current text when they change, without waiting for the next edit — the same way a `fields` change re-processes it:
+
+- **`validateValue`, `parseDate`, `defaultField`** — the current text is re-validated in place: no undo entry, no `onChange`; `onValidationChange`, `api.getValidationErrors()`, the slot status and the squigglies update. Nothing is published when the resulting errors are structurally identical, so an inline `validateValue` (a new identity every render) costs a re-validation per render but cannot feed an update loop. Give it a stable reference to avoid that cost.
+- **`plainModeLength`** — if the change moves the current text across the threshold, it is fully re-processed (highlighting on or off), like a fields change; `onChange` fires with the unchanged value in that case.
+
+- **Tests:** `RevalidateOnPropChange.browser.test.tsx` → "validateValue: errors appear and disappear without an edit; onChange does not fire", "an inline validateValue (new identity every render) does not loop or re-report", "parseDate: a custom parser accepts a value the built-in one rejects", "defaultField: bare terms are re-checked against the new default field", "plainModeLength: the text moves in and out of plain mode", "an unrelated re-render with the same props re-validates nothing"; `Validator.test.ts` → "errorsEqual" describe block
 
 Internally, the retained engine/validator instances are lazy-initialized (`useLazyRef`): constructed exactly once on first render — `useRef(new …)` would evaluate the constructor on every render — and replaced only by the rebuild effect. `setDefaultField` runs in an effect, never in the render body.
 

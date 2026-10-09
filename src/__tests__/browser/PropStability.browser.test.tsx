@@ -33,6 +33,8 @@ async function settle(ms = 60) {
 let forceRender: () => void = () => {};
 let setHarnessFields: (fields: FieldConfig[]) => void = () => {};
 let validateCalls = 0;
+// Stable identity: validateValue is now compared by identity (re-validation on change)
+const countingValidate = () => { validateCalls++; return null; };
 let lastErrors: ValidationError[] = [];
 
 /**
@@ -48,7 +50,7 @@ function ChurningFieldsHarness({ initialFields }: { initialFields: FieldConfig[]
   setHarnessFields = setFieldElements;
   return React.createElement(ElasticInput, {
     fields: [...fieldElements],
-    validateValue: () => { validateCalls++; return null; },
+    validateValue: countingValidate,
     onValidationChange: (errs: ValidationError[]) => { lastErrors = errs; },
   });
 }
@@ -64,7 +66,7 @@ function ChurningLoaderHarness() {
   forceRender = () => setTick(t => t + 1);
   return React.createElement(ElasticInput, {
     fields: () => Promise.resolve([...[STATUS_FIELD, SOURCE_FIELD]]),
-    validateValue: () => { validateCalls++; return null; },
+    validateValue: countingValidate,
   });
 }
 

@@ -7,7 +7,7 @@ import { ASTNode, ErrorNode } from '../parser/ast';
 import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
-import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors } from '../validation/Validator';
+import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
 import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
@@ -581,6 +581,17 @@ export function ElasticInput(props: ElasticInputProps) {
     [plainModeLength],
   );
 
+  // Lex, parse and validate `text` (external errors included). Shared by
+  // processInput and the prop-change re-validation below.
+  const analyzeText = React.useCallback((text: string) => {
+    const tokens = new Lexer(text, lexerOptions).tokenize();
+    const parser = new Parser(tokens);
+    const ast = parser.parse();
+    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
+    const errors = mergeExternalErrors(externalErrorsRef, text, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(ast, validateValueRef.current, parseDateProp, defaultFieldName)]));
+    return { tokens, ast, errors };
+  }, [lexerOptions, parseDateProp, defaultFieldName, validatorRef]);
+
   const processInput = React.useCallback((text: string, updateDropdown: boolean) => {
     // Plain mode: skip Lexer/Parser/Validator, no highlighting or autocomplete
     const plain = isPlainLength(text);
@@ -616,12 +627,7 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    const lexer = new Lexer(text, lexerOptions);
-    const newTokens = lexer.tokenize();
-    const parser = new Parser(newTokens);
-    const newAst = parser.parse();
-    const syntaxErrors = parser.getErrors().map((e: ErrorNode) => ({ message: e.message, start: e.start, end: e.end, type: 'SYNTAX_ERROR' as const }));
-    const newErrors = mergeExternalErrors(externalErrorsRef, text, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
+    const { tokens: newTokens, ast: newAst, errors: newErrors } = analyzeText(text);
 
     if (editorRef.current) {
       const offset = getCaretCharOffset(editorRef.current);
@@ -671,7 +677,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(text, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [onChange, onValidationChange, applyHighlight, isPlainLength, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
+  }, [onChange, onValidationChange, applyHighlight, isPlainLength, analyzeText]);
 
   // Plain-mode counterpart of the highlighted rewrite done by direct edits
   // (accept, undo/redo, wrap): show the text unstyled and place the selection.
@@ -1515,6 +1521,32 @@ export function ElasticInput(props: ElasticInputProps) {
     recordUndoEntry(next, caret);
     processInput(next, false);
   }, [lineNormalize, processInput, recordUndoEntry]);
+
+  // Props that change validation without changing the text: re-validate the
+  // current value in place (no undo entry, no onChange), publishing only when
+  // the errors differ — an inline validateValue (new identity every render)
+  // must not feed an update loop. A plainModeLength change that moves the
+  // text across the threshold needs the full reprocess instead.
+  const validationPropsRef = React.useRef({ validateValue, parseDateProp, defaultFieldName, plainModeLength });
+  React.useEffect(() => {
+    const prev = validationPropsRef.current;
+    validationPropsRef.current = { validateValue, parseDateProp, defaultFieldName, plainModeLength };
+    if (prev.validateValue === validateValue && prev.parseDateProp === parseDateProp
+      && prev.defaultFieldName === defaultFieldName && prev.plainModeLength === plainModeLength) return;
+    const text = currentValueRef.current;
+    if (!text) return;
+    const wasPlain = prev.plainModeLength != null && text.length >= prev.plainModeLength;
+    if (wasPlain !== isPlainLength(text)) {
+      processInput(text, false);
+      return;
+    }
+    if (isPlainLength(text)) return;
+    const { errors } = analyzeText(text);
+    if (errorsEqual(errors, stateRef.current.validationErrors)) return;
+    stateRef.current.validationErrors = errors;
+    setValidationErrors(errors);
+    if (onValidationChange) onValidationChange(errors);
+  }, [validateValue, parseDateProp, defaultFieldName, plainModeLength, isPlainLength, processInput, analyzeText, onValidationChange]);
 
   // Cleanup debounce timer and abort in-flight fetches
   React.useEffect(() => {

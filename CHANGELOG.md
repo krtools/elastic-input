@@ -4,6 +4,7 @@
 
 ### Fixes
 
+- **`validateValue`, `parseDate`, `defaultField`, and `plainModeLength` take effect immediately** — Changing them re-validates (or re-processes, for the plain-mode threshold) the current text instead of waiting for the next edit.
 - **`features.multiline: false` now keeps the input single-line** — It only blocked Shift+Enter; newlines that were already there, pasted, or set programmatically stayed. They now become spaces, including when the flag is turned off at runtime.
 
 ## 0.20.1 — 2026-10-06

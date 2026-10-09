@@ -163,3 +163,8 @@ export function getReplacementRange(
   }
   return { start: cursorOffset, end: cursorOffset };
 }
+
+/** Single-line form of `text`: every line break becomes one space. */
+export function toSingleLine(text: string): string {
+  return text.replace(/\r\n|\r|\n/g, ' ');
+}

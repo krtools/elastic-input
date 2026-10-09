@@ -879,11 +879,12 @@ When `features.multiline` is enabled (default: `true`), Shift+Enter inserts a li
 - The newline is treated as whitespace by the lexer — it does not change query semantics
 - Ctrl+Enter always submits regardless of multiline mode
 - Plain Enter still submits (or accepts a suggestion if the dropdown is open)
-- When `features.multiline` is `false`, Shift+Enter has no special behavior (falls through to default Enter handling)
+- When `features.multiline` is `false`, the input is single-line: Shift+Enter has no special behavior (falls through to default Enter handling), and a newline never survives in the value — each becomes one space, so terms stay separated and every offset stays valid. This covers pasted or dropped text, `defaultValue` / `value` / `api.setValue` / `api.set`, accepted suggestions, undo entries, and the value already present when the flag is turned off at runtime (collapsed as one edit: one `onChange`, one undo step, caret kept, no focus change). Turning it back on changes nothing.
 
 - **Backspace/Delete in newline-only content:** When the editor contains only newlines (no text — `textContent` is empty), Backspace and Delete are handled in the keydown handler rather than relying on native browser behavior + `handleInput`. This is necessary because `getPlainText` cannot distinguish browser-artifact `<br>` from intentional newline `<br>` elements when `textContent` is empty. The handler computes the new text directly from `currentValueRef`, matching the Shift+Enter pattern.
 
 - **Tests:** `multiline.test.ts` → "parses multiline queries correctly", "validates multiline queries same as single-line"; `ElasticInput.browser.test.tsx` → "removes one newline instead of clearing entire input", "backspace from single newline clears to empty"
+- **Tests (single-line):** `Multiline.browser.test.tsx` → "collapses existing newlines to spaces as one edit, keeping the caret", "is one undo step, and undo cannot bring the newlines back", "does nothing when the value has no newline, and nothing when turned back on", "does not focus a blurred editor", "Shift+Enter inserts nothing", "pasted newlines become spaces", "defaultValue, api.setValue, api.set, and a controlled value", "multiline: true is unchanged — Shift+Enter still inserts a line break"; `multiline.test.ts` → "toSingleLine" describe block
 
 ### 7.9 Arrow Keys — Navigate / Move Cursor
 
@@ -1576,7 +1577,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `multiline` | `boolean` | `true` | Enable Shift+Enter for line breaks; see §7.10 |
+| `multiline` | `boolean` | `true` | Shift+Enter inserts line breaks; `false` keeps the input single-line (newlines become spaces); see §7.8 |
 | `smartSelectAll` | `boolean` | `false` | First Ctrl+A selects current token, second selects all; see §7.11 |
 | `expandSelection` | `boolean` | `false` | Alt+Shift+Arrow expands/shrinks selection through AST; see §7.12 |
 | `wildcardWrap` | `boolean` | `false` | Allow `*` as a selection wrap character for single value tokens; see §7.5 |

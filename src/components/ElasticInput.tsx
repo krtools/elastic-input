@@ -19,7 +19,7 @@ import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
-import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import { formatQuery } from '../utils/formatQuery';
@@ -288,6 +288,9 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Features config
   const multiline = featuresConfig?.multiline !== false; // default true
+  // Single-line mode: a newline never survives in the value — each becomes a
+  // space (same length, so offsets stay valid; the lexer reads both as whitespace)
+  const lineNormalize = React.useCallback((text: string) => multiline ? text : toSingleLine(text), [multiline]);
   const smartSelectAll = featuresConfig?.smartSelectAll ?? false;
   const expandSelection = featuresConfig?.expandSelection ?? false;
   const wildcardWrap = featuresConfig?.wildcardWrap ?? false;
@@ -1157,6 +1160,7 @@ export function ElasticInput(props: ElasticInputProps) {
     newCursorPos: number,
     thenDo?: (newTokens: Token[], newAst: ASTNode | null) => void,
   ) => {
+    newValue = lineNormalize(newValue);
     currentValueRef.current = newValue;
     recordUndoEntry(newValue, newCursorPos);
 
@@ -1206,7 +1210,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
       rafIdsRef.current.add(id);
     }
-  }, [recordUndoEntry, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [recordUndoEntry, lineNormalize, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const acceptSuggestion = React.useCallback((
     suggestion: Suggestion,
@@ -1366,7 +1370,8 @@ export function ElasticInput(props: ElasticInputProps) {
     if (inputRef) {
       inputRef({
         getValue: () => currentValueRef.current,
-        setValue: (v: string) => {
+        setValue: (raw: string) => {
+          const v = lineNormalize(raw);
           currentValueRef.current = v;
           recordUndoEntry(v, v.length);
           processInput(v, false);
@@ -1449,7 +1454,7 @@ export function ElasticInput(props: ElasticInputProps) {
           return true;
         },
         set: ({ value, selection }: InputUpdate) => {
-          const next = value ?? currentValueRef.current;
+          const next = value === undefined ? currentValueRef.current : lineNormalize(value);
           const valueChanged = next !== currentValueRef.current;
           if (!valueChanged && selection === undefined) return;
           const clamp = (n: number) => Math.max(0, Math.min(n, next.length));
@@ -1473,11 +1478,12 @@ export function ElasticInput(props: ElasticInputProps) {
         },
       });
     }
-  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, onValidationChange, recordUndoEntry, isInternalNode]);
+  }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, onValidationChange, recordUndoEntry, isInternalNode, lineNormalize]);
 
   // Process initial value
   React.useEffect(() => {
-    const initial = currentValueRef.current;
+    const initial = lineNormalize(currentValueRef.current);
+    currentValueRef.current = initial;
     undoStackRef.current.push({ value: initial, cursorPos: initial.length });
     if (initial) {
       processInput(initial, false);
@@ -1488,12 +1494,27 @@ export function ElasticInput(props: ElasticInputProps) {
   // here (equal value); a genuine external change is an edit and gets its
   // own undo entry.
   React.useEffect(() => {
-    if (value !== undefined && value !== currentValueRef.current) {
-      currentValueRef.current = value;
-      recordUndoEntry(value, value.length);
-      processInput(value, false);
+    if (value === undefined) return;
+    const next = lineNormalize(value);
+    if (next !== currentValueRef.current) {
+      currentValueRef.current = next;
+      recordUndoEntry(next, next.length);
+      processInput(next, false);
     }
-  }, [value, processInput, recordUndoEntry]);
+  }, [value, processInput, recordUndoEntry, lineNormalize]);
+
+  // multiline turned off with newlines in the value: collapse them as one edit.
+  // processInput keeps the caret (same-length replacement) and never focuses.
+  React.useEffect(() => {
+    const current = currentValueRef.current;
+    const next = lineNormalize(current);
+    if (next === current) return;
+    const editor = editorRef.current;
+    const caret = editor && document.activeElement === editor ? getCaretCharOffset(editor) : next.length;
+    currentValueRef.current = next;
+    recordUndoEntry(next, caret);
+    processInput(next, false);
+  }, [lineNormalize, processInput, recordUndoEntry]);
 
   // Cleanup debounce timer and abort in-flight fetches
   React.useEffect(() => {
@@ -1737,6 +1758,7 @@ export function ElasticInput(props: ElasticInputProps) {
       // Length might change (e.g. ellipsis → 3 dots), adjust cursor
       cursorPos = Math.min(cursorPos, text.length);
     }
+    text = lineNormalize(text);
     currentValueRef.current = text;
 
     // Group consecutive typing: replace current entry, then after a pause push a new one
@@ -1776,7 +1798,7 @@ export function ElasticInput(props: ElasticInputProps) {
     processInput(text, true);
 
     if (editorRef.current) scrollEditorToCaret(editorRef.current);
-  }, [processInput, dropdownOpenIsCallback, dropdownMode, closeDropdown]);
+  }, [processInput, dropdownOpenIsCallback, dropdownMode, closeDropdown, lineNormalize]);
 
   const handleCompositionStart = React.useCallback(() => {
     isComposingRef.current = true;
@@ -1789,6 +1811,8 @@ export function ElasticInput(props: ElasticInputProps) {
 
   const restoreUndoEntry = React.useCallback((entry: { value: string; cursorPos: number; selStart?: number } | null) => {
     if (!entry) return;
+    // An entry from before multiline was turned off may still hold newlines
+    entry = { ...entry, value: lineNormalize(entry.value) };
     currentValueRef.current = entry.value;
 
     if (isPlainLength(entry.value)) {
@@ -1828,7 +1852,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(entry.value, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [isPlainLength, applyPlainValue, colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [lineNormalize, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
 
   const getDropdownPageSize = React.useCallback((): number => {
     const list = dropdownListRef.current;

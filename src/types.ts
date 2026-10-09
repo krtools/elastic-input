@@ -350,7 +350,8 @@ export interface DropdownConfig {
  * Feature toggles for optional editing behaviors. All default to false except `multiline`.
  */
 export interface FeaturesConfig {
-  /** Enable multiline input with Shift+Enter for line breaks. @default true */
+  /** Shift+Enter inserts line breaks. `false` keeps the input single-line: newlines — typed,
+   *  pasted, set programmatically, or present when the flag is turned off — become spaces. @default true */
   multiline?: boolean;
   /** First Ctrl+A selects current token, second selects all. @default false */
   smartSelectAll?: boolean;

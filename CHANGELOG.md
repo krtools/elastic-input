@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **`features.multiline: false` now keeps the input single-line** — It only blocked Shift+Enter; newlines that were already there, pasted, or set programmatically stayed. They now become spaces, including when the flag is turned off at runtime.
+
 ## 0.20.1 — 2026-10-06
 
 ### Fixes

@@ -3,6 +3,7 @@ import { Lexer } from '../lexer/Lexer';
 import { buildHighlightedHTML } from '../components/HighlightedContent';
 import { Parser } from '../parser/Parser';
 import { Validator } from '../validation/Validator';
+import { toSingleLine } from '../utils/textUtils';
 
 function parse(input: string) {
   const tokens = new Lexer(input).tokenize();
@@ -68,5 +69,20 @@ describe('multiline queries', () => {
       // The unknown field starts at offset 14 (after "status:active\n")
       expect(errors[0].start).toBe(14);
     });
+  });
+});
+
+describe('toSingleLine (features.multiline: false)', () => {
+  it('replaces each line break with one space', () => {
+    expect(toSingleLine('a\nb\r\nc\rd')).toBe('a b c d');
+  });
+
+  it('keeps the length for LF so offsets stay valid', () => {
+    const text = 'status:a\n\nstatus:b';
+    expect(toSingleLine(text)).toHaveLength(text.length);
+  });
+
+  it('leaves text without line breaks untouched', () => {
+    expect(toSingleLine('status:a status:b')).toBe('status:a status:b');
   });
 });

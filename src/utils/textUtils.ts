@@ -168,3 +168,15 @@ export function getReplacementRange(
 export function toSingleLine(text: string): string {
   return text.replace(/\r\n|\r|\n/g, ' ');
 }
+
+/**
+ * True when nothing is being typed at `cursorPos`: the start of the text,
+ * whitespace before the caret, or a closing delimiter (`)`, `]`, `}`) — a
+ * term the caret touches the end of cannot be extended. Drives the
+ * `dropdown.open: 'input'` momentum rule.
+ */
+export function atTermBoundary(text: string, cursorPos: number): boolean {
+  if (cursorPos <= 0) return true;
+  const before = text[cursorPos - 1];
+  return before.trim() === '' || before === ')' || before === ']' || before === '}';
+}

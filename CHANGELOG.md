@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- **`dropdown.open: 'input'` treats a closing paren or bracket as a boundary** — At `(a)|` the dropdown offered every field, glued to the paren, while `(a) |` showed nothing. Both are now closed until the next word is typed.
 - **No field suggestions after a bare wildcard word** — `asdfasdf*|` read as an empty position and listed every field. It is now a field-name partial like `asdfasdf|`, so nothing is offered; with a default field it is that field's value context.
 - **`validateValue`, `parseDate`, `defaultField`, and `plainModeLength` take effect immediately** — Changing them re-validates (or re-processes, for the plain-mode threshold) the current text instead of waiting for the next edit.
 - **`features.multiline: false` now keeps the input single-line** — It only blocked Shift+Enter; newlines that were already there, pasted, or set programmatically stayed. They now become spaces, including when the flag is turned off at runtime.

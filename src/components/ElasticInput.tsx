@@ -19,7 +19,7 @@ import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
-import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import { formatQuery } from '../utils/formatQuery';
@@ -1822,12 +1822,11 @@ export function ElasticInput(props: ElasticInputProps) {
 
     dropdownTriggerRef.current = 'input';
 
-    // In 'input' mode, show the dropdown only when the cursor is at a non-whitespace
-    // position (i.e. the character before the cursor is non-whitespace). This handles
-    // typing, deletion, and paste uniformly — the dropdown tracks typing momentum.
+    // In 'input' mode, show the dropdown only while a term is being typed at
+    // the caret — not after whitespace or a closing delimiter (`(a)|` is a
+    // boundary like `(a) |`). Handles typing, deletion, and paste uniformly.
     if (!dropdownOpenIsCallback && dropdownMode === 'input') {
-      const charBefore = cursorPos > 0 ? text[cursorPos - 1] : '';
-      if (!charBefore || charBefore.trim() === '') {
+      if (atTermBoundary(text, cursorPos)) {
         processInput(text, false);
         closeDropdown();
         if (editorRef.current) scrollEditorToCaret(editorRef.current);

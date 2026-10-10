@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
-import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
+import { AutocompleteEngine, defaultFilterFields } from '../autocomplete/AutocompleteEngine';
 import { FieldConfig, SavedSearch, HistoryEntry } from '../types';
 
 const FIELDS: FieldConfig[] = [
@@ -913,5 +913,88 @@ describe('bare wildcard words', () => {
     const result = engine.getSuggestions(new Lexer('asdfasdf*').tokenize(), 9);
     expect(result.context).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'status', partial: 'asdfasdf*' });
     expect(result.suggestions.filter(s => s.type !== 'hint')).toEqual([]);
+  });
+});
+
+describe('dropdown.filterFields (custom field matching)', () => {
+  const PEOPLE: FieldConfig[] = [
+    { name: 'firstName', type: 'string' },
+    { name: 'lastName', type: 'string' },
+    { name: 'phone', type: 'string', label: 'Phone number' },
+    { name: 'secret', type: 'string', hide: true },
+  ];
+  const isSubsequence = (needle: string, hay: string) => {
+    let i = 0;
+    for (const ch of hay.toLowerCase()) if (ch === needle[i]) i++;
+    return i === needle.length;
+  };
+  function engineWith(filter?: (fields: FieldConfig[], partial: string) => FieldConfig[], max = 10) {
+    const engine = new AutocompleteEngine(PEOPLE, [], [], max);
+    engine.setFilterFields(filter);
+    return engine;
+  }
+  const texts = (engine: AutocompleteEngine, input: string) =>
+    engine.getSuggestions(new Lexer(input).tokenize(), input.length).suggestions.map(s => s.text);
+
+  it('replaces the built-in matching and keeps the returned order', () => {
+    const engine = engineWith((fields, partial) => fields.filter(f => isSubsequence(partial.toLowerCase(), f.name)).reverse());
+    expect(texts(engine, 'fn')).toEqual(['firstName:']);
+    expect(texts(engine, 'ne')).toEqual(['phone:', 'lastName:', 'firstName:']);
+    expect(texts(engineWith(), 'fn')).toEqual([]); // default: no prefix/substring match
+  });
+
+  it('receives only visible fields, and the raw partial', () => {
+    const seen: { names: string[]; partial: string }[] = [];
+    const engine = engineWith((fields, partial) => { seen.push({ names: fields.map(f => f.name), partial }); return fields; });
+    texts(engine, 'Fi');
+    expect(seen).toEqual([{ names: ['firstName', 'lastName', 'phone'], partial: 'Fi' }]);
+  });
+
+  it('is called with an empty partial at an empty position', () => {
+    const partials: string[] = [];
+    const engine = engineWith((fields, partial) => { partials.push(partial); return fields.slice(0, 1); });
+    expect(texts(engine, '')).toEqual(['firstName:']);
+    expect(partials).toEqual(['']);
+  });
+
+  it('maxSuggestions applies after the function', () => {
+    const engine = engineWith(fields => fields, 2);
+    expect(texts(engine, '')).toEqual(['firstName:', 'lastName:']);
+  });
+
+  it('composes with defaultFilterFields as a fallback', () => {
+    const engine = engineWith((fields, partial) => {
+      const base = defaultFilterFields(fields, partial);
+      return [...base, ...fields.filter(f => !base.includes(f) && isSubsequence(partial.toLowerCase(), f.name))];
+    });
+    expect(texts(engine, 'la')).toEqual(['lastName:']);
+    expect(texts(engine, 'ln')).toEqual(['lastName:']);
+  });
+
+  it('does not affect value, operator, or default-field value suggestions', () => {
+    const engine = engineWith(() => []);
+    expect(texts(engine, 'firstName:a ')).toContain('AND ');
+    engine.setDefaultField({ name: 'firstName', showFieldSuggestions: true });
+    const withDefault = engine.getSuggestions(new Lexer('x').tokenize(), 1);
+    expect(withDefault.context).toMatchObject({ type: 'FIELD_VALUE', fieldName: 'firstName' });
+    expect(withDefault.suggestions.filter(s => s.type !== 'hint')).toEqual([]); // field list emptied by the filter
+  });
+});
+
+describe('defaultFilterFields', () => {
+  const FIELDS2: FieldConfig[] = [
+    { name: 'status', type: 'string' },
+    { name: 'contact', type: 'string', label: 'Status contact', aliases: ['cstat'] },
+    { name: 'last_status', type: 'string' },
+  ];
+
+  it('ranks name prefix, then label/alias prefix, then substrings; drops non-matches', () => {
+    expect(defaultFilterFields(FIELDS2, 'stat').map(f => f.name)).toEqual(['status', 'contact', 'last_status']);
+    expect(defaultFilterFields(FIELDS2, 'cst').map(f => f.name)).toEqual(['contact']);
+    expect(defaultFilterFields(FIELDS2, 'zzz')).toEqual([]);
+  });
+
+  it('keeps every field for an empty partial', () => {
+    expect(defaultFilterFields(FIELDS2, '')).toHaveLength(3);
   });
 });

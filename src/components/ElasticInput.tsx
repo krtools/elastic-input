@@ -282,6 +282,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderSavedSearchItem = dropdownConfig?.renderSavedSearchItem;
   const renderDropdownHeader = dropdownConfig?.renderHeader;
   const renderNoResults = dropdownConfig?.renderNoResults;
+  const filterFields = dropdownConfig?.filterFields;
   const renderType = dropdownConfig?.renderType;
   const autoSelect = dropdownConfig?.autoSelect ?? false;
   const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;
@@ -421,6 +422,7 @@ export function ElasticInput(props: ElasticInputProps) {
       { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     );
     engine.setDefaultField(defaultFieldConfig);
+    engine.setFilterFields(filterFields);
     return engine;
   });
   const validatorRef = useLazyRef(() => new Validator(initialFields));
@@ -434,6 +436,11 @@ export function ElasticInput(props: ElasticInputProps) {
   React.useEffect(() => {
     engineRef.current.setDefaultField(defaultFieldConfig);
   }, [defaultFieldConfig, engineRef]);
+
+  // Same for the field matcher: read per call, so an inline function is fine
+  React.useEffect(() => {
+    engineRef.current.setFilterFields(filterFields);
+  }, [filterFields, engineRef]);
 
   // --- State ---
   const [tokens, setTokens] = React.useState<Token[]>([]);
@@ -1339,6 +1346,7 @@ export function ElasticInput(props: ElasticInputProps) {
       { showSavedSearchHint, showHistoryHint, hasSavedSearchProvider: typeof savedSearches === 'function', hasHistoryProvider: typeof searchHistory === 'function' },
     );
     engineRef.current.setDefaultField(defaultFieldConfig);
+    engineRef.current.setFilterFields(filterFields);
     validatorRef.current = new Validator(resolvedFields);
     // Re-load sync data arrays for new engine
     if (Array.isArray(savedSearches)) {

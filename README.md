@@ -239,6 +239,33 @@ interface FieldConfig {
 | `ip` | Shows hint "Enter an IP address" | Valid IPv4, supports wildcards (`192.168.*`) | No |
 | `string` | No default hint (use `placeholder` for custom) | No validation (anything accepted) | No |
 
+### Custom Field Matching
+
+Field-name suggestions match by prefix, then substring, on the name, label, and aliases. To change that, pass `dropdown.filterFields`: it receives the visible fields and the typed partial (`''` at an empty position) and returns the fields to offer, in order. The built-in matching is exported as `defaultFilterFields`, so a fallback is a few lines:
+
+```tsx
+import { defaultFilterFields } from 'elastic-input';
+
+// `fn` → firstName: the typed characters appear in order, not necessarily adjacent
+const isSubsequence = (needle: string, hay: string) => {
+  let i = 0;
+  for (const ch of hay.toLowerCase()) if (ch === needle[i]) i++;
+  return i === needle.length;
+};
+
+<ElasticInput
+  fields={fields}
+  dropdown={{
+    filterFields: (fields, partial) => {
+      const base = defaultFilterFields(fields, partial);
+      return [...base, ...fields.filter(f => !base.includes(f) && isSubsequence(partial.toLowerCase(), f.name))];
+    },
+  }}
+/>
+```
+
+It applies to field names only; value, operator, saved-search and history suggestions are unaffected. `maxSuggestions` is applied after it, and an inline function is fine.
+
 ## Imperative API
 
 Access via `inputRef`:

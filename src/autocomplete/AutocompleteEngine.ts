@@ -22,6 +22,35 @@ export interface AutocompleteOptions {
   hasHistoryProvider?: boolean;
 }
 
+/** Picks and orders the fields to offer for a typed partial. See `DropdownConfig.filterFields`. */
+export type FilterFieldsFn = (fields: FieldConfig[], partial: string) => FieldConfig[];
+
+/**
+ * The built-in field-name matching: name prefix, then label/alias prefix,
+ * then name substring, then label/alias substring; non-matches dropped. An
+ * empty partial keeps every field.
+ */
+export function defaultFilterFields(fields: FieldConfig[], partial: string): FieldConfig[] {
+  const lower = partial.toLowerCase();
+  return fields
+    .map(f => {
+      const name = f.name.toLowerCase();
+      const label = (f.label || '').toLowerCase();
+      const aliasNames = (f.aliases || []).map(a => a.toLowerCase());
+      let score = 0;
+      if (name.startsWith(lower)) score = 4;
+      else if (label.startsWith(lower)) score = 3;
+      else if (aliasNames.some(a => a.startsWith(lower))) score = 3;
+      else if (name.includes(lower)) score = 2;
+      else if (label.includes(lower)) score = 1;
+      else if (aliasNames.some(a => a.includes(lower))) score = 1;
+      return { field: f, score };
+    })
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(s => s.field);
+}
+
 export class AutocompleteEngine {
   private fields: FieldConfig[];
   private fieldMap: Map<string, FieldConfig>;
@@ -31,6 +60,7 @@ export class AutocompleteEngine {
   private options: AutocompleteOptions;
   private defaultFieldName?: string;
   private defaultFieldShowFieldSuggs = false;
+  private filterFields?: FilterFieldsFn;
 
   constructor(
     fields: FieldConfig[],
@@ -74,6 +104,11 @@ export class AutocompleteEngine {
   setDefaultField(config: { name: string; showFieldSuggestions: boolean } | undefined): void {
     this.defaultFieldName = config?.name;
     this.defaultFieldShowFieldSuggs = config?.showFieldSuggestions ?? false;
+  }
+
+  /** Replaces the built-in field-name matching (`defaultFilterFields`); `undefined` restores it. */
+  setFilterFields(fn: FilterFieldsFn | undefined): void {
+    this.filterFields = fn;
   }
 
   getSuggestions(tokens: Token[], cursorOffset: number): AutocompleteResult {
@@ -165,32 +200,14 @@ export class AutocompleteEngine {
   }
 
   getFieldSuggestions(partial: string, start: number, end: number): Suggestion[] {
-    const lower = partial.toLowerCase();
-    const scored = this.fields
-      .filter(f => !f.hide)
-      .map(f => {
-        const name = f.name.toLowerCase();
-        const label = (f.label || '').toLowerCase();
-        const aliasNames = (f.aliases || []).map(a => a.toLowerCase());
-        // Prioritize: startsWith name > startsWith label/alias > includes name > includes label/alias
-        let score = 0;
-        if (name.startsWith(lower)) score = 4;
-        else if (label.startsWith(lower)) score = 3;
-        else if (aliasNames.some(a => a.startsWith(lower))) score = 3;
-        else if (name.includes(lower)) score = 2;
-        else if (label.includes(lower)) score = 1;
-        else if (aliasNames.some(a => a.includes(lower))) score = 1;
-        return { field: f, score };
-      })
-      .filter(s => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, this.maxSuggestions);
+    const visible = this.fields.filter(f => !f.hide);
+    const matched = (this.filterFields ?? defaultFilterFields)(visible, partial).slice(0, this.maxSuggestions);
 
-    return scored.map(s => ({
-      text: s.field.name + ':',
-      label: s.field.label || s.field.name,
-      description: s.field.description,
-      type: s.field.type,
+    return matched.map(field => ({
+      text: field.name + ':',
+      label: field.label || field.name,
+      description: field.description,
+      type: field.type,
       replaceStart: start,
       replaceEnd: end,
       matchPartial: partial,

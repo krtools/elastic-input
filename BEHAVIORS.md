@@ -421,6 +421,10 @@ Shown in `FIELD_NAME` and `EMPTY` contexts. Fields are scored and ranked:
 
 Suggestion text includes a trailing colon: `"status:"`.
 
+**Custom matching (`dropdown.filterFields`):** `(fields, partial) => FieldConfig[]` replaces the scoring above. It receives the visible fields (hidden ones already removed) and the raw partial — `''` at an empty position, where the default returns every field — and its return order is the dropdown order; `maxSuggestions` is applied afterwards. It is read per call (an inline function is fine) and applies only to field-name suggestions: values, operators, saved searches, history, and a default field's value list are untouched (the field list a default field shows alongside its values does use it). The built-in scoring is exported as `defaultFilterFields` for composing a fallback. Match highlighting in the dropdown is unchanged: the partial is bolded where it occurs as a substring of the label, so e.g. a subsequence match shows no bold.
+
+- **Tests:** `AutocompleteEngine.test.ts` → "dropdown.filterFields (custom field matching)" and "defaultFilterFields" describe blocks; `FilterFields.browser.test.tsx` → "a subsequence fallback offers firstName for \"fn\"; without it nothing is offered"
+
 **Hidden fields:** `FieldConfig.hide: true` excludes a field (and any of its aliases) from field-name suggestions. The field still validates normally — typing `hidden_field:value` produces no `UNKNOWN_FIELD` error, and value/type validation still applies. Useful for fields that exist in the schema but should not be advertised.
 
 - **Tests:** `AutocompleteEngine.test.ts` → "suggests all fields on empty input", "filters fields by prefix (startsWith name)", "filters fields by prefix (startsWith label)", "matches fields by includes (name contains)", "matches fields by includes (label contains)", "ranks startsWith higher than includes", "appends colon to field suggestion text"; "hidden fields" suite (5 tests covering exclusion from empty/prefix suggestions, alias suppression, explicit-typing resolution, value-suggestions for hidden boolean fields). `Validator.test.ts` → "hidden fields" suite (4 tests covering no UNKNOWN_FIELD error, type validation still applied, alias suppression, genuine-unknown still flagged).
@@ -1563,6 +1567,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 | `showSavedSearchHint` | `boolean` | `features.savedSearches` | Show `#saved-search` hint in dropdown |
 | `showHistoryHint` | `boolean` | `features.historySearch` | Show `!history` hint in dropdown |
 | `showOperators` | `boolean` | `true` | Show AND/OR/NOT suggestions; see §8.3.1 |
+| `filterFields` | `(fields, partial) => FieldConfig[]` | built-in scoring | Replaces field-name matching; see §4.1 |
 | `onNavigation` | `boolean` | `true` | Show dropdown on click/arrow/focus; see §8.3.1 |
 | `navigationDelay` | `number` | `0` | Delay (ms) before dropdown on navigation; see §8.3.1 |
 | `renderFieldHint` | `(field, partial) => ReactNode` | — | Custom rich-content hint renderer for field values |

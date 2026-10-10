@@ -282,6 +282,15 @@ export interface DropdownConfig {
   /** Controls when the dropdown appears. Accepts a preset string or a callback.
    *  @default 'always' */
   open?: DropdownOpenProp;
+  /**
+   * Replaces the built-in field-name matching. Receives the visible fields
+   * (`hide: true` excluded) and the typed partial — `''` at an empty position,
+   * where the default returns every field — and returns the fields to offer,
+   * in order; `maxSuggestions` is applied afterwards. Only field-name
+   * suggestions use it; values, operators, saved searches and history do not.
+   * Compose with the exported `defaultFilterFields` to add a fallback.
+   */
+  filterFields?: (fields: FieldConfig[], partial: string) => FieldConfig[];
   /** @deprecated Use `open` instead. */
   mode?: 'always' | 'never' | 'manual' | 'input';
   /** When true, the dropdown spans the full input width instead of following the caret. @default false */

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`dropdown.filterFields`** — Replaces the built-in field-name matching with your own `(fields, partial) => FieldConfig[]`; the default is exported as `defaultFilterFields` for composing a fallback.
+
 ### Fixes
 
 - **No field suggestions after a bare wildcard word** — `asdfasdf*|` read as an empty position and listed every field. It is now a field-name partial like `asdfasdf|`, so nothing is offered; with a default field it is that field's value context.

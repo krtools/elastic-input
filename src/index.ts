@@ -18,6 +18,8 @@ export { Lexer } from './lexer/Lexer';
 export type { LexerOptions } from './lexer/Lexer';
 export { Parser } from './parser/Parser';
 export { Validator, deduplicateErrors, isQueryValid } from './validation/Validator';
+export { defaultFilterFields } from './autocomplete/AutocompleteEngine';
+export type { FilterFieldsFn } from './autocomplete/AutocompleteEngine';
 export { AutocompleteEngine } from './autocomplete/AutocompleteEngine';
 export type { AutocompleteOptions } from './autocomplete/AutocompleteEngine';
 

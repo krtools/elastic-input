@@ -662,7 +662,7 @@ buildHighlightedHTML(tokens, DEFAULT_COLORS, { cursorOffset: 5 });
 Pure functions (no React or DOM), useful outside the input:
 
 ```typescript
-import { normalizeTypographicChars, validateDate, findMatchingParen, atTermBoundary, Lexer } from 'elastic-input';
+import { normalizeTypographicChars, validateDate, findMatchingParen, atTermBoundary, isOnOperatorToken, Lexer } from 'elastic-input';
 
 // Smart quotes, dashes, NBSP, fullwidth chars → ASCII (applied to every paste)
 normalizeTypographicChars('status:“active” — now');   // 'status:"active" - now'
@@ -679,6 +679,16 @@ findMatchingParen(new Lexer('(a OR b)').tokenize(), 1);  // { openStart: 0, clos
 // The `dropdown.open: 'input'` momentum rule: is nothing being typed at the caret?
 atTermBoundary('(a)', 3);                       // true  — caret touches a closing delimiter
 atTermBoundary('sta', 3);                       // false — mid-word
+
+// The `dropdown.open: 'always'` suppression: caret on AND/OR/NOT or a ~N/^N suffix?
+isOnOperatorToken(new Lexer('a AND b').tokenize(), 3);  // true
+```
+
+A `dropdown.open` callback can also return a preset name (`'always'`, `'input'`, `'manual'`, `'never'`) to apply the built-in behavior for that evaluation — handle your own cases and fall back to a preset for the rest:
+
+```tsx
+// Never for field values; otherwise exactly like 'always'
+<ElasticInput dropdown={{ open: ctx => (ctx.context.type === 'FIELD_VALUE' ? false : 'always') }} />
 ```
 
 ## Query Formatting

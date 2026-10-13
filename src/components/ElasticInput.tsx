@@ -8,7 +8,7 @@ import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
-import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
+import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -19,7 +19,7 @@ import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
-import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary } from '../utils/textUtils';
+import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary, isOnOperatorToken } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import { formatQuery } from '../utils/formatQuery';
@@ -756,11 +756,19 @@ export function ElasticInput(props: ElasticInputProps) {
     const contextType = result.context.type;
     setCursorContext(result.context);
 
-    // Dropdown open gating
+    // Dropdown open gating: a callback may decide outright (true/false),
+    // defer to the engine (null), or hand this evaluation to a preset.
+    const close = () => {
+      setShowDropdown(false);
+      setShowDatePicker(false);
+      setSuggestions([]);
+    };
+    let mode: DropdownOpenPreset | null = dropdownMode;
     if (dropdownOpenIsCallback) {
       const decision = dropdownOpen({
         trigger: dropdownTriggerRef.current,
         context: result.context,
+        tokens: toks,
         suggestions: result.suggestions,
         isOpen: stateRef.current.showDropdown || stateRef.current.showDatePicker,
         value: currentValueRef.current,
@@ -768,61 +776,56 @@ export function ElasticInput(props: ElasticInputProps) {
         selectionEnd: selEnd ?? offset,
       });
       if (decision === false) {
-        setShowDropdown(false);
-        setShowDatePicker(false);
-        setSuggestions([]);
+        close();
         return;
       }
       // true or null: proceed (engine decides what to show)
-    } else {
-      if (dropdownMode === 'never') {
-        setShowDropdown(false);
-        setShowDatePicker(false);
-        setSuggestions([]);
+      mode = typeof decision === 'string' ? decision : null;
+    }
+    if (mode === 'never') {
+      close();
+      return;
+    }
+    if (mode === 'manual') {
+      // If manual activation is set but context changed, dismiss
+      if (manualActivationContextRef.current && manualActivationContextRef.current !== contextType) {
+        manualActivationContextRef.current = null;
+        close();
         return;
       }
-      if (dropdownMode === 'manual') {
-        // If manual activation is set but context changed, dismiss
-        if (manualActivationContextRef.current && manualActivationContextRef.current !== contextType) {
-          manualActivationContextRef.current = null;
-          setShowDropdown(false);
-          setShowDatePicker(false);
-          setSuggestions([]);
-          return;
-        }
-        // If not activated, don't show anything
-        if (!manualActivationContextRef.current) {
-          setShowDropdown(false);
-          setShowDatePicker(false);
-          setSuggestions([]);
-          return;
-        }
-      }
-      if (dropdownMode === 'input' && dropdownTriggerRef.current !== 'input' && dropdownTriggerRef.current !== 'ctrlSpace') {
-        setShowDropdown(false);
-        setShowDatePicker(false);
-        setSuggestions([]);
+      // If not activated, don't show anything
+      if (!manualActivationContextRef.current) {
+        close();
         return;
       }
-
-      // 'always' mode: suppress the dropdown when the caret is on or inside a
-      // boolean operator (AND/OR/NOT/&&/||) or a fuzzy/boost suffix (~N / ^N).
-      // Inserting an autocomplete in the middle of those tokens would never
-      // make sense. Covers |AND, A|ND, AN|D, AND| cursor positions. Prefix
-      // operators (+/-/!) are NOT suppressed — it's normal to type `-` and
-      // expect field/value autocomplete to follow.
-      if (dropdownMode === 'always') {
-        const onOperatorLikeToken = toks.some(t =>
-          (t.type === TokenType.AND || t.type === TokenType.OR || t.type === TokenType.NOT || t.type === TokenType.TILDE || t.type === TokenType.BOOST)
-          && offset >= t.start && offset <= t.end
-        );
-        if (onOperatorLikeToken) {
-          setShowDropdown(false);
-          setShowDatePicker(false);
-          setSuggestions([]);
-          return;
-        }
+    }
+    if (mode === 'input') {
+      // Only typing (or Ctrl+Space) opens, and only while a term is being
+      // typed at the caret — not after whitespace or a closing delimiter
+      // (`(a)|` is a boundary like `(a) |`).
+      const trigger = dropdownTriggerRef.current;
+      if (trigger !== 'input' && trigger !== 'ctrlSpace') {
+        close();
+        return;
       }
+      if (trigger === 'input' && atTermBoundary(currentValueRef.current, offset)) {
+        // Also drop any fetch the previous keystroke started
+        asyncActiveRef.current = false;
+        abortControllerRef.current?.abort();
+        if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+        if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
+        cancelPendingDropdownShow();
+        setSelectedSuggestionIndex(-1);
+        displayedTaskRef.current = null;
+        close();
+        return;
+      }
+    }
+    // 'always': no completion makes sense on or inside a boolean operator or
+    // a fuzzy/boost suffix. Prefix operators (+/-/!) are not suppressed.
+    if (mode === 'always' && isOnOperatorToken(toks, offset)) {
+      close();
+      return;
     }
 
     // Determine if this context will trigger an async fetch
@@ -1129,12 +1132,10 @@ export function ElasticInput(props: ElasticInputProps) {
   // the 'input'-mode gate and activates 'manual' mode for the current context.
   const requestSuggestions = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
     dropdownTriggerRef.current = 'ctrlSpace';
-    if (!dropdownOpenIsCallback && dropdownMode === 'manual') {
-      const result = engineRef.current.getSuggestions(toks, offset);
-      manualActivationContextRef.current = result.context.type;
-    }
+    // Recorded in every mode: a callback may hand an evaluation to 'manual'
+    manualActivationContextRef.current = engineRef.current.getSuggestions(toks, offset).context.type;
     updateSuggestionsFromTokens(toks, offset, selEnd);
-  }, [dropdownOpenIsCallback, dropdownMode, updateSuggestionsFromTokens, engineRef]);
+  }, [updateSuggestionsFromTokens, engineRef]);
 
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
@@ -1581,13 +1582,14 @@ export function ElasticInput(props: ElasticInputProps) {
         const decision = dropdownOpen({
           trigger: 'modeChange',
           context: s.cursorContext,
+          tokens: s.tokens,
           suggestions: s.suggestions,
           isOpen: s.showDropdown || s.showDatePicker,
           value: currentValueRef.current,
           selectionStart: s.cursorOffset,
           selectionEnd: s.selectionEnd,
         });
-        if (decision === false) {
+        if (decision === false || decision === 'never') {
           setShowDropdown(false);
           setShowDatePicker(false);
           setSuggestions([]);
@@ -1822,22 +1824,10 @@ export function ElasticInput(props: ElasticInputProps) {
 
     dropdownTriggerRef.current = 'input';
 
-    // In 'input' mode, show the dropdown only while a term is being typed at
-    // the caret — not after whitespace or a closing delimiter (`(a)|` is a
-    // boundary like `(a) |`). Handles typing, deletion, and paste uniformly.
-    if (!dropdownOpenIsCallback && dropdownMode === 'input') {
-      if (atTermBoundary(text, cursorPos)) {
-        processInput(text, false);
-        closeDropdown();
-        if (editorRef.current) scrollEditorToCaret(editorRef.current);
-        return;
-      }
-    }
-
     processInput(text, true);
 
     if (editorRef.current) scrollEditorToCaret(editorRef.current);
-  }, [processInput, dropdownOpenIsCallback, dropdownMode, closeDropdown, lineNormalize]);
+  }, [processInput, lineNormalize]);
 
   const handleCompositionStart = React.useCallback(() => {
     isComposingRef.current = true;

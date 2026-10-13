@@ -1010,7 +1010,7 @@ Controls when the autocomplete dropdown appears. Accepts either a string constan
 
 The `manualActivationContextRef` tracks which context type was activated (for `'manual'` mode). When `updateSuggestionsFromTokens` detects a context change, it clears the ref and hides the dropdown. `closeDropdown` also resets the ref.
 
-**`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace, a closing delimiter (`)`, `]`, `}`), or the cursor is at position 0 (`atTermBoundary`), the dropdown is suppressed — `processInput` runs with `updateDropdown: false` and `closeDropdown` is called: a caret touching the end of a group or range is a boundary like one after a space, since nothing typed there can extend the term (previously `(a)|` offered every field, glued to the paren). Otherwise (letter, digit, colon, opening paren or quote, etc.) the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Tests: `textUtils.test.ts` → "atTermBoundary"; `InputModeBoundary.browser.test.tsx` (3). Navigation (click, arrow keys, focus) does not open the dropdown but **does close it** if currently open — the `triggerSuggestionsFromNavigation` wrapper calls `closeDropdown` when `triggerOnNavigation` is false and the dropdown or date picker is visible. This prevents stale dropdowns from lingering after the user clicks to a different position.
+**`'input'` mode detection:** In `handleInput`, after computing the new text and cursor position, the character immediately before the cursor is checked. If it is whitespace, a closing delimiter (`)`, `]`, `}`), or the cursor is at position 0 (`atTermBoundary`, evaluated in `updateSuggestionsFromTokens` so a callback returning `'input'` gets the same rule), the dropdown is suppressed and any fetch the previous keystroke started is dropped: a caret touching the end of a group or range is a boundary like one after a space, since nothing typed there can extend the term (previously `(a)|` offered every field, glued to the paren). Otherwise (letter, digit, colon, opening paren or quote, etc.) the normal `'always'` path runs. This handles typing, deletion, and paste uniformly. Tests: `textUtils.test.ts` → "atTermBoundary"; `InputModeBoundary.browser.test.tsx` (3). Navigation (click, arrow keys, focus) does not open the dropdown but **does close it** if currently open — the `triggerSuggestionsFromNavigation` wrapper calls `closeDropdown` when `triggerOnNavigation` is false and the dropdown or date picker is visible. This prevents stale dropdowns from lingering after the user clicks to a different position.
 
 #### Callback form
 
@@ -1025,6 +1025,7 @@ When `dropdown.open` is a function, it receives a `DropdownOpenContext` and retu
 | `true` | Force the dropdown open (override engine decision) |
 | `false` | Force the dropdown closed |
 | `null` | Let the engine decide (same as no callback) |
+| `'always'` / `'input'` / `'manual'` / `'never'` | Apply that preset's behavior to this evaluation — the callback handles its own cases and inherits the preset's rules and future fixes. `'manual'` works with Ctrl+Space as usual (the activation context is recorded in every mode). |
 
 The `DropdownOpenContext` contains:
 
@@ -1032,13 +1033,14 @@ The `DropdownOpenContext` contains:
 |-------|------|-------------|
 | `trigger` | `'input' \| 'navigation' \| 'ctrlSpace' \| 'modeChange'` | What caused the suggestion update. `'ctrlSpace'` also covers `api.openDropdown()` |
 | `context` | `CursorContext` | Current cursor context (field name, value, operator, etc.) |
+| `tokens` | `Token[]` | The query's tokens as the engine saw them, for token-based helpers such as `isOnOperatorToken` |
 | `suggestions` | `Suggestion[]` | Suggestions the engine computed |
 | `isOpen` | `boolean` | Whether the dropdown is currently open |
 | `value` | `string` | Current query string |
 | `selectionStart` | `number` | Start offset of text selection/caret |
 | `selectionEnd` | `number` | End offset of text selection/caret (same as `selectionStart` when no selection) |
 
-When the callback is active, the string-constant mode logic (including the `'manual'` state machine and `'input'` whitespace detection) is bypassed entirely. The callback receives every trigger and has full control.
+When the callback returns `true`, `false`, or `null`, the preset logic (including the `'manual'` state machine and the `'input'` momentum rule) is bypassed entirely: the callback receives every trigger and has full control. Returning a preset name runs that preset's logic for the evaluation instead. The preset rules are also exported for use inside a callback: `atTermBoundary(value, selectionStart)` (the `'input'` rule) and `isOnOperatorToken(tokens, selectionStart)` (the `'always'` suppression).
 
 **Common callback patterns** (tested in `DropdownOpen.test.ts`):
 
@@ -1047,6 +1049,9 @@ When the callback is active, the string-constant mode logic (including the `'man
 - **Field-value only:** `(ctx) => ctx.context.type === 'FIELD_VALUE' ? null : false` — only show in field value positions
 - **Sticky:** `(ctx) => ctx.isOpen ? true : null` — once open, keep open until explicitly closed
 - **Suppress on boolean operators:** `(ctx) => ctx.context.type === 'OPERATOR' ? false : null` — hide when cursor is on AND/OR/NOT
+- **Preset with an exception:** `(ctx) => ctx.context.type === 'FIELD_VALUE' ? false : 'always'` — never for values, otherwise the built-in `'always'` behavior
+
+- **Tests (presets from a callback):** `DropdownOpenPreset.browser.test.tsx` → "'input': opens while typing a word, closes at a boundary and on caret movement", "'always': open after a term, closed on an operator; the callback's own rule still applies", "'never' closes; 'manual' opens only on Ctrl+Space and closes when the context changes", "receives the tokens the engine saw", "closes at a closing paren and after a space, opens on the next word"; `textUtils.test.ts` → "isOnOperatorToken"
 
 ### 8.3.1 Dropdown Trigger Options
 

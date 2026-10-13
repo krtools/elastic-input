@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ASTNode } from './parser/ast';
 import { CursorContext } from './parser/Parser';
+import { Token } from './lexer/tokens';
 import { Suggestion } from './autocomplete/suggestionTypes';
 import { ValidationError } from './validation/Validator';
 import { FormatQueryOptions } from './utils/formatQuery';
@@ -253,6 +254,8 @@ export interface DropdownOpenContext {
   trigger:'input' | 'navigation' | 'ctrlSpace' | 'modeChange';
   /** Current cursor context from the parser. */
   context: CursorContext;
+  /** The query's tokens, as the engine saw them (for token-based helpers such as `isOnOperatorToken`). */
+  tokens: Token[];
   /** Suggestions the engine has computed (may be empty). */
   suggestions: Suggestion[];
   /** Whether the dropdown is currently visible. */
@@ -265,18 +268,23 @@ export interface DropdownOpenContext {
   selectionEnd: number;
 }
 
+/** The built-in `dropdown.open` behaviors. */
+export type DropdownOpenPreset = 'always' | 'never' | 'manual' | 'input';
+
 /**
- * Value for `dropdown.open`. A string constant for common presets,
- * or a callback for custom logic.
+ * Value for `dropdown.open`. A preset for common behaviors, or a callback
+ * for custom logic.
  *
  * Callback return values:
  * - `true` — force the dropdown open (the engine still decides *what* to show)
  * - `false` — force the dropdown closed
  * - `null` — no opinion; let the engine decide
+ * - a preset name — apply that preset's behavior to this evaluation, so the
+ *   callback only has to handle its own cases (and inherits future preset fixes)
  */
 export type DropdownOpenProp =
-  | 'always' | 'never' | 'manual' | 'input'
-  | ((ctx: DropdownOpenContext) => boolean | null);
+  | DropdownOpenPreset
+  | ((ctx: DropdownOpenContext) => boolean | null | DropdownOpenPreset);
 
 export interface DropdownConfig {
   /** Controls when the dropdown appears. Accepts a preset string or a callback.

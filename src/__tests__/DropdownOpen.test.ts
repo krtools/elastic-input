@@ -13,6 +13,7 @@ function makeContext(overrides: Partial<DropdownOpenContext> = {}): DropdownOpen
   return {
     trigger: 'input',
     context: { type: 'FIELD_NAME', partial: 'sta', fieldName: undefined },
+    tokens: [],
     suggestions: [],
     isOpen: false,
     value: 'sta',

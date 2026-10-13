@@ -4,7 +4,8 @@
 
 ### Features
 
-- **`atTermBoundary` exported** — The `dropdown.open: 'input'` rule (start, whitespace, or a closing delimiter before the caret), for use in a custom `dropdown.open` callback.
+- **`dropdown.open` callbacks can return a preset** — Return `'always'`, `'input'`, `'manual'` or `'never'` to apply that built-in behavior for the evaluation, so the callback only handles its own cases.
+- **`atTermBoundary` and `isOnOperatorToken` exported; `tokens` added to `DropdownOpenContext`** — The `'input'` momentum rule and the `'always'` operator suppression, usable from a callback.
 
 ## 0.21.0 — 2026-10-12
 

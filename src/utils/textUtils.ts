@@ -180,3 +180,18 @@ export function atTermBoundary(text: string, cursorPos: number): boolean {
   const before = text[cursorPos - 1];
   return before.trim() === '' || before === ')' || before === ']' || before === '}';
 }
+
+/**
+ * True when `offset` is on or inside a boolean operator (`AND`/`OR`/`NOT`,
+ * `&&`/`||`) or a fuzzy/boost suffix (`~N`/`^N`), including both edges —
+ * `|AND`, `A|ND`, `AND|`. No completion makes sense there; the
+ * `dropdown.open: 'always'` preset closes the dropdown. Prefix operators
+ * (`+`/`-`/`!`) are not included: a term is expected right after them.
+ */
+export function isOnOperatorToken(tokens: Token[], offset: number): boolean {
+  return tokens.some(t =>
+    (t.type === TokenType.AND || t.type === TokenType.OR || t.type === TokenType.NOT
+      || t.type === TokenType.TILDE || t.type === TokenType.BOOST)
+    && offset >= t.start && offset <= t.end,
+  );
+}

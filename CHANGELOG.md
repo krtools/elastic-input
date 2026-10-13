@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`atTermBoundary` exported** — The `dropdown.open: 'input'` rule (start, whitespace, or a closing delimiter before the caret), for use in a custom `dropdown.open` callback.
+
 ## 0.21.0 — 2026-10-12
 
 ### Features

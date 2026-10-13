@@ -10,6 +10,8 @@ describe('public exports', () => {
     expect(typeof lib.formatQuery).toBe('function');
     expect(typeof lib.extractValues).toBe('function');
     expect(typeof lib.isQueryValid).toBe('function');
+    expect(typeof lib.atTermBoundary).toBe('function');
+    expect(typeof lib.defaultFilterFields).toBe('function');
   });
 
   it('utilities work through the package entry', () => {
@@ -19,5 +21,7 @@ describe('public exports', () => {
     expect(lib.validateDate('nope', () => new Date())).toBeNull();
     const tokens = new lib.Lexer('(a OR b)').tokenize();
     expect(lib.findMatchingParen(tokens, 1)).toEqual({ openStart: 0, closeStart: 7 });
+    expect(lib.atTermBoundary('(a)', 3)).toBe(true);
+    expect(lib.atTermBoundary('sta', 3)).toBe(false);
   });
 });

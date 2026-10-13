@@ -662,7 +662,7 @@ buildHighlightedHTML(tokens, DEFAULT_COLORS, { cursorOffset: 5 });
 Pure functions (no React or DOM), useful outside the input:
 
 ```typescript
-import { normalizeTypographicChars, validateDate, findMatchingParen, Lexer } from 'elastic-input';
+import { normalizeTypographicChars, validateDate, findMatchingParen, atTermBoundary, Lexer } from 'elastic-input';
 
 // Smart quotes, dashes, NBSP, fullwidth chars → ASCII (applied to every paste)
 normalizeTypographicChars('status:“active” — now');   // 'status:"active" - now'
@@ -675,6 +675,10 @@ validateDate('yesterday', myParseDate);         // null if myParseDate accepts i
 
 // Paren pairing at a caret offset (IDE rules: char before the caret wins)
 findMatchingParen(new Lexer('(a OR b)').tokenize(), 1);  // { openStart: 0, closeStart: 7 }
+
+// The `dropdown.open: 'input'` momentum rule: is nothing being typed at the caret?
+atTermBoundary('(a)', 3);                       // true  — caret touches a closing delimiter
+atTermBoundary('sta', 3);                       // false — mid-word
 ```
 
 ## Query Formatting

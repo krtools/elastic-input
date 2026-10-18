@@ -61,11 +61,11 @@ async function setup(props: Partial<ElasticInputProps> = {}, dropdown: Record<st
 }
 
 describe("presentation: 'sheet' — the bar", () => {
-  it('is there while focused, says "No suggestions" when empty, and never shows the floating dropdown', async () => {
+  it('is there while focused, says "Suggestions" while nothing is open, and never shows the floating dropdown', async () => {
     // 'input' mode: focusing an empty editor offers nothing (in 'always' it lists every field)
     const { api } = await setup({}, { open: 'input' });
     expect(await waitFor(() => q('.ei-bar') !== null)).toBe(true);
-    expect(barLabel()).toBe('No suggestions');
+    expect(barLabel()).toBe('Suggestions');
     expect(chips()).toEqual([]);
     expect(q('.ei-dropdown')).toBeNull();
 
@@ -172,7 +172,7 @@ describe("presentation: 'sheet' — the bar", () => {
     const { editor } = await setup({}, { open: 'manual' });
     await userEvent.type(editor, 'sta');
     await pause(200);
-    expect(barLabel()).toBe('No suggestions');
+    expect(barLabel()).toBe('Suggestions');
 
     await click(q('.ei-bar-open'));
     expect(await waitFor(() => q('.ei-sheet') !== null && sheetItems().length === 1)).toBe(true);
@@ -296,7 +296,7 @@ describe("presentation: 'sheet' — the sheet", () => {
     await userEvent.keyboard('{Escape}');
     expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
     expect(q('.ei-bar')).not.toBeNull();
-    expect(barLabel()).toBe('No suggestions');
+    expect(barLabel()).toBe('Suggestions');
   });
 
   it('closes on blur, and after Enter submits', async () => {

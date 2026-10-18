@@ -2789,6 +2789,7 @@ export function ElasticInput(props: ElasticInputProps) {
           suggestions={barSuggestions}
           selectedIndex={selectedSuggestionIndex}
           datePicker={showDatePicker}
+          idle={!showDropdown && !showDatePicker}
           sheetOpen={sheetOpen}
           onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
           onToggleSheet={toggleSheet}

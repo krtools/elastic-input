@@ -5,10 +5,12 @@ import { ColorConfig, StyleConfig } from '../types';
 
 /**
  * What the bar's button says for the current suggestion list: a count of
- * acceptable items, or the state message when there is nothing to accept.
+ * acceptable items, the state message when there is nothing to accept, or
+ * "Suggestions" while nothing is open (nothing requested yet, or dismissed).
  */
-export function barStatusLabel(suggestions: Suggestion[], datePicker: boolean): string {
+export function barStatusLabel(suggestions: Suggestion[], datePicker: boolean, idle = false): string {
   if (datePicker) return 'Pick a date';
+  if (idle) return 'Suggestions';
   const acceptable = suggestions.filter(isAcceptableSuggestion).length;
   if (acceptable > 0) return `${acceptable} suggestion${acceptable === 1 ? '' : 's'}`;
   const first = suggestions[0];
@@ -27,6 +29,8 @@ interface SuggestionBarProps {
   selectedIndex: number;
   /** The date picker, rather than a suggestion list, is what the sheet would show. */
   datePicker: boolean;
+  /** Nothing is open: the button offers to request suggestions. */
+  idle: boolean;
   sheetOpen: boolean;
   onSelect: (suggestion: Suggestion, event: React.MouseEvent) => void;
   onToggleSheet: () => void;
@@ -61,14 +65,13 @@ const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
  * tappable chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, sheetOpen, onSelect, onToggleSheet, colors, styles, className,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, onSelect, onToggleSheet, colors, styles, className,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
-  const label = barStatusLabel(suggestions, datePicker);
-  // Android draws the caret's drag handle ~24px below the text line, over the
-  // top of this row; a touch there grabs the handle (magnifier) instead of a
-  // chip. On coarse pointers keep the chips below that zone.
+  const label = barStatusLabel(suggestions, datePicker, idle);
+
   const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -170,7 +173,7 @@ export function SuggestionBar({
         alignItems: 'center',
         gap: '8px',
         minHeight: '44px',
-        padding: coarsePointer ? '16px 8px 4px' : '4px 8px',
+        padding: coarsePointer ? '12px 8px 4px' : '4px 8px',
         borderTop: `1px solid ${styles.dropdownBorderColor}`,
         boxSizing: 'border-box',
         minWidth: 0,

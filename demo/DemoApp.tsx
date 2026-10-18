@@ -931,7 +931,13 @@ export function DemoApp() {
           {narrow && (
             <div style={drawerBarStyle}>
               <span>Options</span>
-              <button style={styles.themeToggle} onClick={() => setShowOptions(false)}>Close</button>
+              <button
+                aria-label="Close options"
+                onClick={() => setShowOptions(false)}
+                style={{ ...styles.themeToggle, width: '44px', height: '44px', padding: 0, fontSize: '26px', lineHeight: 1 }}
+              >
+                ×
+              </button>
             </div>
           )}
           <div style={panelStyle}>

@@ -4,6 +4,7 @@ import { ValidationError, isErrorDeferred } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
 import { mergeColors, mergeStyles } from '../styles/inlineStyles';
 import { cx } from '../utils/cx';
+import { getVisibleViewport } from '../utils/viewport';
 
 interface ValidationSquigglesProps {
   errors: ValidationError[];
@@ -148,7 +149,8 @@ function squigglyBgForColor(hexColor: string) {
 export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, styles, containerRef, classNames }: ValidationSquigglesProps) {
   // One state object so a mousemove renders once (two setStates in a native
   // listener are not batched in React 16 and ran the clamp twice per move)
-  const [hover, setHover] = React.useState<{ index: number; x: number; clientY: number } | null>(null);
+  // `pinned`: opened by a tap (no hover on touch) — stays until the next tap or edit
+  const [hover, setHover] = React.useState<{ index: number; x: number; clientY: number; pinned?: boolean } | null>(null);
   const hoveredIndex = hover ? hover.index : null;
   const mousePos = hover ?? { x: 0, clientY: 0 };
   const [rects, setRects] = React.useState<SquigglyRect[]>([]);
@@ -169,6 +171,8 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       return;
     }
 
+    // An edit or caret move dismisses a tapped-open tooltip
+    setHover(prev => (prev?.pinned ? null : prev));
     measureTimerRef.current = setTimeout(() => {
       const measured = measureSquigglyRects(errors, editorRef, cursorOffset);
       setRects(measured);
@@ -186,35 +190,47 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     const container = containerRef;
     if (!container || !editorRef) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
+    // Which error (if any) is under a viewport point; `slop` widens the hit
+    // area below the text for fingers
+    const hitTest = (clientX: number, clientY: number, slop: number) => {
       const editorRect = editorRef.getBoundingClientRect();
-      const mx = e.clientX - editorRect.left;
-      const my = e.clientY - editorRect.top;
-
-      let found = -1;
+      const mx = clientX - editorRect.left;
+      const my = clientY - editorRect.top;
       for (let i = 0; i < rectsRef.current.length; i++) {
         const r = rectsRef.current[i];
         // Hit test against the text area + wave area below it
         if (mx >= r.left && mx <= r.left + r.width &&
-            my >= r.top && my <= r.top + r.height + 6) {
-          found = i;
-          break;
+            my >= r.top - (slop > 6 ? 8 : 0) && my <= r.top + r.height + slop) {
+          return { index: i, x: mx };
         }
       }
-      if (found >= 0) {
-        setHover({ index: found, x: mx, clientY: e.clientY });
-      } else {
-        setHover(null);
-      }
+      return null;
+    };
+
+    let lastTouchAt = 0;
+    const handleMouseMove = (e: MouseEvent) => {
+      // Compatibility mouse events after a tap must not undo the tapped state
+      if (Date.now() - lastTouchAt < 800) return;
+      const hit = hitTest(e.clientX, e.clientY, 6);
+      setHover(hit ? { index: hit.index, x: hit.x, clientY: e.clientY } : null);
     };
 
     const handleMouseLeave = () => {
-      setHover(null);
+      setHover(prev => (prev?.pinned ? prev : null));
+    };
+
+    // Touch/pen: a tap on an error pins its tooltip; a tap anywhere else closes it
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+      lastTouchAt = Date.now();
+      const hit = container.contains(e.target as Node) ? hitTest(e.clientX, e.clientY, 14) : null;
+      setHover(hit ? { index: hit.index, x: hit.x, clientY: e.clientY, pinned: true } : null);
     };
 
     const controller = new AbortController();
     container.addEventListener('mousemove', handleMouseMove, { signal: controller.signal });
     container.addEventListener('mouseleave', handleMouseLeave, { signal: controller.signal });
+    document.addEventListener('pointerdown', handlePointerDown, { capture: true, signal: controller.signal });
     return () => controller.abort();
   }, [containerRef, editorRef]);
 
@@ -225,7 +241,8 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     const el = tooltipRef.current;
     if (!el || hoveredIndex == null) return;
     const intended = parseFloat(el.style.left) || 0;
-    const maxLeft = window.innerWidth - 8 - el.offsetWidth;
+    const vp = getVisibleViewport();
+    const maxLeft = vp.left + vp.width - 8 - el.offsetWidth;
     const clamped = Math.max(8, Math.min(intended, maxLeft));
     if (clamped !== intended) el.style.left = `${clamped}px`;
   });
@@ -273,7 +290,8 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         const fixedLeft = (editorRect?.left ?? 0) + mousePos.x;
         const waveBottomFixed = (editorRect?.top ?? 0) + hoveredRect.top + hoveredRect.height + 2;
         const lineTopFixed = (editorRect?.top ?? 0) + hoveredRect.top;
-        const spaceBelow = window.innerHeight - mousePos.clientY;
+        const vp = getVisibleViewport();
+        const spaceBelow = vp.top + vp.height - mousePos.clientY;
         const needsFlip = spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
         const fixedTop = needsFlip
           ? lineTopFixed - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP

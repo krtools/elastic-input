@@ -1,3 +1,4 @@
+import { getVisibleViewport, VisibleViewport } from './viewport';
 /**
  * Insert text at the current selection/cursor, replacing any selected content.
  * Uses the modern Range API instead of the deprecated document.execCommand.
@@ -137,32 +138,31 @@ export interface DropdownPosition {
 export function getDropdownPosition(
   caretRect: DOMRect,
   dropdownHeight: number,
-  dropdownWidth: number
+  dropdownWidth: number,
+  viewport: VisibleViewport = getVisibleViewport(),
 ): DropdownPosition {
-  const viewportHeight = window.innerHeight;
-  const viewportWidth = window.innerWidth;
+  const viewportBottom = viewport.top + viewport.height;
+  const viewportRight = viewport.left + viewport.width;
 
   let top = caretRect.bottom + window.scrollY + 4;
-  let left = caretRect.left + window.scrollX;
+  let clientLeft = caretRect.left;
   let flipped = false;
 
   // Flip above if no room below — anchor the bottom edge just above the caret
-  if (caretRect.bottom + dropdownHeight + 4 > viewportHeight) {
+  if (caretRect.bottom + dropdownHeight + 4 > viewportBottom) {
     top = caretRect.top + window.scrollY - 4;
     flipped = true;
   }
 
-  // Prevent overflow right
-  if (left + dropdownWidth > viewportWidth) {
-    left = viewportWidth - dropdownWidth - 8;
+  // Keep inside the visible viewport horizontally
+  if (clientLeft + dropdownWidth > viewportRight) {
+    clientLeft = viewportRight - dropdownWidth - 8;
+  }
+  if (clientLeft < viewport.left + 8) {
+    clientLeft = viewport.left + 8;
   }
 
-  // Prevent overflow left
-  if (left < 8) {
-    left = 8;
-  }
-
-  return { top, left, flipped };
+  return { top, left: clientLeft + window.scrollX, flipped };
 }
 
 /**
@@ -177,18 +177,19 @@ export function adjustFlippedPosition(
   position: DropdownPosition,
   actualHeight: number,
   caretRect: DOMRect,
-  viewportHeight: number,
+  viewport: Pick<VisibleViewport, 'top' | 'height'>,
   scrollY: number,
 ): DropdownPosition | null {
+  const viewportBottom = viewport.top + viewport.height;
   if (position.flipped) {
-    const overflowsAbove = caretRect.top - 4 - actualHeight < 0;
-    const fitsBelow = caretRect.bottom + 4 + actualHeight <= viewportHeight;
+    const overflowsAbove = caretRect.top - 4 - actualHeight < viewport.top;
+    const fitsBelow = caretRect.bottom + 4 + actualHeight <= viewportBottom;
     if (overflowsAbove && fitsBelow) {
       return { ...position, top: caretRect.bottom + scrollY + 4, flipped: false };
     }
   } else {
-    const overflowsBelow = caretRect.bottom + 4 + actualHeight > viewportHeight;
-    const fitsAbove = caretRect.top - 4 - actualHeight >= 0;
+    const overflowsBelow = caretRect.bottom + 4 + actualHeight > viewportBottom;
+    const fitsAbove = caretRect.top - 4 - actualHeight >= viewport.top;
     if (overflowsBelow && fitsAbove) {
       return { ...position, top: caretRect.top + scrollY - 4, flipped: true };
     }

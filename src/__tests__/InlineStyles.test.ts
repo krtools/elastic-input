@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   mergeColors,
   mergeStyles,
+  resolveTouchStyles,
   getInputContainerStyle,
   getEditorWrapStyle,
   getEditableStyle,
@@ -144,5 +145,19 @@ describe('getPlaceholderStyle — mirrors editor padding, no parsing', () => {
     expect(s.pointerEvents).toBe('none');
     expect(s.whiteSpace).toBe('nowrap');
     expect(s.textOverflow).toBe('ellipsis');
+  });
+});
+
+describe('resolveTouchStyles — 16px editor font on coarse pointers', () => {
+  it('bumps the font to 16px on a coarse pointer when none is set', () => {
+    expect(resolveTouchStyles(undefined, true)).toEqual({ fontSize: '16px' });
+    expect(resolveTouchStyles({ inputPadding: '4px' }, true)).toEqual({ inputPadding: '4px', fontSize: '16px' });
+  });
+
+  it('keeps an explicit fontSize, and returns the input untouched for fine pointers', () => {
+    const styles = { fontSize: '13px' };
+    expect(resolveTouchStyles(styles, true)).toBe(styles);
+    expect(resolveTouchStyles(styles, false)).toBe(styles);
+    expect(resolveTouchStyles(undefined, false)).toBeUndefined();
   });
 });

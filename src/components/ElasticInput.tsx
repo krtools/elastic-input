@@ -33,10 +33,12 @@ import {
   getSlotStyle,
   getPlaceholderStyle,
   getDropdownStyle,
+  resolveTouchStyles,
 } from '../styles/inlineStyles';
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
 import { UndoStack } from '../utils/undoStack';
 import { resolveHomeEndKey } from '../utils/homeEndKeys';
+import { getVisibleViewport } from '../utils/viewport';
 
 // ---------------------------------------------------------------------------
 // DatePickerPortal — small portal wrapper for the date picker
@@ -226,7 +228,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const {
     fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
     savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
-    colors, styles: stylesProp, placeholder, className, classNames, style,
+    colors, styles: stylesPropRaw, placeholder, className, classNames, style,
     dropdown: dropdownConfig, features: featuresConfig,
     inputRef, datePresets: datePresetsProp,
     onKeyDown: onKeyDownProp, onFocus: onFocusProp, onBlur: onBlurProp, onTab: onTabProp, onAcceptSuggestion,
@@ -267,6 +269,9 @@ export function ElasticInput(props: ElasticInputProps) {
   // Parse dropdown max height for positioning calculations — the CSS maxHeight
   // caps the rendered size, but we also need to cap the height passed to the
   // flip logic in getDropdownPosition to avoid positioning off-screen.
+  // Touch devices get a 16px editor font unless styles.fontSize says otherwise
+  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+  const stylesProp = React.useMemo(() => resolveTouchStyles(stylesPropRaw, coarsePointer), [stylesPropRaw, coarsePointer]);
   const dropdownMaxHeightPx = parseInt(stylesProp?.dropdownMaxHeight || '300', 10) || 300;
 
   const enableSavedSearches = featuresConfig?.savedSearches ?? !!savedSearches;
@@ -365,6 +370,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const [editorEl, setEditorEl] = React.useState<HTMLDivElement | null>(null);
   const editorRefCallback = React.useCallback((el: HTMLDivElement | null) => {
     editorRef.current = el;
+    // Mobile keyboards: label the return key like the Enter behavior (React 16
+    // has no enterKeyHint prop)
+    el?.setAttribute('enterkeyhint', 'search');
     setEditorEl(el);
   }, []);
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1614,7 +1622,8 @@ export function ElasticInput(props: ElasticInputProps) {
     const el = dropdownListRef.current;
     if (!el || !dropdownPosition) return;
     const rect = el.getBoundingClientRect();
-    const vw = window.innerWidth;
+    const vp = getVisibleViewport();
+    const vw = vp.left + vp.width;
     if (rect.right > vw - 8) {
       const shift = rect.right - vw + 8;
       dropdownNudgedRef.current = true;
@@ -1636,7 +1645,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const caretRect = getCaretRect();
     if (!caretRect) return;
     const adjusted = adjustFlippedPosition(
-      dropdownPosition, el.getBoundingClientRect().height, caretRect, window.innerHeight, window.scrollY,
+      dropdownPosition, el.getBoundingClientRect().height, caretRect, getVisibleViewport(), window.scrollY,
     );
     if (adjusted) {
       flipAdjustedRef.current = true;
@@ -1666,11 +1675,18 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     };
 
+    // The visual viewport resizes/scrolls when the on-screen keyboard opens
+    // or the page is pinch-zoomed; window events fire for neither
+    const vv = window.visualViewport;
     window.addEventListener('resize', reposition);
     window.addEventListener('scroll', reposition, true);
+    vv?.addEventListener('resize', reposition);
+    vv?.addEventListener('scroll', reposition);
     return () => {
       window.removeEventListener('resize', reposition);
       window.removeEventListener('scroll', reposition, true);
+      vv?.removeEventListener('resize', reposition);
+      vv?.removeEventListener('scroll', reposition);
     };
   }, [dropdownAlignToInput, dropdownMaxHeightPx]);
 
@@ -2689,6 +2705,8 @@ export function ElasticInput(props: ElasticInputProps) {
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
         />
 
         {isEmpty && !isFocused ? (

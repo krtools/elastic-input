@@ -7,6 +7,15 @@ export function mergeColors(custom?: ColorConfig): Required<ColorConfig> {
   return { ...DEFAULT_COLORS, ...custom };
 }
 
+/**
+ * Style defaults for coarse pointers (touch): a 16px editor font, below which
+ * iOS zooms the page into the input on focus. An explicit `fontSize` wins.
+ */
+export function resolveTouchStyles(styles: StyleConfig | undefined, coarsePointer: boolean): StyleConfig | undefined {
+  if (!coarsePointer || styles?.fontSize) return styles;
+  return { ...styles, fontSize: '16px' };
+}
+
 export function mergeStyles(custom?: StyleConfig): Required<StyleConfig> {
   return { ...DEFAULT_STYLES, ...custom };
 }

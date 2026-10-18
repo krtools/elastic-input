@@ -1768,6 +1768,17 @@ Omit `plainModeLength` to disable this behavior. `0` means always plain.
 
 - **Tests:** `PlainMode.browser.test.tsx` → "is always plain"
 
+## 10.6 Touch and Mobile
+
+Phones and tablets get the same component with a few adjustments:
+
+- **Keyboard attributes:** the editor sets `autocapitalize="off"`, `autocorrect="off"`, `spellcheck="false"` and `enterkeyhint="search"`, so the on-screen keyboard neither capitalizes nor rewrites tokens, and its return key is labeled for what Enter does. (Smart quotes and dashes the keyboard still inserts are normalized on input — see `normalizeTypographicChars`.)
+- **16px editor font on coarse pointers:** when `(pointer: coarse)` matches and `styles.fontSize` is not set, the editor font is 16px instead of 14px — iOS zooms the page into any editable below 16px on focus. An explicit `fontSize` is always respected (`resolveTouchStyles`). Decided once, on mount.
+- **Tap-to-show error tooltips:** there is no hover on touch, so a touch or pen tap on an error (with a wider hit area below the text than the mouse gets) pins its tooltip; the next tap anywhere, an edit, or a caret move dismisses it. The compatibility mouse events a browser fires after a tap are ignored for 800ms so they cannot undo the tapped state. Mouse behavior is unchanged.
+- **Visual-viewport positioning:** the dropdown, the date picker, and the tooltip measure free space against `window.visualViewport` (`getVisibleViewport`), not `window.innerHeight`. With the on-screen keyboard up, only the visual viewport shrinks — on iOS and on Android (`interactive-widget=resizes-visual`) `innerHeight` is unchanged — so the old check placed the dropdown under the keyboard. They also reposition on visual-viewport `resize`/`scroll` (keyboard opening, pinch zoom).
+
+- **Tests:** `MobileInput.browser.test.tsx` → "turns off autocapitalize/autocorrect and labels the return key Search", "a touch tap on the error shows the message and keeps it until the next tap", "typing dismisses a tapped-open tooltip", "a mouse tap (pointerType mouse) changes nothing — hover still rules", "getVisibleViewport reports the visual viewport", "flips above the caret when the visible area (not innerHeight) has no room below", "keeps the dropdown inside a narrow visible width"; `dropdownPosition.test.ts` → "adjustFlippedPosition with the on-screen keyboard up"; `InlineStyles.test.ts` → "resolveTouchStyles"
+
 ## 11. Undo / Redo
 
 The component implements a custom undo/redo stack that operates at the semantic level rather than relying on the browser's built-in `execCommand` undo.

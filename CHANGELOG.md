@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixes
+
+- **Mobile keyboards no longer rewrite queries** — The editor sets `autocapitalize="off"`, `autocorrect="off"` and `enterkeyhint="search"`.
+- **16px editor font on touch devices** — Default when `(pointer: coarse)` matches and no `styles.fontSize` is set, so iOS stops zooming into the input on focus.
+- **Error tooltips open with a tap** — A touch tap on underlined text pins the message; the next tap or an edit dismisses it.
+- **Dropdown and date picker avoid the on-screen keyboard** — Positioning uses the visual viewport instead of `window.innerHeight`, and follows it when the keyboard opens.
+
 ### Demo
 
 - **Responsive layout** — Phone-width layout (input on its own row, scrollable tabs, options panel as a full-screen drawer) and an `npm run dev:host` script for opening the demo from a phone.

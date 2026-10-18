@@ -523,6 +523,10 @@ Provide dynamic suggestions for field values. Called for all non-boolean field v
 | Arrow Up/Down | Dropdown open | Navigate suggestions |
 | Arrow Left/Right | Any | Move cursor; suggestions update for new position |
 
+## Mobile
+
+The input works on phones and tablets without configuration: the on-screen keyboard is told not to capitalize or autocorrect and its return key reads Search; on touch devices the editor font defaults to 16px (so iOS does not zoom into it) unless you set `styles.fontSize`; validation messages open with a tap on the underlined text, since there is no hover; and the dropdown and date picker position themselves against the visible viewport, so the keyboard does not cover them. The demo is responsive too — `npm run dev:host` serves it to a phone on your network.
+
 ## Theming
 
 ### Colors

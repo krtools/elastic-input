@@ -43,6 +43,10 @@ export function SuggestionBar({
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker);
+  // Android draws the caret's drag handle ~24px below the text line, over the
+  // top of this row; a touch there grabs the handle (magnifier) instead of a
+  // chip. On coarse pointers keep the chips below that zone.
+  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -96,7 +100,7 @@ export function SuggestionBar({
         alignItems: 'center',
         gap: '8px',
         minHeight: '44px',
-        padding: '4px 8px',
+        padding: coarsePointer ? '16px 8px 4px' : '4px 8px',
         borderTop: `1px solid ${styles.dropdownBorderColor}`,
         boxSizing: 'border-box',
         minWidth: 0,

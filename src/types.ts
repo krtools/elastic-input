@@ -303,6 +303,14 @@ export interface DropdownConfig {
   mode?: 'always' | 'never' | 'manual' | 'input';
   /** When true, the dropdown spans the full input width instead of following the caret. @default false */
   alignToInput?: boolean;
+  /**
+   * How suggestions are shown. `'floating'`: the caret-anchored dropdown.
+   * `'sheet'`: a bar under the text with the suggestions as tappable chips and
+   * a button that opens a bottom sheet with the full list (and the date
+   * picker) — made for phones. `'auto'` uses `'sheet'` below 640px.
+   * @default 'auto'
+   */
+  presentation?: 'floating' | 'sheet' | 'auto';
   /** Maximum number of suggestions shown. @default 10 */
   maxSuggestions?: number;
   /** Debounce delay in ms for async `fetchSuggestions` calls. @default 200 */
@@ -538,6 +546,10 @@ export interface ClassNamesConfig {
   dropdownHeader?: string;
   /** Each dropdown suggestion item div. */
   dropdownItem?: string;
+  /** The bar under the text in the sheet presentation (`.ei-bar`). */
+  bar?: string;
+  /** The bottom sheet in the sheet presentation (`.ei-sheet`). */
+  sheet?: string;
   /** Each syntax-highlighted token span (in the HTML output). */
   token?: string;
   /** Validation squiggly underline divs. */

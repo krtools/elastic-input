@@ -435,6 +435,7 @@ export function DemoApp() {
 
   // Dropdown options
   const [dropdownOpen, setDropdownOpen] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
+  const [presentation, setPresentation] = React.useState<'auto' | 'floating' | 'sheet'>('auto');
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(false);
@@ -709,6 +710,7 @@ export function DemoApp() {
                   fetchSuggestions={mockFetchSuggestions}
                   dropdown={{
                     open: dropdownOpen,
+                    presentation,
                     alignToInput: dropdownAlignToInput,
                     autoSelect,
                     homeEndKeys,
@@ -986,6 +988,17 @@ export function DemoApp() {
                   { value: 'manual', label: 'Ctrl+Space' },
                 ]}
                 onChange={setDropdownOpen}
+                theme={theme}
+              />
+              <OptionSelect
+                label="Presentation"
+                value={presentation}
+                options={[
+                  { value: 'auto', label: 'Auto (sheet < 640px)' },
+                  { value: 'floating', label: 'Floating' },
+                  { value: 'sheet', label: 'Sheet' },
+                ]}
+                onChange={setPresentation}
                 theme={theme}
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />

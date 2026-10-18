@@ -525,7 +525,9 @@ Provide dynamic suggestions for field values. Called for all non-boolean field v
 
 ## Mobile
 
-The input works on phones and tablets without configuration: the on-screen keyboard is told not to capitalize or autocorrect and its return key reads Search; on touch devices the editor font defaults to 16px (so iOS does not zoom into it) unless you set `styles.fontSize`; validation messages open with a tap on the underlined text, since there is no hover; and the dropdown and date picker position themselves against the visible viewport, so the keyboard does not cover them. The demo is responsive too — `npm run dev:host` serves it to a phone on your network.
+The input works on phones and tablets without configuration: the on-screen keyboard is told not to capitalize or autocorrect and its return key reads Search; on touch devices the editor font defaults to 16px (so iOS does not zoom into it) unless you set `styles.fontSize`; validation messages open with a tap on the underlined text, since there is no hover; and the dropdown and date picker position themselves against the visible viewport, so the keyboard does not cover them.
+
+Below 640px the suggestions switch from the floating dropdown to a **bar** under the text — a button reading "16 suggestions" plus the top matches as tappable chips — and the button opens a **bottom sheet** with the full list (or the date picker) in finger-sized rows. Force either look with `dropdown.presentation: 'floating' | 'sheet'` (default `'auto'`); style them via `classNames.bar` / `classNames.sheet`. The demo is responsive too — `npm run dev:host` serves it to a phone on your network.
 
 ## Theming
 

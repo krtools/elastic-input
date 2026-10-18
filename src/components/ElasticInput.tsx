@@ -14,6 +14,10 @@ import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
+import { SuggestionBar } from './SuggestionBar';
+import { SuggestionSheet } from './SuggestionSheet';
+import { SuggestionList } from './SuggestionItems';
+import { useMatchMedia } from '../utils/useMatchMedia';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
@@ -290,6 +294,10 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderNoResults = dropdownConfig?.renderNoResults;
   const filterFields = dropdownConfig?.filterFields;
   const renderType = dropdownConfig?.renderType;
+  // Sheet presentation: bar + bottom sheet instead of the floating dropdown
+  const presentation = dropdownConfig?.presentation ?? 'auto';
+  const narrowViewport = useMatchMedia('(max-width: 640px)');
+  const sheetMode = presentation === 'sheet' || (presentation === 'auto' && narrowViewport);
   const autoSelect = dropdownConfig?.autoSelect ?? false;
   const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;
 
@@ -477,6 +485,8 @@ export function ElasticInput(props: ElasticInputProps) {
   const [autocompleteContext, setAutocompleteContext] = React.useState('');
   const [cursorContext, setCursorContext] = React.useState<CursorContext | null>(null);
   const [datePickerInit, setDatePickerInit] = React.useState<DatePickerInit | null>(null);
+  const [sheetOpen, setSheetOpen] = React.useState(false);
+  const sheetElRef = React.useRef<HTMLDivElement | null>(null);
 
   // Keep refs to latest state values needed in callbacks
   const stateRef = React.useRef({
@@ -501,6 +511,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (containerRef.current?.contains(node)) return true;
     if (dropdownListRef.current?.contains(node)) return true;
     if (datePickerElRef.current?.contains(node)) return true;
+    if (sheetElRef.current?.contains(node)) return true;
     return false;
   }, []);
 
@@ -1120,6 +1131,7 @@ export function ElasticInput(props: ElasticInputProps) {
     cancelPendingDropdownShow();
     setShowDropdown(false);
     setShowDatePicker(false);
+    setSheetOpen(false);
     setDatePickerInit(null);
     datePickerInitRef.current = null;
     datePickerReplaceRef.current = null;
@@ -1622,6 +1634,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const dropdownNudgedRef = React.useRef(false);
   React.useLayoutEffect(() => {
     if (dropdownNudgedRef.current) { dropdownNudgedRef.current = false; return; }
+    if (sheetMode) return; // the sheet is not caret-positioned
     const el = dropdownListRef.current;
     if (!el || !dropdownPosition) return;
     const rect = el.getBoundingClientRect();
@@ -1632,7 +1645,7 @@ export function ElasticInput(props: ElasticInputProps) {
       dropdownNudgedRef.current = true;
       setDropdownPosition(prev => prev ? { ...prev, left: Math.max(8, prev.left - shift) } : prev);
     }
-  }, [dropdownPosition, showDropdown, showDatePicker, suggestions]);
+  }, [dropdownPosition, showDropdown, showDatePicker, suggestions, sheetMode]);
 
   // After the dropdown/date picker renders, re-evaluate the flip decision with
   // the actual rendered height. The initial decision uses an estimate that
@@ -1641,7 +1654,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const flipAdjustedRef = React.useRef(false);
   React.useLayoutEffect(() => {
     if (flipAdjustedRef.current) { flipAdjustedRef.current = false; return; }
-    if (!dropdownPosition) return;
+    if (!dropdownPosition || sheetMode) return;
     // Full-width dropdowns are docked to the container and never flip
     const el = showDatePicker ? datePickerEl : (showDropdown && !dropdownAlignToInput ? dropdownListRef.current : null);
     if (!el) return;
@@ -1654,7 +1667,7 @@ export function ElasticInput(props: ElasticInputProps) {
       flipAdjustedRef.current = true;
       setDropdownPosition(adjusted);
     }
-  }, [dropdownPosition, showDropdown, showDatePicker, suggestions, dropdownAlignToInput, datePickerEl]);
+  }, [dropdownPosition, showDropdown, showDatePicker, suggestions, dropdownAlignToInput, datePickerEl, sheetMode]);
 
   // Reposition dropdown on window resize / scroll so it stays anchored
   React.useEffect(() => {
@@ -2458,6 +2471,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setIsFocused(false);
     cancelPendingDropdownShow();
     setShowDropdown(false);
+    setSheetOpen(false);
     setShowDatePicker(false);
     setSuggestions([]);
     displayedTaskRef.current = null;
@@ -2638,6 +2652,9 @@ export function ElasticInput(props: ElasticInputProps) {
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(stylesProp);
   const containerStyle = getInputContainerStyle(mergedColors, mergedStyleConfig, isFocused, style);
+  // Sheet presentation: what the bar and sheet show, if anything
+  const sheetContent = sheetMode && showDatePicker ? 'datePicker' : sheetMode && showDropdown && suggestions.length > 0 ? 'suggestions' : null;
+  const sheetHeader = sheetContent === 'suggestions' && renderDropdownHeader && cursorContext ? renderDropdownHeader(cursorContext) : null;
   const editableStyle: React.CSSProperties = {
     ...getEditableStyle(mergedColors, mergedStyleConfig),
   };
@@ -2678,7 +2695,7 @@ export function ElasticInput(props: ElasticInputProps) {
   return (
     <div
       ref={containerRef}
-      style={containerStyle}
+      style={sheetMode ? { ...containerStyle, flexWrap: 'wrap' } : containerStyle}
       className={cx('ei-container', className, classNames?.container)}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -2739,6 +2756,20 @@ export function ElasticInput(props: ElasticInputProps) {
         </div>
       ) : null}
 
+      {sheetContent ? (
+        <SuggestionBar
+          suggestions={suggestions}
+          selectedIndex={selectedSuggestionIndex}
+          datePicker={sheetContent === 'datePicker'}
+          sheetOpen={sheetOpen}
+          onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
+          onToggleSheet={() => setSheetOpen(o => !o)}
+          colors={mergedColors}
+          styles={mergedStyleConfig}
+          className={classNames?.bar}
+        />
+      ) : null}
+
       <AutocompleteDropdown
         suggestions={suggestions}
         selectedIndex={selectedSuggestionIndex}
@@ -2746,7 +2777,7 @@ export function ElasticInput(props: ElasticInputProps) {
         position={dropdownPosition}
         colors={colors}
         styles={stylesProp}
-        visible={showDropdown}
+        visible={showDropdown && !sheetMode}
         fixedWidth={dropdownFixedWidth}
         renderHistoryItem={renderHistoryItem}
         renderSavedSearchItem={renderSavedSearchItem}
@@ -2757,7 +2788,7 @@ export function ElasticInput(props: ElasticInputProps) {
         classNames={classNames ? { dropdown: classNames.dropdown, dropdownHeader: classNames.dropdownHeader, dropdownItem: classNames.dropdownItem } : undefined}
       />
 
-      {showDatePicker && dropdownPosition ? (
+      {showDatePicker && dropdownPosition && !sheetMode ? (
         <DatePickerPortal
           position={dropdownPosition}
           colors={mergedColors}
@@ -2771,6 +2802,48 @@ export function ElasticInput(props: ElasticInputProps) {
           wheelNavigation={datePickerWheelNavigation}
           elRef={el => { datePickerElRef.current = el; setDatePickerEl(el); }}
         />
+      ) : null}
+
+      {sheetContent && sheetOpen ? (
+        <SuggestionSheet
+          title={sheetContent === 'datePicker' ? 'Date' : 'Suggestions'}
+          onClose={() => setSheetOpen(false)}
+          colors={mergedColors}
+          styles={mergedStyleConfig}
+          className={classNames?.sheet}
+          elRef={el => { sheetElRef.current = el; }}
+          bodyRef={sheetContent === 'suggestions' ? (el => { dropdownListRef.current = el; }) : undefined}
+          selectedChildIndex={sheetContent === 'suggestions' ? selectedSuggestionIndex + (sheetHeader != null ? 1 : 0) : undefined}
+        >
+          {sheetContent === 'datePicker' ? (
+            <DateRangePicker
+              onSelect={handleDateSelect}
+              colors={mergedColors}
+              styles={stylesProp}
+              initialMode={datePickerInit?.mode}
+              initialStart={datePickerInit?.start}
+              initialEnd={datePickerInit?.end}
+              presets={datePresetsProp}
+              className={classNames?.datePicker}
+              wheelNavigation={datePickerWheelNavigation}
+            />
+          ) : (
+            <SuggestionList
+              header={sheetHeader}
+              headerClassName={classNames?.dropdownHeader}
+              suggestions={suggestions}
+              selectedIndex={selectedSuggestionIndex}
+              onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
+              colors={mergedColors}
+              styles={mergedStyleConfig}
+              renderHistoryItem={renderHistoryItem}
+              renderSavedSearchItem={renderSavedSearchItem}
+              renderType={renderType}
+              itemClassName={classNames?.dropdownItem}
+              minHeight={48}
+            />
+          )}
+        </SuggestionSheet>
       ) : null}
     </div>
   );

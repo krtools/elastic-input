@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text (a "N suggestions" button plus the matches as tappable chips) and a bottom sheet with the full list or the date picker. `'auto'` (the default) uses it below 640px.
+
 ### Fixes
 
 - **Mobile keyboards no longer rewrite queries** — The editor sets `autocapitalize="off"`, `autocorrect="off"` and `enterkeyhint="search"`.

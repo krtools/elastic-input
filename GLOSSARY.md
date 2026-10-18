@@ -43,6 +43,8 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | Term | Meaning |
 |------|---------|
 | **dropdown** | The autocomplete suggestion list that appears below the input |
+| **bar** | Sheet presentation: the row inside the input box, under the text, with a status/count button and the suggestions as chips (`.ei-bar`) |
+| **sheet** | Sheet presentation: the bottom sheet the bar's button opens, holding the full suggestion list or the date picker (`.ei-sheet`) |
 | **suggestion** | A single item in the dropdown |
 | **hint** | A non-selectable dropdown item (e.g. `#saved-search`, `!history`, type placeholders) |
 | **selected index** | Which dropdown item is highlighted for keyboard accept (Enter/Tab). `-1` means nothing selected. |

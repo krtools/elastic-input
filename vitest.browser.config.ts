@@ -14,6 +14,9 @@ export default defineConfig({
       enabled: true,
       provider: playwright(),
       headless: true,
+      // Desktop size: the default (414px) is narrow enough to switch the
+      // suggestions to the sheet presentation; phone tests set page.viewport()
+      viewport: { width: 1280, height: 800 },
       instances: [{ browser: 'chromium' }],
     },
   },

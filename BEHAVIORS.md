@@ -1143,6 +1143,26 @@ When a date value is selected from the date picker and the cursor is at the end 
 
 ---
 
+### 8.6 Sheet Presentation (`dropdown.presentation`)
+
+The floating, caret-anchored dropdown suits a pointer. On a phone the on-screen keyboard leaves little room, rows are small for a finger, and there is no Ctrl+Space to bring a dismissed list back. `dropdown.presentation` chooses between:
+
+| Value | Behavior |
+|-------|----------|
+| `'floating'` | The dropdown and date picker portals described above |
+| `'sheet'` | A **bar** inside the input box, below the text, plus a **bottom sheet** on demand |
+| `'auto'` (default) | `'sheet'` while `(max-width: 640px)` matches, else `'floating'`; tracked live (rotation, resize) |
+
+**The bar** (`.ei-bar`, `classNames.bar`) renders whenever the floating dropdown or date picker would be visible, as a second row of the container (the container wraps; the box grows by one row). It holds a button and the acceptable suggestions as chips:
+
+- The button (`.ei-bar-open`) says what the sheet would show: "N suggestions", or the state when nothing is acceptable — "Searching...", "No matches", an error, a field hint such as "Enter a number" — or "Pick a date" for a date field (`barStatusLabel`). Tapping it toggles the sheet.
+- The chips (`.ei-chip`, horizontally scrollable) accept on tap, through the same path as a dropdown click. The highlighted suggestion (the one Enter / the keyboard's Search key would accept) is `.ei-chip--selected`. Inert items and informational hints have no chip.
+- Arrow keys, Home/End, Enter, Tab and Escape behave exactly as with the floating dropdown — only the rendering differs.
+
+**The sheet** (`.ei-sheet`, `classNames.sheet`) is a portal pinned to the bottom of the *visible* viewport (above the on-screen keyboard; it follows visual-viewport resize/scroll), capped to 55% of it, with a header (title + 44px × close) and a scrolling body of the same suggestion rows as the dropdown at 48px minimum height — or the date picker. It opens from the bar button only, never on its own; it stays open across chained accepts (field → value) and closes on its ×, Escape, blur, or when the list goes away. Tapping inside it keeps the editor focused. `isInternalNode` treats it as part of the component.
+
+- **Tests:** `SheetPresentation.browser.test.tsx` → "shows a count button and chips instead of the floating dropdown; a chip accepts", "describes inert states instead of a count", "opens from the bar with tall rows, accepts on tap, and stays for the next step", "closes with its × (bar stays, focus stays), and with Escape (everything closes)", "closes on blur", "keyboard still works: ArrowDown moves the highlight, Enter accepts it", "shows the date picker in the sheet for a date field", "floats at desktop width and uses the sheet below 640px", "'floating' stays floating at phone width"
+
 ## 9. Validation
 
 Validation runs on the AST and produces errors with character offsets for squiggly underline display. Errors are **deferred** — they only display after the cursor leaves the error range.
@@ -1567,6 +1587,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 |----------|------|---------|-------------|
 | `mode` | `'always' \| 'input' \| 'never' \| 'manual'` | `'always'` | When the dropdown appears; see §8.3 |
 | `alignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom; see §8.2 |
+| `presentation` | `'floating' \| 'sheet' \| 'auto'` | `'auto'` | Floating dropdown, or a bar + bottom sheet for phones; `'auto'` = sheet below 640px; see §8.6 |
 | `maxSuggestions` | `number` | `10` | Max suggestions shown |
 | `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
 | `showSavedSearchHint` | `boolean` | `features.savedSearches` | Show `#saved-search` hint in dropdown |

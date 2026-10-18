@@ -5,6 +5,7 @@
 ### Features
 
 - **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text while focused (a "N suggestions" button plus the matches as swipeable chips) and a near-full-screen sheet with the full list or the date picker; a pick closes the sheet unless the field sets `FieldConfig.followUp`, which keeps it open to pick the value. `'auto'` (the default) uses it below 640px.
+- **Bar actions menu** — A ⋯ button on the bar opens Saved searches, History and Clear, plus entries from the new `barActions` prop.
 
 ### Fixes
 

@@ -22,6 +22,8 @@ interface SuggestionSheetProps {
   bodyRef?: (el: HTMLDivElement | null) => void;
   /** Child of the body to keep scrolled into view (the highlighted row). */
   selectedChildIndex?: number;
+  /** Size to the content, bottom-anchored, instead of nearly the whole viewport (short lists such as the actions menu). */
+  fit?: boolean;
 }
 
 /**
@@ -32,7 +34,7 @@ interface SuggestionSheetProps {
  * scrolling body.
  */
 export function SuggestionSheet({
-  title, detail, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex,
+  title, detail, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex, fit,
 }: SuggestionSheetProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const bodyElRef = React.useRef<HTMLDivElement | null>(null);
@@ -90,7 +92,8 @@ export function SuggestionSheet({
     position: 'fixed',
     left: `${viewport.left}px`,
     width: `${viewport.width}px`,
-    top: `${viewport.top + TOP_GAP}px`,
+    top: fit ? 'auto' : `${viewport.top + TOP_GAP}px`,
+    maxHeight: fit ? `${viewport.height - TOP_GAP}px` : undefined,
     bottom: `${bottomInset}px`,
     display: 'flex',
     flexDirection: 'column',

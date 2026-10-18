@@ -8,7 +8,7 @@ import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
-import { ElasticInputProps, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent, BarAction } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -17,6 +17,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { SuggestionBar } from './SuggestionBar';
 import { SuggestionSheet } from './SuggestionSheet';
 import { SuggestionList } from './SuggestionItems';
+import { ActionList, ActionRow } from './ActionList';
 import { useMatchMedia } from '../utils/useMatchMedia';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
@@ -232,7 +233,7 @@ export function useLazyRef<T>(init: () => T): React.MutableRefObject<T> {
 export function ElasticInput(props: ElasticInputProps) {
   const {
     fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
-    savedSearches, searchHistory, fetchSuggestions: fetchSuggestionsProp,
+    savedSearches, searchHistory, barActions: barActionsProp, fetchSuggestions: fetchSuggestionsProp,
     colors, styles: stylesPropRaw, placeholder, className, classNames, style,
     dropdown: dropdownConfig, features: featuresConfig,
     inputRef, datePresets: datePresetsProp,
@@ -486,19 +487,21 @@ export function ElasticInput(props: ElasticInputProps) {
   const [cursorContext, setCursorContext] = React.useState<CursorContext | null>(null);
   const [datePickerInit, setDatePickerInit] = React.useState<DatePickerInit | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const apiRef = React.useRef<ElasticInputAPI | null>(null);
   const sheetElRef = React.useRef<HTMLDivElement | null>(null);
 
   // Keep refs to latest state values needed in callbacks
   const stateRef = React.useRef({
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
-    fieldsLoading,
+    fieldsLoading, menuOpen,
   });
   // eslint-disable-next-line react-hooks/refs -- stateRef pattern: handlers read the latest committed state without subscribing to it; render-phase mirror is the mechanism
   stateRef.current = {
     tokens, ast, suggestions, selectedSuggestionIndex, showDropdown, showDatePicker,
     cursorOffset, selectionEnd, autocompleteContext, validationErrors, cursorContext,
-    fieldsLoading,
+    fieldsLoading, menuOpen,
   };
 
   // --- Helpers ---
@@ -1132,6 +1135,7 @@ export function ElasticInput(props: ElasticInputProps) {
     setShowDropdown(false);
     setShowDatePicker(false);
     setSheetOpen(false);
+    setMenuOpen(false);
     setDatePickerInit(null);
     datePickerInitRef.current = null;
     datePickerReplaceRef.current = null;
@@ -1171,6 +1175,17 @@ export function ElasticInput(props: ElasticInputProps) {
     }
     setSheetOpen(!sheetOpen);
   }, [sheetOpen, requestSuggestions]);
+
+  // The bar's ⋯ menu
+  const toggleMenu = React.useCallback(() => { setMenuOpen(open => !open); }, []);
+  const clearQuery = React.useCallback(() => {
+    setMenuOpen(false);
+    apiRef.current?.setValue('');
+  }, []);
+  const runBarAction = React.useCallback((action: BarAction) => {
+    setMenuOpen(false);
+    if (apiRef.current) action.onSelect({ query: currentValueRef.current, api: apiRef.current });
+  }, []);
 
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
@@ -1260,6 +1275,28 @@ export function ElasticInput(props: ElasticInputProps) {
       rafIdsRef.current.add(id);
     }
   }, [recordUndoEntry, lineNormalize, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+
+  // Menu entries "Saved searches" / "History": insert the trigger at the caret
+  // (replacing a selection) as typing it would, then show its list in the
+  // sheet. The trigger must start a term, so it gets a space on the side(s)
+  // where it would otherwise join one. The menu stays until the sheet switches
+  // to the list, in the same task, so the overlay never unmounts in between.
+  const insertTrigger = React.useCallback((ch: '#' | '!') => {
+    const s = stateRef.current;
+    const text = currentValueRef.current;
+    const start = s.cursorOffset >= 0 ? Math.min(s.cursorOffset, s.selectionEnd) : text.length;
+    const end = s.cursorOffset >= 0 ? Math.max(s.cursorOffset, s.selectionEnd) : text.length;
+    const before = text.slice(0, start);
+    const after = text.slice(end);
+    const pre = before && !/[\s(]$/.test(before) ? ' ' : '';
+    const post = /^[^\s)]/.test(after) ? ' ' : '';
+    const caret = before.length + pre.length + 1;
+    applyNewValue(before + pre + ch + post + after, caret, (toks) => {
+      requestSuggestions(toks, caret);
+      setSheetOpen(true);
+      setMenuOpen(false);
+    });
+  }, [applyNewValue, requestSuggestions]);
 
   const acceptSuggestion = React.useCallback((
     suggestion: Suggestion,
@@ -1430,8 +1467,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Expose imperative API
   React.useEffect(() => {
-    if (inputRef) {
-      inputRef({
+    const api: ElasticInputAPI = {
         getValue: () => currentValueRef.current,
         setValue: (raw: string) => {
           const v = lineNormalize(raw);
@@ -1539,8 +1575,9 @@ export function ElasticInput(props: ElasticInputProps) {
             setSelectionEnd(range.end);
           }
         },
-      });
-    }
+    };
+    apiRef.current = api; // the bar's menu actions use it too
+    if (inputRef) inputRef(api);
   }, [inputRef, processInput, acceptSuggestion, closeDropdown, requestSuggestions, onSearch, onValidationChange, recordUndoEntry, isInternalNode, lineNormalize]);
 
   // Process initial value
@@ -2241,6 +2278,12 @@ export function ElasticInput(props: ElasticInputProps) {
     }
 
     keyConsumedByDropdownRef.current = false;
+    if (e.key === 'Escape' && s.menuOpen) {
+      e.preventDefault();
+      setMenuOpen(false); // the suggestion list under it stays
+      return;
+    }
+
     if (s.showDropdown && s.suggestions.length > 0) {
       switch (e.key) {
         case 'ArrowDown':
@@ -2497,6 +2540,7 @@ export function ElasticInput(props: ElasticInputProps) {
     cancelPendingDropdownShow();
     setShowDropdown(false);
     setSheetOpen(false);
+    setMenuOpen(false);
     setShowDatePicker(false);
     setSuggestions([]);
     displayedTaskRef.current = null;
@@ -2682,6 +2726,12 @@ export function ElasticInput(props: ElasticInputProps) {
   // row, no layout jumps between completion steps); the sheet while opened
   const barSuggestions = showDropdown && suggestions.length > 0 ? suggestions : [];
   const barVisible = sheetMode && isFocused && dropdownMode !== 'never';
+  const barActions: ActionRow[] = menuOpen ? [
+    ...(enableSavedSearches ? [{ id: 'saved-searches', label: 'Saved searches', hint: '#', onSelect: () => insertTrigger('#') }] : []),
+    ...(enableHistorySearch ? [{ id: 'history', label: 'History', hint: '!', onSelect: () => insertTrigger('!') }] : []),
+    { id: 'clear', label: 'Clear', disabled: isEmpty, onSelect: clearQuery },
+    ...(barActionsProp ?? []).map(a => ({ id: a.id, label: a.label, hint: a.hint, disabled: a.disabled, onSelect: () => runBarAction(a) })),
+  ] : [];
   const sheetHeader = sheetMode && barSuggestions.length > 0 && renderDropdownHeader && cursorContext ? renderDropdownHeader(cursorContext) : null;
   const editableStyle: React.CSSProperties = {
     ...getEditableStyle(mergedColors, mergedStyleConfig),
@@ -2793,6 +2843,8 @@ export function ElasticInput(props: ElasticInputProps) {
           sheetOpen={sheetOpen}
           onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
           onToggleSheet={toggleSheet}
+          menuOpen={menuOpen}
+          onToggleMenu={toggleMenu}
           colors={mergedColors}
           styles={mergedStyleConfig}
           className={classNames?.bar}
@@ -2833,20 +2885,23 @@ export function ElasticInput(props: ElasticInputProps) {
         />
       ) : null}
 
-      {sheetMode && sheetOpen ? (
+      {sheetMode && (sheetOpen || menuOpen) ? (
         <SuggestionSheet
-          title={showDatePicker ? 'Date' : 'Suggestions'}
+          title={menuOpen ? 'Actions' : showDatePicker ? 'Date' : 'Suggestions'}
           // eslint-disable-next-line react-hooks/refs -- the status snapshot built above (see the slot render props)
           detail={status.value}
-          onClose={() => setSheetOpen(false)}
+          fit={menuOpen}
+          onClose={() => { setSheetOpen(false); setMenuOpen(false); }}
           colors={mergedColors}
           styles={mergedStyleConfig}
           className={classNames?.sheet}
           elRef={el => { sheetElRef.current = el; }}
           bodyRef={el => { dropdownListRef.current = el; }}
-          selectedChildIndex={barSuggestions.length > 0 ? selectedSuggestionIndex + (sheetHeader != null ? 1 : 0) : undefined}
+          selectedChildIndex={!menuOpen && barSuggestions.length > 0 ? selectedSuggestionIndex + (sheetHeader != null ? 1 : 0) : undefined}
         >
-          {showDatePicker ? (
+          {menuOpen ? (
+            <ActionList actions={barActions} colors={mergedColors} styles={mergedStyleConfig} />
+          ) : showDatePicker ? (
             <DateRangePicker
               onSelect={(d: string) => { handleDateSelect(d); setSheetOpen(false); }}
               colors={mergedColors}

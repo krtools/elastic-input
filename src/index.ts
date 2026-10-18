@@ -47,6 +47,8 @@ export type {
   FieldsSource,
   FieldType,
   SavedSearch,
+  BarAction,
+  BarActionContext,
   HistoryEntry,
   SuggestionItem,
   ColorConfig,

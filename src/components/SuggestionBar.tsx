@@ -32,8 +32,10 @@ interface SuggestionBarProps {
   /** Nothing is open: the button offers to request suggestions. */
   idle: boolean;
   sheetOpen: boolean;
+  menuOpen: boolean;
   onSelect: (suggestion: Suggestion, event: React.MouseEvent) => void;
   onToggleSheet: () => void;
+  onToggleMenu: () => void;
   colors: Required<ColorConfig>;
   styles: Required<StyleConfig>;
   className?: string;
@@ -65,13 +67,13 @@ const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
  * tappable chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, idle, sheetOpen, onSelect, onToggleSheet, colors, styles, className,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
-
+  // Android's caret handle reaches ~13px below the text line; on coarse
+  // pointers the row keeps 12px of top padding so the chips sit under it
   const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
-
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -132,6 +134,10 @@ export function SuggestionBar({
     if (g.moved || !g.button?.isConnected) return;
     if (g.button.classList.contains('ei-bar-open')) {
       onToggleSheet();
+      return;
+    }
+    if (g.button.classList.contains('ei-bar-more')) {
+      onToggleMenu();
       return;
     }
     const chip = chips[Number(g.button.getAttribute('data-chip'))];
@@ -220,6 +226,17 @@ export function SuggestionBar({
           })}
         </div>
       )}
+      <button
+        type="button"
+        className="ei-bar-more"
+        aria-label="More actions"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        onClick={onToggleMenu}
+        style={{ ...buttonBase, padding: 0, width: '36px', marginLeft: 'auto', backgroundColor: 'transparent', color: colors.text, fontSize: '20px', lineHeight: 1 }}
+      >
+        ⋯
+      </button>
     </div>
   );
 }

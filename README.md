@@ -529,6 +529,17 @@ The input works on phones and tablets without configuration: the on-screen keybo
 
 Below 640px the suggestions switch from the floating dropdown to a **bar** under the text — a button reading "16 suggestions" plus the top matches as tappable chips — and the button opens a near-full-screen **sheet** with the full list (or the date picker) in finger-sized rows. Force either look with `dropdown.presentation: 'floating' | 'sheet'` (default `'auto'`); style them via `classNames.bar` / `classNames.sheet`. The demo is responsive too — `npm run dev:host` serves it to a phone on your network.
 
+The bar's ⋯ button opens a short menu — Saved searches and History when those are enabled, Clear, and anything you add with `barActions`; each entry gets the current query and the imperative API:
+
+```tsx
+<ElasticInput
+  fields={fields}
+  barActions={[
+    { id: 'format', label: 'Format', onSelect: ({ query, api }) => api.setValue(formatQuery(query)) },
+  ]}
+/>
+```
+
 ## Theming
 
 ### Colors

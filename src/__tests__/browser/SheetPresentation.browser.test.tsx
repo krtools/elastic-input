@@ -166,6 +166,16 @@ describe("presentation: 'sheet' — the bar", () => {
       await click(q('.ei-chip'));
       expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
     });
+
+    it('a touch tap on ⋯ opens the actions menu', async () => {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      const more = q('.ei-bar-more')!;
+      const m = more.getBoundingClientRect();
+      touch('pointerdown', more, m.left + 10, m.top + 10);
+      touch('pointerup', more, m.left + 10, m.top + 10);
+      expect(await waitFor(() => q('.ei-sheet .ei-action') !== null)).toBe(true);
+    });
   });
 
   it("in 'manual' mode the button requests suggestions, like Ctrl+Space", async () => {
@@ -361,5 +371,96 @@ describe("presentation: 'auto'", () => {
     await userEvent.type(editor, 'sta');
     expect(await waitFor(() => q('.ei-dropdown') !== null)).toBe(true);
     expect(q('.ei-bar')).toBeNull();
+  });
+});
+
+describe("presentation: 'sheet' — the ⋯ menu", () => {
+  const actions = () => qa('.ei-sheet .ei-action').map(el => el.firstElementChild?.textContent ?? '');
+  const SAVED = [{ query: '#vip' }, { query: '#new' }];
+  const HISTORY = [{ query: 'status:active' }];
+
+  it('opens a content-sized sheet; Clear empties the input and closes it', async () => {
+    await page.viewport(375, 812);
+    const { api, editor } = await setup();
+    await userEvent.type(editor, 'sta');
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    expect(actions()).toEqual(['Clear']); // no saved searches or history configured
+    expect(q('.ei-sheet')!.getBoundingClientRect().height).toBeLessThan(200);
+    await click(q('.ei-action'));
+    expect(await waitFor(() => api.getValue() === '' && q('.ei-sheet') === null)).toBe(true);
+    expect(document.activeElement).toBe(q('.ei-editor'));
+  });
+
+  it('lists Saved searches and History when enabled; Saved searches inserts # after a space and opens the list', async () => {
+    const { api, editor } = await setup({ savedSearches: SAVED, searchHistory: HISTORY });
+    await userEvent.type(editor, 'sta');
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => actions().length === 3)).toBe(true);
+    expect(actions()).toEqual(['Saved searches', 'History', 'Clear']);
+    await click(qa('.ei-action')[0]);
+    expect(await waitFor(() => api.getValue() === 'sta #')).toBe(true);
+    expect(api.getSelection()).toEqual({ start: 5, end: 5 });
+    expect(await waitFor(() => sheetItems().length === 2)).toBe(true);
+    expect(sheetItems()[0]).toContain('#vip');
+    expect(chips().length).toBe(2);
+  });
+
+  it('History inserts ! as-is at the start; Clear is disabled while empty', async () => {
+    const { api } = await setup({ searchHistory: HISTORY });
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => actions().length === 2)).toBe(true);
+    expect(actions()).toEqual(['History', 'Clear']);
+    expect((qa('.ei-sheet .ei-action')[1] as HTMLButtonElement).disabled).toBe(true);
+    await click(qa('.ei-action')[0]);
+    expect(await waitFor(() => api.getValue() === '!')).toBe(true);
+    expect(await waitFor(() => sheetItems().length === 1)).toBe(true);
+    expect(sheetItems()[0]).toContain('status:active');
+  });
+
+  it('a trigger inserted between terms gets a space on each side it needs, replacing a selection', async () => {
+    const { api } = await setup({ savedSearches: SAVED });
+    api.setValue('a bcd e');
+    api.setSelection(2, 5); // "bcd"
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => actions().length === 2)).toBe(true);
+    await click(qa('.ei-action')[0]);
+    expect(await waitFor(() => api.getValue() === 'a # e')).toBe(true);
+    expect(api.getSelection()).toEqual({ start: 3, end: 3 });
+  });
+
+  it('barActions follow the built-ins and receive the query and the api', async () => {
+    const seen: string[] = [];
+    const { api, editor } = await setup({
+      barActions: [{ id: 'up', label: 'Uppercase', hint: 'Aa', onSelect: ({ query, api: a }) => { seen.push(query); a.setValue(query.toUpperCase()); } }],
+    });
+    await userEvent.type(editor, 'sta');
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => actions().length === 2)).toBe(true);
+    expect(actions()).toEqual(['Clear', 'Uppercase']);
+    expect(q('.ei-sheet .ei-action-hint')!.textContent).toBe('Aa');
+    await click(qa('.ei-action')[1]);
+    expect(await waitFor(() => api.getValue() === 'STA')).toBe(true);
+    expect(seen).toEqual(['sta']);
+    expect(q('.ei-sheet')).toBeNull();
+  });
+
+  it('closes on Escape (the list stays), on its ×, and on blur', async () => {
+    const { api, editor } = await setup();
+    await userEvent.type(editor, 'sta');
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    await userEvent.keyboard('{Escape}');
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(chips()).toEqual(['status']);
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    await click(q('.ei-sheet-close'));
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(q('.ei-bar')).not.toBeNull();
+    await click(q('.ei-bar-more'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    api.blur();
+    expect(await waitFor(() => q('.ei-sheet') === null && q('.ei-bar') === null)).toBe(true);
   });
 });

@@ -415,6 +415,26 @@ export interface FeaturesConfig {
  * Imperative API handle for the ElasticInput component.
  * Obtained via the `inputRef` callback prop.
  */
+/** An entry in the bar's ⋯ menu (sheet presentation). */
+export interface BarAction {
+  /** Stable identity (React key). */
+  id: string;
+  label: string;
+  /** Muted text at the right of the row, e.g. a shortcut. */
+  hint?: string;
+  /** Listed but not tappable. */
+  disabled?: boolean;
+  /** Called on tap, after the menu has closed. */
+  onSelect: (ctx: BarActionContext) => void;
+}
+
+export interface BarActionContext {
+  /** The query at the time of the tap. */
+  query: string;
+  /** The imperative API, for edits and follow-ups (`setValue`, `set`, `openDropdown`, `submit`, …). */
+  api: ElasticInputAPI;
+}
+
 export interface ElasticInputAPI {
   /** Returns the current raw query string. */
   getValue: () => string;
@@ -613,6 +633,8 @@ export interface ElasticInputProps {
   savedSearches?: SavedSearch[] | ((partial: string) => Promise<SavedSearch[]>);
   /** Search history available via `!` syntax. Array is passed through as-is; callback is called per-keystroke (debounced) with the partial. */
   searchHistory?: HistoryEntry[] | ((partial: string) => Promise<HistoryEntry[]>);
+  /** Extra entries for the bar's ⋯ menu (sheet presentation), listed after the built-in Saved searches, History and Clear. */
+  barActions?: BarAction[];
   /** Async callback for fetching field value suggestions. Called with field name and partial text. */
   fetchSuggestions?: (fieldName: string, partial: string) => Promise<SuggestionItem[]>;
   /** Color overrides for syntax highlighting and UI elements. Merged with `DEFAULT_COLORS`. */

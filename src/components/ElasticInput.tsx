@@ -1364,6 +1364,17 @@ export function ElasticInput(props: ElasticInputProps) {
     });
   }, [applyNewValue, updateSuggestionsFromTokens, onSearch, onAcceptSuggestion, trailingSpaceOnAccept]);
 
+  // A pick in the sheet closes it, except a field marked `followUp` (its value
+  // is picked next) and the `#`/`!` hints (their list is the point).
+  const acceptFromSheet = React.useCallback((suggestion: Suggestion, e: React.MouseEvent) => {
+    const ctx = stateRef.current.autocompleteContext;
+    const isTriggerHint = suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!');
+    const isField = suggestion.text.endsWith(':') && (ctx === 'FIELD_NAME' || ctx === 'FIELD_VALUE');
+    const field = isField ? engineRef.current.resolveField(suggestion.text.slice(0, -1)) : undefined;
+    acceptSuggestion(suggestion, 'Tab', undefined, e);
+    if (!isTriggerHint && !field?.followUp) setSheetOpen(false);
+  }, [acceptSuggestion, engineRef]);
+
   // --- Lifecycle ---
 
   // Load sync data arrays into engine (callback forms are handled per-keystroke)
@@ -2663,8 +2674,9 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // --- Render ---
 
-  const mergedColors = mergeColors(colors);
-  const mergedStyleConfig = mergeStyles(stylesProp);
+  const mergedColors = React.useMemo(() => mergeColors(colors), [colors]);
+  // Memoized: the bar and sheet receive these as props on every render
+  const mergedStyleConfig = React.useMemo(() => mergeStyles(stylesProp), [stylesProp]);
   const containerStyle = getInputContainerStyle(mergedColors, mergedStyleConfig, isFocused, style);
   // Sheet presentation: the bar lives while the editor is focused (a stable
   // row, no layout jumps between completion steps); the sheet while opened
@@ -2835,7 +2847,7 @@ export function ElasticInput(props: ElasticInputProps) {
         >
           {showDatePicker ? (
             <DateRangePicker
-              onSelect={handleDateSelect}
+              onSelect={(d: string) => { handleDateSelect(d); setSheetOpen(false); }}
               colors={mergedColors}
               styles={stylesProp}
               initialMode={datePickerInit?.mode}
@@ -2855,7 +2867,7 @@ export function ElasticInput(props: ElasticInputProps) {
               headerClassName={classNames?.dropdownHeader}
               suggestions={barSuggestions}
               selectedIndex={selectedSuggestionIndex}
-              onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
+              onSelect={acceptFromSheet}
               colors={mergedColors}
               styles={mergedStyleConfig}
               renderHistoryItem={renderHistoryItem}

@@ -44,6 +44,27 @@ export function SuggestionBar({
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker);
 
+  // The strip's scroll position survives a remount of the same list (a
+  // re-render leaves the live position alone), and starts over for a new list
+  const stripRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollLeftRef = React.useRef(0);
+  const lastElRef = React.useRef<HTMLDivElement | null>(null);
+  const lastListRef = React.useRef(suggestions);
+  React.useLayoutEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    if (lastListRef.current !== suggestions) {
+      lastListRef.current = suggestions;
+      scrollLeftRef.current = 0;
+      el.scrollLeft = 0;
+    } else if (el === lastElRef.current) {
+      scrollLeftRef.current = el.scrollLeft; // the DOM is the truth between renders
+    } else {
+      el.scrollLeft = scrollLeftRef.current; // remounted: restore
+    }
+    lastElRef.current = el;
+  });
+
   const buttonBase: React.CSSProperties = {
     fontFamily: styles.fontFamily,
     fontSize: styles.dropdownItemFontSize,
@@ -88,6 +109,8 @@ export function SuggestionBar({
       {chips.length > 0 && (
         <div
           className="ei-bar-chips"
+          ref={stripRef}
+          onScroll={e => { scrollLeftRef.current = e.currentTarget.scrollLeft; }}
           // A horizontal swipe here pans the strip, not the page or a text selection
           style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, touchAction: 'pan-x', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
         >

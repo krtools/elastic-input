@@ -88,6 +88,13 @@ export interface FieldConfig {
   suggestions?: boolean;
   /** When `true`, the field is excluded from autocomplete suggestions but still validates without an "Unknown field" error. Useful for fields that exist in the schema but should not be advertised to users. */
   hide?: boolean;
+  /**
+   * Sheet presentation (phones): after this field is picked from the sheet, keep
+   * the sheet open to pick its value — the date picker, or the value list. For
+   * fields a user chooses from a small set, and dates. By default the sheet
+   * closes on every pick. @default false
+   */
+  followUp?: boolean;
 }
 
 /** A saved/named search that users can reference with `#name` syntax. */

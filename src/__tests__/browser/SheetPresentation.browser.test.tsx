@@ -20,6 +20,11 @@ const FIELDS: FieldConfig[] = [
   { name: 'status', type: 'string' },
   { name: 'created', type: 'date' },
 ];
+const FOLLOW_UP_FIELDS: FieldConfig[] = [
+  { name: 'status', type: 'string', followUp: true },
+  { name: 'created', type: 'date', followUp: true },
+  { name: 'notes', type: 'string' },
+];
 const fetchValues = (_f: string, partial: string) =>
   Promise.resolve(['active', 'archived'].filter(v => v.startsWith(partial)).map(text => ({ text })));
 
@@ -57,7 +62,8 @@ async function setup(props: Partial<ElasticInputProps> = {}, dropdown: Record<st
 
 describe("presentation: 'sheet' — the bar", () => {
   it('is there while focused, says "No suggestions" when empty, and never shows the floating dropdown', async () => {
-    const { api } = await setup();
+    // 'input' mode: focusing an empty editor offers nothing (in 'always' it lists every field)
+    const { api } = await setup({}, { open: 'input' });
     expect(await waitFor(() => q('.ei-bar') !== null)).toBe(true);
     expect(barLabel()).toBe('No suggestions');
     expect(chips()).toEqual([]);
@@ -135,8 +141,22 @@ describe("presentation: 'sheet' — the sheet", () => {
     expect(document.activeElement).toBe(q('.ei-editor'));
   });
 
-  it('accepts on tap and stays mounted for the next step (no remount flicker)', async () => {
+  it('a pick closes the sheet by default; the bar shows the next step', async () => {
     const { api, editor } = await setup();
+    await userEvent.type(editor, 'sta');
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+
+    await click(q('.ei-sheet .ei-dropdown-item'));
+    expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(await waitFor(() => chips().length === 2)).toBe(true);
+    expect(document.activeElement).toBe(q('.ei-editor'));
+  });
+
+  it('a followUp field keeps the sheet open for its value, in place (no remount), then closes', async () => {
+    const { api, editor } = await setup({ fields: FOLLOW_UP_FIELDS });
     await userEvent.type(editor, 'sta');
     expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
     await click(q('.ei-bar-open'));
@@ -148,7 +168,49 @@ describe("presentation: 'sheet' — the sheet", () => {
     expect(await waitFor(() => sheetItems().some(t => t.includes('archived')))).toBe(true);
     expect(q('.ei-sheet')).toBe(sheetEl);
     expect(q('.ei-sheet-detail')!.textContent).toBe('status:');
-    expect(document.activeElement).toBe(q('.ei-editor'));
+
+    await click(qa('.ei-sheet .ei-dropdown-item').find(el => el.textContent?.includes('archived'))!);
+    expect(await waitFor(() => api.getValue() === 'status:archived ')).toBe(true);
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+  });
+
+  it('a followUp date field goes straight to the picker; picking a day closes the sheet', async () => {
+    const { api, editor } = await setup({ fields: FOLLOW_UP_FIELDS });
+    await userEvent.type(editor, 'cre');
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+
+    await click(q('.ei-sheet .ei-dropdown-item'));
+    expect(await waitFor(() => q('.ei-sheet .ei-datepicker') !== null)).toBe(true);
+    await click(q('.ei-sheet .ei-datepicker-day--today'));
+    expect(await waitFor(() => /^created:\d{4}-\d{2}-\d{2} $/.test(api.getValue()))).toBe(true);
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+  });
+
+  it('a field without followUp closes the sheet even when others have it', async () => {
+    const { api, editor } = await setup({ fields: FOLLOW_UP_FIELDS });
+    await userEvent.type(editor, 'note'); // ('not' would lex as the NOT operator)
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    await click(q('.ei-sheet .ei-dropdown-item'));
+    expect(await waitFor(() => api.getValue() === 'notes:')).toBe(true);
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+  });
+
+  it('the chip strip keeps its scroll position across re-renders of the same list', async () => {
+    await page.viewport(375, 812);
+    const many: FieldConfig[] = Array.from({ length: 8 }, (_, i) => ({ name: `attribute_${i}`, type: 'string' as const }));
+    const { editor } = await setup({ fields: many });
+    await userEvent.type(editor, 'attr');
+    expect(await waitFor(() => chips().length === 8)).toBe(true);
+    const strip = q('.ei-bar-chips')!;
+    strip.scrollLeft = 120;
+    strip.dispatchEvent(new Event('scroll'));
+    await userEvent.keyboard('{ArrowDown}'); // re-renders the bar (highlight moves), same list
+    await pause(100);
+    expect(q('.ei-bar-chips')!.scrollLeft).toBe(120);
   });
 
   it('closes on ×, on the backdrop, and on Escape — the bar stays while focused', async () => {

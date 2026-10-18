@@ -34,8 +34,9 @@ interface SuggestionBarProps {
 
 /**
  * The compact, in-flow alternative to the floating dropdown (sheet
- * presentation): a row under the text with a button that opens the sheet and
- * the acceptable suggestions as tappable chips.
+ * presentation): a row under the text, shown while the editor is focused,
+ * with a button that opens the sheet and the acceptable suggestions as
+ * tappable chips.
  */
 export function SuggestionBar({
   suggestions, selectedIndex, datePicker, sheetOpen, onSelect, onToggleSheet, colors, styles, className,
@@ -71,6 +72,7 @@ export function SuggestionBar({
         borderTop: `1px solid ${styles.dropdownBorderColor}`,
         boxSizing: 'border-box',
         minWidth: 0,
+        userSelect: 'none',
       }}
     >
       <button
@@ -84,7 +86,11 @@ export function SuggestionBar({
         <span aria-hidden style={{ fontSize: '10px' }}>{sheetOpen ? '▾' : '▴'}</span>
       </button>
       {chips.length > 0 && (
-        <div className="ei-bar-chips" style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0 }}>
+        <div
+          className="ei-bar-chips"
+          // A horizontal swipe here pans the strip, not the page or a text selection
+          style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, touchAction: 'pan-x', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
+        >
           {chips.map(({ s, i }) => {
             const selected = i === selectedIndex;
             return (

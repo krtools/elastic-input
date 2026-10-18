@@ -1,7 +1,8 @@
 /**
  * dropdown.presentation: 'sheet' — a bar under the text (count button +
- * suggestion chips) instead of the floating dropdown, and a bottom sheet
- * with the full list or the date picker. 'auto' picks it below 640px.
+ * suggestion chips) instead of the floating dropdown, and a near-full-screen
+ * bottom sheet with the full list or the date picker. 'auto' picks it below
+ * 640px.
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
@@ -37,6 +38,7 @@ const qa = (sel: string) => Array.from(document.querySelectorAll(sel)) as HTMLEl
 const barLabel = () => q('.ei-bar-open span')?.textContent ?? null;
 const chips = () => qa('.ei-chip').map(el => el.textContent);
 const sheetItems = () => qa('.ei-sheet .ei-dropdown-item').map(el => el.textContent ?? '');
+const click = (el: HTMLElement | null) => page.elementLocator(el!).click();
 
 async function setup(props: Partial<ElasticInputProps> = {}, dropdown: Record<string, unknown> = {}) {
   const handle: { api: ElasticInputAPI | null } = { api: null };
@@ -54,20 +56,28 @@ async function setup(props: Partial<ElasticInputProps> = {}, dropdown: Record<st
 }
 
 describe("presentation: 'sheet' — the bar", () => {
-  it('shows a count button and chips instead of the floating dropdown; a chip accepts', async () => {
+  it('is there while focused, says "No suggestions" when empty, and never shows the floating dropdown', async () => {
+    const { api } = await setup();
+    expect(await waitFor(() => q('.ei-bar') !== null)).toBe(true);
+    expect(barLabel()).toBe('No suggestions');
+    expect(chips()).toEqual([]);
+    expect(q('.ei-dropdown')).toBeNull();
+
+    api.blur();
+    expect(await waitFor(() => q('.ei-bar') === null)).toBe(true);
+  });
+
+  it('shows a count button and chips; a chip accepts and the next step takes over', async () => {
     const { api, editor } = await setup();
     await userEvent.type(editor, 'sta');
-    expect(await waitFor(() => barLabel() !== null)).toBe(true);
-    expect(barLabel()).toContain('1 suggestion');
-    expect(q('.ei-dropdown')).toBeNull();
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
     expect(chips()).toEqual(['status']);
     expect(q('.ei-chip')!.classList.contains('ei-chip--selected')).toBe(true); // highlighted = Enter target
 
-    await page.elementLocator(q('.ei-chip')!).click();
+    await click(q('.ei-chip'));
     expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
-    // Chained: the value suggestions take over the bar
     expect(await waitFor(() => chips().length === 2)).toBe(true);
-    expect(barLabel()).toContain('2 suggestions');
+    expect(barLabel()).toBe('2 suggestions');
     expect(document.activeElement).toBe(q('.ei-editor'));
   });
 
@@ -79,52 +89,107 @@ describe("presentation: 'sheet' — the bar", () => {
     expect(await waitFor(() => barLabel() === 'No matches')).toBe(true);
     expect(chips()).toEqual([]);
   });
+
+  it("the chip strip scrolls horizontally when the chips don't fit", async () => {
+    await page.viewport(375, 812);
+    const many: FieldConfig[] = Array.from({ length: 8 }, (_, i) => ({ name: `attribute_${i}`, type: 'string' as const }));
+    const { editor } = await setup({ fields: many });
+    await userEvent.type(editor, 'attr');
+    expect(await waitFor(() => chips().length === 8)).toBe(true);
+    const strip = q('.ei-bar-chips')!;
+    expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth);
+    expect(getComputedStyle(strip).overflowX).toBe('auto');
+    expect(getComputedStyle(strip).touchAction).toBe('pan-x');
+  });
+
+  it("in 'manual' mode the button requests suggestions, like Ctrl+Space", async () => {
+    const { editor } = await setup({}, { open: 'manual' });
+    await userEvent.type(editor, 'sta');
+    await pause(200);
+    expect(barLabel()).toBe('No suggestions');
+
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null && sheetItems().length === 1)).toBe(true);
+    expect(barLabel()).toBe('1 suggestion');
+  });
 });
 
 describe("presentation: 'sheet' — the sheet", () => {
-  it('opens from the bar with tall rows, accepts on tap, and stays for the next step', async () => {
-    const { api, editor } = await setup();
+  it('takes nearly the whole viewport, echoes the query, and shows tall rows', async () => {
+    await page.viewport(375, 812);
+    const { editor } = await setup();
     await userEvent.type(editor, 'sta');
-    expect(await waitFor(() => barLabel() !== null)).toBe(true);
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
     expect(q('.ei-sheet')).toBeNull();
 
-    await page.elementLocator(q('.ei-bar-open')!).click();
+    await click(q('.ei-bar-open'));
     expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    const r = q('.ei-sheet')!.getBoundingClientRect();
+    expect(r.top).toBeLessThanOrEqual(60);
+    expect(r.bottom).toBeGreaterThanOrEqual(window.innerHeight - 1);
+    expect(r.width).toBeGreaterThanOrEqual(window.innerWidth - 1);
+    expect(q('.ei-sheet-detail')!.textContent).toBe('sta');
+    expect(q('.ei-sheet-backdrop')).not.toBeNull();
     expect(sheetItems()).toEqual(['statusstring']);
     expect(q('.ei-sheet .ei-dropdown-item')!.getBoundingClientRect().height).toBeGreaterThanOrEqual(48);
     expect(document.activeElement).toBe(q('.ei-editor'));
-
-    await page.elementLocator(q('.ei-sheet .ei-dropdown-item')!).click();
-    expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
-    expect(await waitFor(() => sheetItems().some(t => t.includes('archived')))).toBe(true);
-    expect(document.activeElement).toBe(q('.ei-editor'));
   });
 
-  it('closes with its × (bar stays, focus stays), and with Escape (everything closes)', async () => {
-    const { editor } = await setup();
-    await userEvent.type(editor, 'sta');
-    expect(await waitFor(() => barLabel() !== null)).toBe(true);
-    await page.elementLocator(q('.ei-bar-open')!).click();
-    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
-
-    await page.elementLocator(q('.ei-sheet-close')!).click();
-    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
-    expect(barLabel()).toContain('1 suggestion');
-    expect(document.activeElement).toBe(q('.ei-editor'));
-
-    await page.elementLocator(q('.ei-bar-open')!).click();
-    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
-    await userEvent.keyboard('{Escape}');
-    expect(await waitFor(() => q('.ei-sheet') === null && q('.ei-bar') === null)).toBe(true);
-  });
-
-  it('closes on blur', async () => {
+  it('accepts on tap and stays mounted for the next step (no remount flicker)', async () => {
     const { api, editor } = await setup();
     await userEvent.type(editor, 'sta');
-    expect(await waitFor(() => barLabel() !== null)).toBe(true);
-    await page.elementLocator(q('.ei-bar-open')!).click();
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    const sheetEl = q('.ei-sheet');
+
+    await click(q('.ei-sheet .ei-dropdown-item'));
+    expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
+    expect(await waitFor(() => sheetItems().some(t => t.includes('archived')))).toBe(true);
+    expect(q('.ei-sheet')).toBe(sheetEl);
+    expect(q('.ei-sheet-detail')!.textContent).toBe('status:');
+    expect(document.activeElement).toBe(q('.ei-editor'));
+  });
+
+  it('closes on ×, on the backdrop, and on Escape — the bar stays while focused', async () => {
+    const { editor } = await setup();
+    await userEvent.type(editor, 'sta');
+    expect(await waitFor(() => barLabel() === '1 suggestion')).toBe(true);
+
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    await click(q('.ei-sheet-close'));
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(barLabel()).toBe('1 suggestion');
+    expect(document.activeElement).toBe(q('.ei-editor'));
+
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    q('.ei-sheet-backdrop')!.click(); // its centre is under the sheet; a real tap lands in the top gap
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(document.activeElement).toBe(q('.ei-editor'));
+
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    await userEvent.keyboard('{Escape}');
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+    expect(q('.ei-bar')).not.toBeNull();
+    expect(barLabel()).toBe('No suggestions');
+  });
+
+  it('closes on blur, and after Enter submits', async () => {
+    const { api, editor } = await setup();
+    await userEvent.type(editor, 'status:a'); // partial → first value highlighted
+    expect(await waitFor(() => chips().length === 2)).toBe(true);
+    await click(q('.ei-bar-open'));
     expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
 
+    await userEvent.keyboard('{Enter}'); // accepts the highlighted value and submits
+    expect(await waitFor(() => api.getValue() === 'status:active ')).toBe(true);
+    expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+
+    await click(q('.ei-bar-open'));
+    expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
     api.blur();
     expect(await waitFor(() => q('.ei-sheet') === null && q('.ei-bar') === null)).toBe(true);
   });
@@ -146,10 +211,9 @@ describe("presentation: 'sheet' — the sheet", () => {
     expect(await waitFor(() => barLabel() === 'Pick a date')).toBe(true);
     expect(q('.ei-datepicker')).toBeNull();
 
-    await page.elementLocator(q('.ei-bar-open')!).click();
+    await click(q('.ei-bar-open'));
     expect(await waitFor(() => q('.ei-sheet .ei-datepicker') !== null)).toBe(true);
-
-    await page.elementLocator(q('.ei-sheet .ei-datepicker-day--today')!).click();
+    await click(q('.ei-sheet .ei-datepicker-day--today'));
     expect(await waitFor(() => /^created:\d{4}-\d{2}-\d{2} $/.test(api.getValue()))).toBe(true);
   });
 });

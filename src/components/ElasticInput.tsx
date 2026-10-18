@@ -1160,6 +1160,18 @@ export function ElasticInput(props: ElasticInputProps) {
     updateSuggestionsFromTokens(toks, offset, selEnd);
   }, [updateSuggestionsFromTokens, engineRef]);
 
+  // The bar's button. Opening with nothing to show (e.g. 'manual' mode, or a
+  // dismissed list) first requests suggestions, as Ctrl+Space would.
+  const toggleSheet = React.useCallback(() => {
+    if (!sheetOpen) {
+      const s = stateRef.current;
+      if (!s.showDatePicker && !(s.showDropdown && s.suggestions.length > 0) && editorRef.current) {
+        requestSuggestions(s.tokens, getCaretCharOffset(editorRef.current));
+      }
+    }
+    setSheetOpen(!sheetOpen);
+  }, [sheetOpen, requestSuggestions]);
+
   // Navigation trigger wrapper: respects onNavigation and navigationDelay settings.
   // Typing-triggered updates (via processInput/updateSuggestionsRef) bypass this entirely.
   const triggerSuggestionsFromNavigation = React.useCallback((toks: Token[], offset: number, selEnd?: number) => {
@@ -1291,6 +1303,7 @@ export function ElasticInput(props: ElasticInputProps) {
           if (afterAccept) {
             afterAccept(value, ast);
           } else if (shouldSubmit) {
+            setSheetOpen(false);
             if (onSearch) onSearch(value, ast, triggerEvent);
           } else if (editorRef.current && document.activeElement === editorRef.current) {
             updateSuggestionsFromTokens(stateRef.current.tokens, getCaretCharOffset(editorRef.current));
@@ -1343,6 +1356,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (afterAccept) {
         afterAccept(newValue, newAst);
       } else if (shouldSubmit) {
+        setSheetOpen(false);
         if (onSearch) onSearch(newValue, newAst, triggerEvent);
       } else {
         updateSuggestionsFromTokens(newTokens, newCursorPos);
@@ -2652,9 +2666,11 @@ export function ElasticInput(props: ElasticInputProps) {
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(stylesProp);
   const containerStyle = getInputContainerStyle(mergedColors, mergedStyleConfig, isFocused, style);
-  // Sheet presentation: what the bar and sheet show, if anything
-  const sheetContent = sheetMode && showDatePicker ? 'datePicker' : sheetMode && showDropdown && suggestions.length > 0 ? 'suggestions' : null;
-  const sheetHeader = sheetContent === 'suggestions' && renderDropdownHeader && cursorContext ? renderDropdownHeader(cursorContext) : null;
+  // Sheet presentation: the bar lives while the editor is focused (a stable
+  // row, no layout jumps between completion steps); the sheet while opened
+  const barSuggestions = showDropdown && suggestions.length > 0 ? suggestions : [];
+  const barVisible = sheetMode && isFocused && dropdownMode !== 'never';
+  const sheetHeader = sheetMode && barSuggestions.length > 0 && renderDropdownHeader && cursorContext ? renderDropdownHeader(cursorContext) : null;
   const editableStyle: React.CSSProperties = {
     ...getEditableStyle(mergedColors, mergedStyleConfig),
   };
@@ -2756,14 +2772,14 @@ export function ElasticInput(props: ElasticInputProps) {
         </div>
       ) : null}
 
-      {sheetContent ? (
+      {barVisible ? (
         <SuggestionBar
-          suggestions={suggestions}
+          suggestions={barSuggestions}
           selectedIndex={selectedSuggestionIndex}
-          datePicker={sheetContent === 'datePicker'}
+          datePicker={showDatePicker}
           sheetOpen={sheetOpen}
           onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
-          onToggleSheet={() => setSheetOpen(o => !o)}
+          onToggleSheet={toggleSheet}
           colors={mergedColors}
           styles={mergedStyleConfig}
           className={classNames?.bar}
@@ -2804,18 +2820,20 @@ export function ElasticInput(props: ElasticInputProps) {
         />
       ) : null}
 
-      {sheetContent && sheetOpen ? (
+      {sheetMode && sheetOpen ? (
         <SuggestionSheet
-          title={sheetContent === 'datePicker' ? 'Date' : 'Suggestions'}
+          title={showDatePicker ? 'Date' : 'Suggestions'}
+          // eslint-disable-next-line react-hooks/refs -- the status snapshot built above (see the slot render props)
+          detail={status.value}
           onClose={() => setSheetOpen(false)}
           colors={mergedColors}
           styles={mergedStyleConfig}
           className={classNames?.sheet}
           elRef={el => { sheetElRef.current = el; }}
-          bodyRef={sheetContent === 'suggestions' ? (el => { dropdownListRef.current = el; }) : undefined}
-          selectedChildIndex={sheetContent === 'suggestions' ? selectedSuggestionIndex + (sheetHeader != null ? 1 : 0) : undefined}
+          bodyRef={el => { dropdownListRef.current = el; }}
+          selectedChildIndex={barSuggestions.length > 0 ? selectedSuggestionIndex + (sheetHeader != null ? 1 : 0) : undefined}
         >
-          {sheetContent === 'datePicker' ? (
+          {showDatePicker ? (
             <DateRangePicker
               onSelect={handleDateSelect}
               colors={mergedColors}
@@ -2827,11 +2845,15 @@ export function ElasticInput(props: ElasticInputProps) {
               className={classNames?.datePicker}
               wheelNavigation={datePickerWheelNavigation}
             />
+          ) : barSuggestions.length === 0 ? (
+            <div className="ei-sheet-empty" style={{ padding: '24px 16px', color: mergedColors.placeholder, fontSize: mergedStyleConfig.dropdownItemFontSize }}>
+              No suggestions
+            </div>
           ) : (
             <SuggestionList
               header={sheetHeader}
               headerClassName={classNames?.dropdownHeader}
-              suggestions={suggestions}
+              suggestions={barSuggestions}
               selectedIndex={selectedSuggestionIndex}
               onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
               colors={mergedColors}

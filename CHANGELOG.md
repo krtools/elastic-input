@@ -4,7 +4,7 @@
 
 ### Features
 
-- **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text (a "N suggestions" button plus the matches as tappable chips) and a bottom sheet with the full list or the date picker. `'auto'` (the default) uses it below 640px.
+- **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text while focused (a "N suggestions" button plus the matches as swipeable chips) and a near-full-screen sheet with the full list or the date picker. `'auto'` (the default) uses it below 640px.
 
 ### Fixes
 

@@ -4,8 +4,13 @@ import { cx } from '../utils/cx';
 import { ColorConfig, StyleConfig } from '../types';
 import { getVisibleViewport, VisibleViewport } from '../utils/viewport';
 
+/** Visible area left above the sheet, so the page is still recognizable behind the backdrop. */
+const TOP_GAP = 48;
+
 interface SuggestionSheetProps {
   title: string;
+  /** Shown under the title — the query being completed, since the sheet covers the input. */
+  detail?: string;
   onClose: () => void;
   colors: Required<ColorConfig>;
   styles: Required<StyleConfig>;
@@ -20,12 +25,14 @@ interface SuggestionSheetProps {
 }
 
 /**
- * Bottom sheet for the sheet presentation: pinned to the bottom of the
- * visible viewport (so it sits above the on-screen keyboard), capped to a
- * little over half of it, with a header and a scrolling body.
+ * Bottom sheet for the sheet presentation. The user opted in by tapping the
+ * bar, so it takes nearly the whole visible viewport (above the on-screen
+ * keyboard; it follows visual-viewport changes), over a backdrop that closes
+ * it on tap. Header with title, the current query and a close button; a
+ * scrolling body.
  */
 export function SuggestionSheet({
-  title, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex,
+  title, detail, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex,
 }: SuggestionSheetProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const bodyElRef = React.useRef<HTMLDivElement | null>(null);
@@ -67,58 +74,76 @@ export function SuggestionSheet({
   if (!portalRef.current) return null;
 
   const bottomInset = Math.max(0, window.innerHeight - (viewport.top + viewport.height));
+  // Keep the editor focused (and the keyboard up) while interacting with either layer
+  const keepFocus = (e: React.MouseEvent) => e.preventDefault();
+
+  const backdropStyle: React.CSSProperties = {
+    position: 'fixed',
+    left: `${viewport.left}px`,
+    width: `${viewport.width}px`,
+    top: `${viewport.top}px`,
+    bottom: `${bottomInset}px`,
+    zIndex: styles.dropdownZIndex,
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+  };
   const sheetStyle: React.CSSProperties = {
     position: 'fixed',
     left: `${viewport.left}px`,
     width: `${viewport.width}px`,
+    top: `${viewport.top + TOP_GAP}px`,
     bottom: `${bottomInset}px`,
-    maxHeight: `${Math.round(viewport.height * 0.55)}px`,
     display: 'flex',
     flexDirection: 'column',
     boxSizing: 'border-box',
-    zIndex: styles.dropdownZIndex,
+    zIndex: styles.dropdownZIndex + 1,
     backgroundColor: colors.background,
     color: colors.text,
-    borderTop: `1px solid ${styles.dropdownBorderColor}`,
     borderRadius: '12px 12px 0 0',
     boxShadow: styles.dropdownShadow,
     fontFamily: styles.fontFamily,
   };
 
   const content = (
-    <div
-      className={cx('ei-sheet', className)}
-      style={sheetStyle}
-      ref={el => elRef?.(el)}
-      // Keep the editor focused while interacting with the sheet
-      onMouseDown={e => e.preventDefault()}
-    >
-      <div className="ei-sheet-header" style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '4px 4px 4px 16px', borderBottom: `1px solid ${styles.dropdownBorderColor}`, flexShrink: 0,
-      }}>
-        <span style={{ fontSize: styles.dropdownItemFontSize, fontWeight: 600 }}>{title}</span>
-        <button
-          type="button"
-          className="ei-sheet-close"
-          aria-label="Close"
-          onClick={onClose}
-          style={{
-            width: '44px', height: '44px', border: 'none', background: 'transparent', color: colors.text,
-            fontSize: '26px', lineHeight: 1, cursor: 'pointer', borderRadius: '8px',
-          }}
+    <>
+      <div className="ei-sheet-backdrop" style={backdropStyle} onMouseDown={keepFocus} onClick={onClose} />
+      <div className={cx('ei-sheet', className)} style={sheetStyle} ref={el => elRef?.(el)} onMouseDown={keepFocus}>
+        <div className="ei-sheet-header" style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+          padding: '4px 4px 4px 16px', borderBottom: `1px solid ${styles.dropdownBorderColor}`, flexShrink: 0,
+        }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: styles.dropdownItemFontSize, fontWeight: 600 }}>{title}</div>
+            {detail ? (
+              <div className="ei-sheet-detail" style={{
+                fontSize: styles.dropdownItemFontSize, color: colors.placeholder,
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {detail}
+              </div>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="ei-sheet-close"
+            aria-label="Close"
+            onClick={onClose}
+            style={{
+              width: '44px', height: '44px', flexShrink: 0, border: 'none', background: 'transparent', color: colors.text,
+              fontSize: '26px', lineHeight: 1, cursor: 'pointer', borderRadius: '8px',
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div
+          className="ei-sheet-body"
+          ref={el => { bodyElRef.current = el; bodyRef?.(el); }}
+          style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
-          ×
-        </button>
+          {children}
+        </div>
       </div>
-      <div
-        className="ei-sheet-body"
-        ref={el => { bodyElRef.current = el; bodyRef?.(el); }}
-        style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', flex: 1, paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        {children}
-      </div>
-    </div>
+    </>
   );
 
   // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above

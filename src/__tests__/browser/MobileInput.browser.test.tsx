@@ -45,9 +45,10 @@ describe('mobile keyboard attributes', () => {
 });
 
 describe('tap-to-show error tooltips', () => {
-  async function setupWithError() {
+  async function setupWithError(spaceAbove = 0) {
     const handle: { api: ElasticInputAPI | null } = { api: null };
-    renderInto(React.createElement(ElasticInput, { fields: FIELDS, dropdown: { open: 'never' }, inputRef: (a: ElasticInputAPI) => { handle.api = a; } }));
+    renderInto(React.createElement('div', { style: { paddingTop: `${spaceAbove}px` } },
+      React.createElement(ElasticInput, { fields: FIELDS, dropdown: { open: 'never' }, inputRef: (a: ElasticInputAPI) => { handle.api = a; } })));
     const editor = page.elementLocator(editorEl());
     await editor.click();
     await userEvent.type(editor, 'price:abc ');
@@ -55,7 +56,7 @@ describe('tap-to-show error tooltips', () => {
     expect(await waitFor(() => document.querySelector('.ei-squiggly') !== null)).toBe(true);
     const sq = document.querySelector('.ei-squiggly') as HTMLElement;
     const r = sq.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top - 4, api: handle.api! }; // on the error text, just above the wave
+    return { x: r.left + r.width / 2, y: r.top - 4, api: handle.api!, squiggle: r }; // on the error text, just above the wave
   }
 
   it('a touch tap on the error shows the message and keeps it until the next tap', async () => {
@@ -78,6 +79,20 @@ describe('tap-to-show error tooltips', () => {
     expect(await waitFor(() => tooltip() === null)).toBe(true);
     // Unpinned, the caret-inside rule applies again
     expect(await waitFor(() => document.querySelector('.ei-squiggly') === null)).toBe(true);
+  });
+
+  it('a tapped-open tooltip sits above the line, clear of the finger and the caret handle', async () => {
+    const { x, y, squiggle } = await setupWithError(200);
+    tap(editorEl(), x, y);
+    expect(await waitFor(() => tooltip() !== null)).toBe(true);
+    expect(tooltip()!.getBoundingClientRect().bottom).toBeLessThanOrEqual(squiggle.top);
+  });
+
+  it('falls back to below the caret handle when there is no room above', async () => {
+    const { x, y, squiggle } = await setupWithError(0);
+    tap(editorEl(), x, y);
+    expect(await waitFor(() => tooltip() !== null)).toBe(true);
+    expect(tooltip()!.getBoundingClientRect().top).toBeGreaterThanOrEqual(squiggle.bottom + 24);
   });
 
   it('typing dismisses a tapped-open tooltip', async () => {

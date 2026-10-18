@@ -142,6 +142,8 @@ function measureSquigglyRects(
 // Estimated tooltip height for flip calculation (padding + font + border)
 const TOOLTIP_HEIGHT_ESTIMATE = 28;
 const TOOLTIP_GAP = 4;
+// Android draws a caret handle this far below the caret after a tap
+const HANDLE_CLEARANCE = 24;
 
 function squigglyBgForColor(hexColor: string) {
   const encoded = hexColor.replace('#', '%23');
@@ -299,10 +301,17 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         const lineTopFixed = (editorRect?.top ?? 0) + hoveredRect.top;
         const vp = getVisibleViewport();
         const spaceBelow = vp.top + vp.height - mousePos.clientY;
-        const needsFlip = spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
+        const spaceAbove = lineTopFixed - vp.top;
+        // Tapped open: prefer above the line — the finger and the caret handle
+        // sit right below the tap point; below only when there is no room above
+        const pinned = !!hover?.pinned;
+        const needsFlip = pinned
+          ? spaceAbove >= TOOLTIP_HEIGHT_ESTIMATE + TOOLTIP_GAP
+          : spaceBelow < TOOLTIP_HEIGHT_ESTIMATE + 20;
+        const belowGap = pinned ? TOOLTIP_GAP + HANDLE_CLEARANCE : TOOLTIP_GAP;
         const fixedTop = needsFlip
           ? lineTopFixed - TOOLTIP_HEIGHT_ESTIMATE - TOOLTIP_GAP
-          : waveBottomFixed + TOOLTIP_GAP;
+          : waveBottomFixed + belowGap;
         return ReactDOM.createPortal(
           <div
             ref={tooltipRef}

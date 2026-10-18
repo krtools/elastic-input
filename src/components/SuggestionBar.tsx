@@ -76,7 +76,14 @@ export function SuggestionBar({
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
-  };
+    // A press that lingers before the swipe must not become a long-press
+    // drag or text selection (Android showed a ghost chip being dragged)
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    WebkitUserDrag: 'none',
+    WebkitTouchCallout: 'none',
+    touchAction: 'pan-x',
+  } as React.CSSProperties;
 
   return (
     <div
@@ -111,6 +118,7 @@ export function SuggestionBar({
           className="ei-bar-chips"
           ref={stripRef}
           onScroll={e => { scrollLeftRef.current = e.currentTarget.scrollLeft; }}
+          onContextMenu={e => e.preventDefault()} // the long-press menu would end the swipe
           // A horizontal swipe here pans the strip, not the page or a text selection
           style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, touchAction: 'pan-x', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
         >

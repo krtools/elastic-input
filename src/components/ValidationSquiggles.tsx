@@ -107,7 +107,8 @@ function getOffsetRects(
 function measureSquigglyRects(
   errors: ValidationError[],
   editorRef: HTMLDivElement | null,
-  cursorOffset: number
+  cursorOffset: number,
+  keep: ValidationError | null = null,
 ): SquigglyRect[] {
   if (!editorRef || errors.length === 0) return [];
 
@@ -117,7 +118,8 @@ function measureSquigglyRects(
   for (const error of errors) {
     if (measured >= MAX_VISIBLE_ERRORS) break;
 
-    if (isErrorDeferred(error, cursorOffset)) {
+    // A tapped-open error stays shown even with the caret inside it
+    if (error !== keep && isErrorDeferred(error, cursorOffset)) {
       continue;
     }
 
@@ -150,9 +152,10 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
   // One state object so a mousemove renders once (two setStates in a native
   // listener are not batched in React 16 and ran the clamp twice per move)
   // `pinned`: opened by a tap (no hover on touch) — stays until the next tap or edit
-  const [hover, setHover] = React.useState<{ index: number; x: number; clientY: number; pinned?: boolean } | null>(null);
-  const hoveredIndex = hover ? hover.index : null;
+  const [hover, setHover] = React.useState<{ error: ValidationError; x: number; clientY: number; pinned?: boolean } | null>(null);
+  const pinnedError = hover?.pinned ? hover.error : null;
   const mousePos = hover ?? { x: 0, clientY: 0 };
+  const prevErrorsRef = React.useRef(errors);
   const [rects, setRects] = React.useState<SquigglyRect[]>([]);
   const rectsRef = React.useRef<SquigglyRect[]>([]);
   const tooltipRef = React.useRef<HTMLDivElement | null>(null);
@@ -171,10 +174,14 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       return;
     }
 
-    // An edit or caret move dismisses a tapped-open tooltip
-    setHover(prev => (prev?.pinned ? null : prev));
+    // An edit (new errors) dismisses a tapped-open tooltip; a caret move does
+    // not — the tap itself moves the caret into the error
+    if (prevErrorsRef.current !== errors) {
+      prevErrorsRef.current = errors;
+      setHover(prev => (prev?.pinned ? null : prev));
+    }
     measureTimerRef.current = setTimeout(() => {
-      const measured = measureSquigglyRects(errors, editorRef, cursorOffset);
+      const measured = measureSquigglyRects(errors, editorRef, cursorOffset, pinnedError);
       setRects(measured);
       rectsRef.current = measured;
     }, MEASURE_DEBOUNCE_MS);
@@ -182,7 +189,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     return () => {
       if (measureTimerRef.current) clearTimeout(measureTimerRef.current);
     };
-  }, [errors, editorRef, cursorOffset]);
+  }, [errors, editorRef, cursorOffset, pinnedError]);
 
   // Track mouse position at the container level to detect hover over error text
   // without blocking clicks on the editor
@@ -201,7 +208,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
         // Hit test against the text area + wave area below it
         if (mx >= r.left && mx <= r.left + r.width &&
             my >= r.top - (slop > 6 ? 8 : 0) && my <= r.top + r.height + slop) {
-          return { index: i, x: mx };
+          return { error: r.error, x: mx };
         }
       }
       return null;
@@ -212,7 +219,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       // Compatibility mouse events after a tap must not undo the tapped state
       if (Date.now() - lastTouchAt < 800) return;
       const hit = hitTest(e.clientX, e.clientY, 6);
-      setHover(hit ? { index: hit.index, x: hit.x, clientY: e.clientY } : null);
+      setHover(hit ? { error: hit.error, x: hit.x, clientY: e.clientY } : null);
     };
 
     const handleMouseLeave = () => {
@@ -224,7 +231,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
       lastTouchAt = Date.now();
       const hit = container.contains(e.target as Node) ? hitTest(e.clientX, e.clientY, 14) : null;
-      setHover(hit ? { index: hit.index, x: hit.x, clientY: e.clientY, pinned: true } : null);
+      setHover(hit ? { error: hit.error, x: hit.x, clientY: e.clientY, pinned: true } : null);
     };
 
     const controller = new AbortController();
@@ -239,7 +246,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
   // intended `left` each time rather than from a previously shifted box.
   React.useLayoutEffect(() => {
     const el = tooltipRef.current;
-    if (!el || hoveredIndex == null) return;
+    if (!el || !hover) return;
     const intended = parseFloat(el.style.left) || 0;
     const vp = getVisibleViewport();
     const maxLeft = vp.left + vp.width - 8 - el.offsetWidth;
@@ -252,7 +259,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
   const mergedColors = mergeColors(colors);
   const mergedStyles = mergeStyles(styles);
 
-  const hoveredRect = hoveredIndex != null ? rects[hoveredIndex] : null;
+  const hoveredRect = hover ? rects.find(r => r.error === hover.error) ?? null : null;
 
   return (
     <>

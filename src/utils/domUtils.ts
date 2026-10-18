@@ -133,7 +133,19 @@ export interface DropdownPosition {
    * custom styles made rows shorter than the estimate.)
    */
   flipped?: boolean;
+  /**
+   * Vertical space available on the chosen side (visible viewport minus
+   * margins). Renderers cap their height to it so the list scrolls instead
+   * of leaving the screen — with the on-screen keyboard up, neither side may
+   * fit the full list.
+   */
+  maxHeight?: number;
 }
+
+/** Below this the list is not usable; overflow instead. */
+const MIN_DROPDOWN_SPACE = 96;
+const CARET_GAP = 4;
+const EDGE_MARGIN = 8;
 
 export function getDropdownPosition(
   caretRect: DOMRect,
@@ -143,16 +155,15 @@ export function getDropdownPosition(
 ): DropdownPosition {
   const viewportBottom = viewport.top + viewport.height;
   const viewportRight = viewport.left + viewport.width;
+  const spaceBelow = viewportBottom - caretRect.bottom - CARET_GAP - EDGE_MARGIN;
+  const spaceAbove = caretRect.top - CARET_GAP - viewport.top - EDGE_MARGIN;
 
-  let top = caretRect.bottom + window.scrollY + 4;
+  // Below unless only above fits; when neither fits, the roomier side. Flipped
+  // anchors the bottom edge just above the caret.
+  const flipped = dropdownHeight > spaceBelow && (dropdownHeight <= spaceAbove || spaceAbove > spaceBelow);
+  const top = flipped ? caretRect.top + window.scrollY - CARET_GAP : caretRect.bottom + window.scrollY + CARET_GAP;
+  const maxHeight = Math.max(MIN_DROPDOWN_SPACE, Math.floor(flipped ? spaceAbove : spaceBelow));
   let clientLeft = caretRect.left;
-  let flipped = false;
-
-  // Flip above if no room below — anchor the bottom edge just above the caret
-  if (caretRect.bottom + dropdownHeight + 4 > viewportBottom) {
-    top = caretRect.top + window.scrollY - 4;
-    flipped = true;
-  }
 
   // Keep inside the visible viewport horizontally
   if (clientLeft + dropdownWidth > viewportRight) {
@@ -162,7 +173,7 @@ export function getDropdownPosition(
     clientLeft = viewport.left + 8;
   }
 
-  return { top, left: clientLeft + window.scrollX, flipped };
+  return { top, left: clientLeft + window.scrollX, flipped, maxHeight };
 }
 
 /**
@@ -181,17 +192,19 @@ export function adjustFlippedPosition(
   scrollY: number,
 ): DropdownPosition | null {
   const viewportBottom = viewport.top + viewport.height;
+  const spaceBelow = viewportBottom - caretRect.bottom - CARET_GAP - EDGE_MARGIN;
+  const spaceAbove = caretRect.top - CARET_GAP - viewport.top - EDGE_MARGIN;
   if (position.flipped) {
-    const overflowsAbove = caretRect.top - 4 - actualHeight < viewport.top;
-    const fitsBelow = caretRect.bottom + 4 + actualHeight <= viewportBottom;
+    const overflowsAbove = caretRect.top - CARET_GAP - actualHeight < viewport.top;
+    const fitsBelow = caretRect.bottom + CARET_GAP + actualHeight <= viewportBottom;
     if (overflowsAbove && fitsBelow) {
-      return { ...position, top: caretRect.bottom + scrollY + 4, flipped: false };
+      return { ...position, top: caretRect.bottom + scrollY + CARET_GAP, flipped: false, maxHeight: Math.max(MIN_DROPDOWN_SPACE, Math.floor(spaceBelow)) };
     }
   } else {
-    const overflowsBelow = caretRect.bottom + 4 + actualHeight > viewportBottom;
-    const fitsAbove = caretRect.top - 4 - actualHeight >= viewport.top;
+    const overflowsBelow = caretRect.bottom + CARET_GAP + actualHeight > viewportBottom;
+    const fitsAbove = caretRect.top - CARET_GAP - actualHeight >= viewport.top;
     if (overflowsBelow && fitsAbove) {
-      return { ...position, top: caretRect.top + scrollY - 4, flipped: true };
+      return { ...position, top: caretRect.top + scrollY - CARET_GAP, flipped: true, maxHeight: Math.max(MIN_DROPDOWN_SPACE, Math.floor(spaceAbove)) };
     }
   }
   return null;

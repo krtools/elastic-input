@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Suggestion } from '../autocomplete/suggestionTypes';
 import { cx } from '../utils/cx';
+import { DropdownPosition } from '../utils/domUtils';
 
 // Inject spinner keyframes once
 if (typeof document !== 'undefined') {
@@ -29,7 +30,7 @@ interface AutocompleteDropdownProps {
   suggestions: Suggestion[];
   selectedIndex: number;
   onSelect: (suggestion: Suggestion, event: React.MouseEvent) => void;
-  position: { top: number; left: number; flipped?: boolean } | null;
+  position: DropdownPosition | null;
   colors?: ColorConfig;
   styles?: StyleConfig;
   visible: boolean;
@@ -135,6 +136,8 @@ export function AutocompleteDropdown({
     left: `${position.left}px`,
     // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
     ...(position.flipped ? { transform: 'translateY(-100%)' } : {}),
+    // Never taller than the space on the chosen side (see DropdownPosition.maxHeight)
+    ...(position.maxHeight != null ? { maxHeight: `min(${mergedStyles.dropdownMaxHeight}, ${position.maxHeight}px)` } : {}),
     ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 

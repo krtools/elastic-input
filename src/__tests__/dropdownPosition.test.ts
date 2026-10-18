@@ -51,7 +51,7 @@ describe('adjustFlippedPosition', () => {
     const result = adjustFlippedPosition(
       { top: 754, left: 10, flipped: false }, 300, caretRect(730, 750), VIEWPORT, 0,
     );
-    expect(result).toEqual({ top: 726, left: 10, flipped: true });
+    expect(result).toEqual({ top: 726, left: 10, flipped: true, maxHeight: 718 });
   });
 
   it('does not flip up when the content would not fit above either', () => {
@@ -66,7 +66,7 @@ describe('adjustFlippedPosition', () => {
     const result = adjustFlippedPosition(
       { top: 96, left: 10, flipped: true }, 200, caretRect(100, 120), VIEWPORT, 0,
     );
-    expect(result).toEqual({ top: 124, left: 10, flipped: false });
+    expect(result).toEqual({ top: 124, left: 10, flipped: false, maxHeight: 668 });
   });
 
   it('keeps a flipped dropdown in place when it fits above', () => {
@@ -89,7 +89,7 @@ describe('adjustFlippedPosition', () => {
     const result = adjustFlippedPosition(
       { top: 1254, left: 10, flipped: false }, 300, caretRect(730, 750), VIEWPORT, 500,
     );
-    expect(result).toEqual({ top: 1226, left: 10, flipped: true });
+    expect(result).toEqual({ top: 1226, left: 10, flipped: true, maxHeight: 718 });
   });
 });
 
@@ -106,7 +106,7 @@ describe('adjustFlippedPosition with the on-screen keyboard up', () => {
     const result = adjustFlippedPosition(
       { top: 384, left: 10, flipped: false }, 200, caretRect(360, 380), KEYBOARD_UP, 0,
     );
-    expect(result).toEqual({ top: 356, left: 10, flipped: true });
+    expect(result).toEqual({ top: 356, left: 10, flipped: true, maxHeight: 248 });
   });
 
   it('unflips when a flipped dropdown would be above the visible top', () => {
@@ -114,6 +114,6 @@ describe('adjustFlippedPosition with the on-screen keyboard up', () => {
     const result = adjustFlippedPosition(
       { top: 146, left: 10, flipped: true }, 100, caretRect(150, 170), KEYBOARD_UP, 0,
     );
-    expect(result).toEqual({ top: 174, left: 10, flipped: false });
+    expect(result).toEqual({ top: 174, left: 10, flipped: false, maxHeight: 318 });
   });
 });

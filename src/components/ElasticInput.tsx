@@ -18,7 +18,7 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
-import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret } from '../utils/domUtils';
+import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret, DropdownPosition } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary, isOnOperatorToken } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
@@ -127,7 +127,7 @@ function mergeExternalErrors(
 }
 
 interface DatePickerPortalProps {
-  position: { top: number; left: number; flipped?: boolean };
+  position: DropdownPosition;
   colors: Required<ColorConfig>;
   onSelect: (dateStr: string) => void;
   colorConfig?: ColorConfig;
@@ -169,8 +169,9 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     left: `${position.left}px`,
     // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
     ...(position.flipped ? { transform: 'translateY(-100%)' } : {}),
-    maxHeight: 'none',
-    overflowY: 'visible',
+    // The calendar has a fixed size; when the visible area is shorter it scrolls
+    maxHeight: position.maxHeight != null ? `${position.maxHeight}px` : 'none',
+    overflowY: position.maxHeight != null ? 'auto' : 'visible',
     ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 
@@ -457,7 +458,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = React.useState(-1);
   const [showDropdown, setShowDropdown] = React.useState(false);
   const [showDatePicker, setShowDatePicker] = React.useState(false);
-  const [dropdownPosition, setDropdownPosition] = React.useState<{ top: number; left: number; flipped?: boolean } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = React.useState<DropdownPosition | null>(null);
   // Date picker portal element, tracked as state (not a ref) so the flip
   // re-check effect re-runs when the portal finishes mounting.
   const [datePickerEl, setDatePickerEl] = React.useState<HTMLDivElement | null>(null);
@@ -505,12 +506,14 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // Helper: compute dropdown position. When dropdownAlignToInput is true,
   // position relative to the container instead of the caret.
-  const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): { top: number; left: number; flipped?: boolean } | null => {
+  const computeDropdownPosition = React.useCallback((dropdownHeight: number, dropdownWidth: number): DropdownPosition | null => {
     if (dropdownAlignToInput && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
+      const vp = getVisibleViewport();
       return {
         top: rect.bottom + window.scrollY + 4,
         left: rect.left + window.scrollX,
+        maxHeight: Math.max(96, Math.floor(vp.top + vp.height - rect.bottom - 12)),
       };
     }
     const rect = getCaretRect();
@@ -1661,9 +1664,11 @@ export function ElasticInput(props: ElasticInputProps) {
 
       if (s.showDropdown && dropdownAlignToInput && containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect();
+        const vp = getVisibleViewport();
         setDropdownPosition({
           top: rect.bottom + window.scrollY + 4,
           left: rect.left + window.scrollX,
+          maxHeight: Math.max(96, Math.floor(vp.top + vp.height - rect.bottom - 12)),
         });
       } else {
         // Caret-relative (date picker, or non-full-width dropdown)

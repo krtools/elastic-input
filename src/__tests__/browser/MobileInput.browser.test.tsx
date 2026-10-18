@@ -7,7 +7,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
-import { FieldConfig } from '../../types';
+import { ElasticInputAPI, FieldConfig } from '../../types';
 import { getDropdownPosition } from '../../utils/domUtils';
 import { getVisibleViewport } from '../../utils/viewport';
 import { renderInto, cleanup } from './renderHelper';
@@ -46,7 +46,8 @@ describe('mobile keyboard attributes', () => {
 
 describe('tap-to-show error tooltips', () => {
   async function setupWithError() {
-    renderInto(React.createElement(ElasticInput, { fields: FIELDS, dropdown: { open: 'never' } }));
+    const handle: { api: ElasticInputAPI | null } = { api: null };
+    renderInto(React.createElement(ElasticInput, { fields: FIELDS, dropdown: { open: 'never' }, inputRef: (a: ElasticInputAPI) => { handle.api = a; } }));
     const editor = page.elementLocator(editorEl());
     await editor.click();
     await userEvent.type(editor, 'price:abc ');
@@ -54,14 +55,19 @@ describe('tap-to-show error tooltips', () => {
     expect(await waitFor(() => document.querySelector('.ei-squiggly') !== null)).toBe(true);
     const sq = document.querySelector('.ei-squiggly') as HTMLElement;
     const r = sq.getBoundingClientRect();
-    return { x: r.left + r.width / 2, y: r.top - 4 }; // on the error text, just above the wave
+    return { x: r.left + r.width / 2, y: r.top - 4, api: handle.api! }; // on the error text, just above the wave
   }
 
   it('a touch tap on the error shows the message and keeps it until the next tap', async () => {
-    const { x, y } = await setupWithError();
+    const { x, y, api } = await setupWithError();
     tap(editorEl(), x, y);
+    // The tap also lands the caret inside the error, which would normally
+    // hide it (deferred display) — a pinned error stays underlined and shown
+    api.setSelection(8, 8);
     expect(await waitFor(() => tooltip() !== null)).toBe(true);
     expect(tooltip()!.textContent).toContain('not a valid number');
+    await pause(250);
+    expect(document.querySelector('.ei-squiggly')).not.toBeNull();
 
     // Compatibility mouse events that follow a tap must not dismiss it
     editorEl().dispatchEvent(new MouseEvent('mousemove', { clientX: 2, clientY: 2, bubbles: true }));
@@ -70,6 +76,8 @@ describe('tap-to-show error tooltips', () => {
 
     tap(document.body, 5, 5);
     expect(await waitFor(() => tooltip() === null)).toBe(true);
+    // Unpinned, the caret-inside rule applies again
+    expect(await waitFor(() => document.querySelector('.ei-squiggly') === null)).toBe(true);
   });
 
   it('typing dismisses a tapped-open tooltip', async () => {
@@ -105,6 +113,18 @@ describe('visual-viewport-aware positioning', () => {
     expect(below.flipped).toBe(false);
     const above = getDropdownPosition(rect(300, 320), 200, 300, { top: 0, left: 0, width: 375, height: 400 });
     expect(above.flipped).toBe(true);
+  });
+
+  it('reports the space on the chosen side, and picks the roomier side when neither fits', () => {
+    // 800px visible, caret at 300: 200px list fits below → space below
+    const below = getDropdownPosition(rect(300, 320), 200, 300, { top: 0, left: 0, width: 375, height: 800 });
+    expect(below).toMatchObject({ flipped: false, maxHeight: 800 - 320 - 12 });
+    // 400px visible with 300px list: neither side fits; above (288px) beats below (68px)
+    const roomier = getDropdownPosition(rect(300, 320), 300, 300, { top: 0, left: 0, width: 375, height: 400 });
+    expect(roomier).toMatchObject({ flipped: true, maxHeight: 300 - 12 });
+    // Below wins when it is the roomier side, floored at 96
+    const tight = getDropdownPosition(rect(40, 60), 300, 300, { top: 0, left: 0, width: 375, height: 200 });
+    expect(tight).toMatchObject({ flipped: false, maxHeight: 128 });
   });
 
   it('keeps the dropdown inside a narrow visible width', () => {

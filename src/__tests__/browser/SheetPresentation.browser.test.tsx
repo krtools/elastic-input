@@ -105,7 +105,67 @@ describe("presentation: 'sheet' — the bar", () => {
     const strip = q('.ei-bar-chips')!;
     expect(strip.scrollWidth).toBeGreaterThan(strip.clientWidth);
     expect(getComputedStyle(strip).overflowX).toBe('auto');
-    expect(getComputedStyle(strip).touchAction).toBe('pan-x');
+  });
+
+  describe('touch gestures belong to the bar', () => {
+    const touch = (type: string, el: Element, x: number, y: number) =>
+      el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 7, isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true }));
+    const MANY: FieldConfig[] = Array.from({ length: 8 }, (_, i) => ({ name: `attribute_${i}`, type: 'string' as const }));
+
+    it('cancels touchstart (no native long press, scroll or click) and declares touch-action: none', async () => {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      const chip = q('.ei-chip')!;
+      const ev = new TouchEvent('touchstart', { cancelable: true, bubbles: true, touches: [new Touch({ identifier: 1, target: chip, clientX: 10, clientY: 10 })] });
+      chip.dispatchEvent(ev);
+      expect(ev.defaultPrevented).toBe(true);
+      expect(getComputedStyle(q('.ei-bar')!).touchAction).toBe('none');
+    });
+
+    it('a touch pan scrolls the strip and accepts nothing', async () => {
+      await page.viewport(375, 812);
+      const { api, editor } = await setup({ fields: MANY });
+      await userEvent.type(editor, 'attr');
+      expect(await waitFor(() => chips().length === 8)).toBe(true);
+      const strip = q('.ei-bar-chips')!;
+      const chip = qa('.ei-chip')[1];
+      const r = chip.getBoundingClientRect();
+      touch('pointerdown', chip, r.left + 10, r.top + 10);
+      touch('pointermove', chip, r.left - 40, r.top + 10);
+      touch('pointermove', chip, r.left - 110, r.top + 10);
+      expect(strip.scrollLeft).toBe(120);
+      touch('pointerup', chip, r.left - 110, r.top + 10);
+      await pause(100);
+      expect(api.getValue()).toBe('attr');
+      expect(q('.ei-sheet')).toBeNull();
+    });
+
+    it('a touch tap on a chip accepts it; on the button it opens the sheet', async () => {
+      const { api, editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      const chip = q('.ei-chip')!;
+      const r = chip.getBoundingClientRect();
+      touch('pointerdown', chip, r.left + 10, r.top + 10);
+      touch('pointermove', chip, r.left + 13, r.top + 11); // within the tap slop
+      touch('pointerup', chip, r.left + 13, r.top + 11);
+      expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
+
+      const open = q('.ei-bar-open')!;
+      const o = open.getBoundingClientRect();
+      touch('pointerdown', open, o.left + 10, o.top + 10);
+      touch('pointerup', open, o.left + 10, o.top + 10);
+      expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    });
+
+    it('a mouse click still accepts through the native click path', async () => {
+      const { api, editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      await click(q('.ei-chip'));
+      expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
+    });
   });
 
   it("in 'manual' mode the button requests suggestions, like Ctrl+Space", async () => {

@@ -19,6 +19,9 @@ export function barStatusLabel(suggestions: Suggestion[], datePicker: boolean): 
   return first.label || 'No suggestions';
 }
 
+/** Movement (px) beyond which a touch is a pan, not a tap. */
+export const TAP_SLOP = 6;
+
 interface SuggestionBarProps {
   suggestions: Suggestion[];
   selectedIndex: number;
@@ -31,6 +34,25 @@ interface SuggestionBarProps {
   styles: Required<StyleConfig>;
   className?: string;
 }
+
+interface TouchGesture {
+  pointerId: number;
+  startX: number;
+  startScrollLeft: number;
+  moved: boolean;
+  /** The chip strip, when the touch started inside it (a pan scrolls it). */
+  strip: HTMLElement | null;
+  /** The button under the finger at touch start (a tap activates it). */
+  button: HTMLButtonElement | null;
+}
+
+// Cancelling touchstart keeps the browser's gesture recognizer out of the bar.
+// Android Chrome attributes a long press on a chip to the editable text just
+// above it (touch adjustment) and starts a caret drag with the magnifier; with
+// the touch consumed there is no long press, no text selection, no native
+// scroll and no synthetic mouse/click. Pan and tap are rebuilt from pointer
+// events below. React's own touch listeners are passive, hence the native one.
+const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
 
 /**
  * The compact, in-flow alternative to the floating dropdown (sheet
@@ -69,6 +91,51 @@ export function SuggestionBar({
     lastElRef.current = el;
   });
 
+  const barRef = React.useRef<HTMLDivElement | null>(null);
+  const setBarRef = React.useCallback((el: HTMLDivElement | null) => {
+    barRef.current?.removeEventListener('touchstart', cancelTouchStart);
+    barRef.current = el;
+    el?.addEventListener('touchstart', cancelTouchStart, { passive: false });
+  }, []);
+
+  // Touch and pen gestures (mouse keeps the native click): a pan that starts
+  // in the strip scrolls it; a tap activates the button it landed on
+  const gestureRef = React.useRef<TouchGesture | null>(null);
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') return;
+    const target = e.target as Element;
+    const strip = target.closest<HTMLElement>('.ei-bar-chips');
+    gestureRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startScrollLeft: strip?.scrollLeft ?? 0,
+      moved: false,
+      strip,
+      button: target.closest('button'),
+    };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no active pointer (synthetic event) */ }
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = gestureRef.current;
+    if (!g || g.pointerId !== e.pointerId) return;
+    const dx = e.clientX - g.startX;
+    if (!g.moved && Math.abs(dx) > TAP_SLOP) g.moved = true;
+    if (g.moved && g.strip) g.strip.scrollLeft = g.startScrollLeft - dx;
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const g = gestureRef.current;
+    if (!g || g.pointerId !== e.pointerId) return;
+    gestureRef.current = null;
+    if (g.moved || !g.button?.isConnected) return;
+    if (g.button.classList.contains('ei-bar-open')) {
+      onToggleSheet();
+      return;
+    }
+    const chip = chips[Number(g.button.getAttribute('data-chip'))];
+    if (chip) onSelect(chip.s, e);
+  };
+  const onPointerCancel = () => { gestureRef.current = null; };
+
   const buttonBase: React.CSSProperties = {
     fontFamily: styles.fontFamily,
     fontSize: styles.dropdownItemFontSize,
@@ -80,20 +147,23 @@ export function SuggestionBar({
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     flexShrink: 0,
-    // A press that lingers before the swipe must not become a long-press
-    // drag or text selection (Android showed a ghost chip being dragged)
     userSelect: 'none',
     WebkitUserSelect: 'none',
     WebkitUserDrag: 'none',
     WebkitTouchCallout: 'none',
-    touchAction: 'pan-x',
   } as React.CSSProperties;
 
   return (
     <div
       className={cx('ei-bar', className)}
-      // Keep the editor focused (and the keyboard up) while tapping the bar
+      ref={setBarRef}
+      // Keep the editor focused (and the keyboard up) while clicking the bar
       onMouseDown={e => e.preventDefault()}
+      onContextMenu={e => e.preventDefault()}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       style={{
         flex: '1 1 100%',
         display: 'flex',
@@ -105,6 +175,7 @@ export function SuggestionBar({
         boxSizing: 'border-box',
         minWidth: 0,
         userSelect: 'none',
+        touchAction: 'none', // pointer events keep coming (no pointercancel for a pan)
       }}
     >
       <button
@@ -122,16 +193,15 @@ export function SuggestionBar({
           className="ei-bar-chips"
           ref={stripRef}
           onScroll={e => { scrollLeftRef.current = e.currentTarget.scrollLeft; }}
-          onContextMenu={e => e.preventDefault()} // the long-press menu would end the swipe
-          // A horizontal swipe here pans the strip, not the page or a text selection
-          style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, touchAction: 'pan-x', overscrollBehaviorX: 'contain', WebkitOverflowScrolling: 'touch' }}
+          style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, overscrollBehaviorX: 'contain' }}
         >
-          {chips.map(({ s, i }) => {
+          {chips.map(({ s, i }, chipIdx) => {
             const selected = i === selectedIndex;
             return (
               <button
                 key={i}
                 type="button"
+                data-chip={chipIdx}
                 className={cx('ei-chip', selected && 'ei-chip--selected')}
                 onClick={e => onSelect(s, e)}
                 style={{

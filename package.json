@@ -39,6 +39,7 @@
   },
   "scripts": {
     "dev": "vite --config vite.demo.config.js",
+    "dev:host": "vite --config vite.demo.config.js --host",
     "build": "vite build",
     "build:demo": "vite build --config vite.demo.config.js",
     "test": "vitest run",

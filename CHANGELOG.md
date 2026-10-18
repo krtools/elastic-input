@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Demo
+
+- **Responsive layout** — Phone-width layout (input on its own row, scrollable tabs, options panel as a full-screen drawer) and an `npm run dev:host` script for opening the demo from a phone.
+
 ## 0.22.0 — 2026-10-13
 
 ### Features

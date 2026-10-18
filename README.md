@@ -755,6 +755,7 @@ No runtime dependencies beyond React/ReactDOM.
 ```bash
 yarn install
 yarn dev          # Start demo dev server
+yarn dev:host     # Same, reachable from a phone on your network (opens on 0.0.0.0)
 yarn test         # Run tests
 yarn test:watch   # Run tests in watch mode
 yarn build        # Build library (ES + CJS)

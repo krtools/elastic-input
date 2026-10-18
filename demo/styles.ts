@@ -48,6 +48,8 @@ export function getAppStyles(theme: ThemeColors) {
       borderBottom: `1px solid ${theme.border}`,
       backgroundColor: theme.surface,
       display: 'flex',
+      flexWrap: 'wrap',
+      gap: '12px 24px',
       justifyContent: 'space-between',
       alignItems: 'center',
     } as React.CSSProperties,
@@ -81,6 +83,7 @@ export function getAppStyles(theme: ThemeColors) {
     } as React.CSSProperties,
     searchRow: {
       display: 'flex',
+      flexWrap: 'wrap',
       gap: '8px',
       alignItems: 'flex-start',
     } as React.CSSProperties,
@@ -101,9 +104,14 @@ export function getAppStyles(theme: ThemeColors) {
       gap: '0',
       borderBottom: `1px solid ${theme.border}`,
       marginBottom: '24px',
+      // Narrow screens: scroll the strip instead of overflowing the page
+      overflowX: 'auto',
+      scrollbarWidth: 'none',
     } as React.CSSProperties,
     tab: (active: boolean) => ({
       padding: '8px 16px',
+      flexShrink: 0,
+      whiteSpace: 'nowrap' as const,
       border: 'none',
       borderBottom: active ? `2px solid ${theme.accent}` : '2px solid transparent',
       backgroundColor: 'transparent',

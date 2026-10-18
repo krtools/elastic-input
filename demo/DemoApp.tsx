@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useMediaQuery } from './useMediaQuery';
 import { ElasticInput } from '../src/components/ElasticInput';
 import { ASTNode } from '../src/parser/ast';
 import { CursorContext } from '../src/parser/Parser';
@@ -423,7 +424,10 @@ export function DemoApp() {
   const [isDark, setIsDark] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<TabId>('crm');
   const [showInspector, setShowInspector] = React.useState(false);
-  const [showOptions, setShowOptions] = React.useState(true);
+  // Below 900px the options panel is a full-screen drawer instead of a column
+  const narrow = useMediaQuery('(max-width: 900px)');
+  const phone = useMediaQuery('(max-width: 600px)');
+  const [showOptions, setShowOptions] = React.useState(() => !window.matchMedia('(max-width: 900px)').matches);
   const [lastQuery, setLastQuery] = React.useState('');
   const [lastAST, setLastAST] = React.useState<ASTNode | null>(null);
   const [searchResult, setSearchResult] = React.useState('');
@@ -595,22 +599,44 @@ export function DemoApp() {
     setControlledValue('');
   }, []);
 
-  const panelStyle: React.CSSProperties = {
-    width: '220px',
-    flexShrink: 0,
+  const panelStyle: React.CSSProperties = narrow
+    ? { padding: '14px 16px 32px' }
+    : {
+      width: '220px',
+      flexShrink: 0,
+      backgroundColor: theme.surface,
+      border: `1px solid ${theme.border}`,
+      borderRadius: '8px',
+      padding: '14px',
+      alignSelf: 'flex-start',
+      position: 'sticky',
+      top: '16px',
+    };
+  // Drawer chrome for the options panel on narrow screens
+  const drawerStyle: React.CSSProperties = {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1000,
+    overflowY: 'auto',
     backgroundColor: theme.surface,
-    border: `1px solid ${theme.border}`,
-    borderRadius: '8px',
-    padding: '14px',
-    alignSelf: 'flex-start',
+    color: theme.text,
+  };
+  const drawerBarStyle: React.CSSProperties = {
     position: 'sticky',
-    top: '16px',
+    top: 0,
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px 16px',
+    borderBottom: `1px solid ${theme.border}`,
+    backgroundColor: theme.surface,
+    fontWeight: 600,
   };
 
   return (
     <div style={styles.app}>
       {/* Header */}
-      <div style={styles.header}>
+      <div style={{ ...styles.header, padding: phone ? '16px' : styles.header.padding }}>
         <div>
           <div style={styles.title}>Elastic Input</div>
           <div style={styles.subtitle}>
@@ -644,7 +670,7 @@ export function DemoApp() {
       </div>
 
       {/* Main content — two-column when options visible */}
-      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: '32px 24px', display: 'flex', gap: '24px' }}>
+      <div style={{ maxWidth: '1140px', margin: '0 auto', padding: phone ? '16px' : '32px 24px', display: 'flex', gap: '24px' }}>
         {/* Left: main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Tabs */}
@@ -668,7 +694,8 @@ export function DemoApp() {
           {/* Search section */}
           <div style={styles.searchSection}>
             <div style={styles.searchRow}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* Phones: input on its own row, buttons below */}
+              <div style={{ flex: phone ? '1 1 100%' : 1, minWidth: 0 }}>
                 <ElasticInput
                   fields={tab.fields}
                   colors={colors}
@@ -898,8 +925,15 @@ export function DemoApp() {
           </React.Fragment>)}
         </div>
 
-        {/* Right: options panel */}
+        {/* Right: options panel (a full-screen drawer on narrow screens) */}
         {showOptions && (
+          <div style={narrow ? drawerStyle : undefined}>
+          {narrow && (
+            <div style={drawerBarStyle}>
+              <span>Options</span>
+              <button style={styles.themeToggle} onClick={() => setShowOptions(false)}>Close</button>
+            </div>
+          )}
           <div style={panelStyle}>
             <OptionGroup label="props.value" theme={theme}>
               <input
@@ -1068,6 +1102,7 @@ export function DemoApp() {
               <OptionColor label="boolean" value={vtBoolean} onChange={setVtBoolean} theme={theme} />
               <OptionColor label="ip" value={vtIp} onChange={setVtIp} theme={theme} />
             </OptionGroup>
+          </div>
           </div>
         )}
       </div>

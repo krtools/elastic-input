@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev          # Demo dev server (port 3000, auto-opens)
+npm run dev:host     # Demo dev server reachable from other devices (phone testing)
 npm run build        # Library build → dist/elastic-input.es.js + .d.ts
 npm run build:demo   # Static demo build
 npm test             # Run all tests (vitest run)

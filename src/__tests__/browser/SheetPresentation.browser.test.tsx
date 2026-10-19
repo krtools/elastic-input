@@ -278,7 +278,7 @@ describe("presentation: 'sheet' — the sheet", () => {
     expect(q('.ei-sheet-detail')!.textContent).toBe('sta');
     expect(q('.ei-sheet-backdrop')).not.toBeNull();
     expect(sheetItems()).toEqual(['statusstring']);
-    expect(q('.ei-sheet .ei-dropdown-item')!.getBoundingClientRect().height).toBeGreaterThanOrEqual(48);
+    expect(Math.round(q('.ei-sheet .ei-dropdown-item')!.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48); // sub-pixel rect while the sheet slides in
     expect(document.activeElement).toBe(q('.ei-editor'));
   });
 
@@ -518,7 +518,8 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
   });
 
   it('the editing row: Copy writes the query, Paste inserts the clipboard through interceptPaste, Select all selects it', async () => {
-    const clip = { text: 'status:active', writeText: (t: string) => { clip.text = t; return Promise.resolve(); }, readText: () => Promise.resolve(clip.text) };
+    // readText blurs the editor first, as Chrome Android's permission dialog does
+    const clip = { text: 'status:active', writeText: (t: string) => { clip.text = t; return Promise.resolve(); }, readText: () => { (document.activeElement as HTMLElement | null)?.blur(); return Promise.resolve(clip.text); } };
     Object.defineProperty(navigator, 'clipboard', { value: clip, configurable: true });
     try {
       const seen: string[] = [];
@@ -530,6 +531,7 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
       await click(qa('.ei-action-segment')[1]);
       expect(await waitFor(() => api.getValue() === 'STATUS:ACTIVE')).toBe(true);
       expect(seen).toEqual(['status:active']);
+      expect(document.activeElement).toBe(q('.ei-editor')); // focus restored after the read
       expect(q('.ei-sheet')).toBeNull();
       await click(q('.ei-bar-more'));
       expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);

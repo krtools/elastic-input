@@ -2706,8 +2706,15 @@ export function ElasticInput(props: ElasticInputProps) {
   }, []);
   const pasteFromClipboard = React.useCallback(() => {
     setMenuOpen(false);
+    // The first read on Android Chrome asks permission with a modal, which
+    // blurs the editor: bring focus and the caret back before inserting
+    const sel = apiRef.current?.getSelection() ?? null;
     navigator.clipboard.readText()
-      .then(text => { if (text) applyPastedText(normalizeTypographicChars(text)); })
+      .then(text => {
+        if (!text) return;
+        if (document.activeElement !== editorRef.current && sel) apiRef.current?.setSelection(sel.start, sel.end);
+        applyPastedText(normalizeTypographicChars(text));
+      })
       .catch(() => { /* denied or empty */ });
   }, [applyPastedText]);
   const selectAllQuery = React.useCallback(() => {

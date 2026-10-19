@@ -1,25 +1,29 @@
 # Changelog
 
-## Unreleased
+## 0.23.0 — 2026-10-19
 
-### Features
+The mobile release: a phone presentation for the suggestions, finger-sized targets throughout, and keyboard-aware positioning.
+
+### Sheet presentation
 
 - **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text while focused (a "N suggestions" button plus the matches as swipeable chips) and a near-full-screen sheet with the full list or the date picker; a pick closes the sheet unless the field sets `FieldConfig.followUp`, which keeps it open to pick the value. `'auto'` (the default) uses it below 640px wide, or under 500px tall on a touch device (landscape phones).
-- **Pressed state on the bar** — Chips and bar buttons darken and shrink slightly while held, on touch and mouse.
 - **Bar actions menu** — A ⋯ button on the bar opens a Cut / Copy / Select all row, Saved searches, History and Clear, plus entries from the new `barActions` prop.
+- **The bar owns its touch gestures** — Pan and tap come from pointer events, so a press on a chip never starts Android's caret drag, and a held control shows a pressed state.
+- **Sheet conventions** — A labelled modal dialog with a drag handle, a short slide-up (none under `prefers-reduced-motion`) and swipe-down to dismiss.
 
-### Fixes
+### Touch sizing and keyboards
 
 - **Mobile keyboards no longer rewrite queries** — The editor sets `autocapitalize="off"`, `autocorrect="off"` and `enterkeyhint="search"`.
 - **16px editor font on touch devices** — Default when `(pointer: coarse)` matches and no `styles.fontSize` is set, so iOS stops zooming into the input on focus.
 - **Error tooltips open with a tap** — A touch tap on underlined text pins the message; the next tap or an edit dismisses it.
-- **Finger-sized date picker on touch devices** — 42px day cells, 44px arrows and preset rows when `(pointer: coarse)` matches.
-- **44px dropdown rows on touch devices** — The floating dropdown's rows get a 44px minimum height when `(pointer: coarse)` matches.
 - **Dropdown and date picker avoid the on-screen keyboard** — Positioning uses the visual viewport instead of `window.innerHeight`, follows it when the keyboard opens, and caps the height to the space on the chosen side so the list scrolls instead of leaving the screen.
+- **44px dropdown rows on touch devices** — The floating dropdown's rows get a 44px minimum height when `(pointer: coarse)` matches.
+- **Finger-sized date picker on touch devices** — 42px day cells, 44px arrows and preset rows when `(pointer: coarse)` matches.
 
 ### Demo
 
 - **Responsive layout** — Phone-width layout (input on its own row, scrollable tabs, options panel as a full-screen drawer) and an `npm run dev:host` script for opening the demo from a phone.
+- **Device-check presets** — `#placement=middle|bottom` moves the input down the page and `#presentation=sheet|floating` presets the option, for keyboard and orientation checks.
 
 ## 0.22.0 — 2026-10-13
 

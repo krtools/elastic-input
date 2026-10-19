@@ -190,6 +190,29 @@ describe("presentation: 'sheet' — the bar", () => {
       expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
     });
 
+    it('shows a pressed state while a touch or mouse is down on a control, not during a pan', async () => {
+      await page.viewport(375, 812);
+      const { editor } = await setup({ fields: MANY });
+      await userEvent.type(editor, 'attr');
+      expect(await waitFor(() => chips().length === 8)).toBe(true);
+      const chip = qa('.ei-chip')[0];
+      const r = chip.getBoundingClientRect();
+      touch('pointerdown', chip, r.left + 10, r.top + 10);
+      expect(await waitFor(() => chip.getAttribute('data-pressed') === 'true')).toBe(true);
+      expect(getComputedStyle(chip).transform).not.toBe('none');
+      touch('pointermove', chip, r.left - 30, r.top + 10); // past the slop: a pan, not a press
+      expect(await waitFor(() => chip.getAttribute('data-pressed') === null)).toBe(true);
+      touch('pointerup', chip, r.left - 30, r.top + 10);
+
+      const more = q('.ei-bar-more')!;
+      const mouse = (type: string) => more.dispatchEvent(new PointerEvent(type, { pointerType: 'mouse', pointerId: 1, isPrimary: true, bubbles: true, cancelable: true }));
+      mouse('pointerdown');
+      expect(await waitFor(() => more.getAttribute('data-pressed') === 'true')).toBe(true);
+      mouse('pointerup');
+      expect(await waitFor(() => more.getAttribute('data-pressed') === null)).toBe(true);
+      expect(q('.ei-sheet')).toBeNull(); // the mouse path still waits for the click
+    });
+
     it('fades the strip edge that hides more chips', async () => {
       await page.viewport(375, 812);
       const { editor } = await setup({ fields: MANY });

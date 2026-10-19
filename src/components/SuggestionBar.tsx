@@ -114,35 +114,55 @@ export function SuggestionBar({
     el?.addEventListener('touchstart', cancelTouchStart, { passive: false });
   }, []);
 
+  // The control a pointer is down on shows a pressed state (the cancelled
+  // touchstart suppresses :active and the tap highlight); cleared on release,
+  // on cancel, and as soon as a pan starts
+  const [pressed, setPressed] = React.useState<string | null>(null);
+  const keyOf = (button: HTMLButtonElement | null): string | null => {
+    if (!button) return null;
+    if (button.classList.contains('ei-bar-open')) return 'open';
+    if (button.classList.contains('ei-bar-more')) return 'more';
+    return `chip-${button.getAttribute('data-chip')}`;
+  };
+
   // Touch and pen gestures (mouse keeps the native click): a pan that starts
   // in the strip scrolls it; a tap activates the button it landed on
   const gestureRef = React.useRef<TouchGesture | null>(null);
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse') return;
     const target = e.target as Element;
+    if (e.pointerType === 'mouse') {
+      setPressed(keyOf(target.closest('button')));
+      return;
+    }
     // The whole row is the hit zone: a touch on the padding above or below a
     // control counts for the control at that x (the row is 44px+, the controls 36px)
     const bar = e.currentTarget.getBoundingClientRect();
     const under = target.closest('button') ? target : (document.elementFromPoint(e.clientX, bar.top + bar.height / 2) ?? target);
     const strip = under.closest<HTMLElement>('.ei-bar-chips');
+    const button = under.closest('button');
     gestureRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startScrollLeft: strip?.scrollLeft ?? 0,
       moved: false,
       strip,
-      button: under.closest('button'),
+      button,
     };
+    setPressed(keyOf(button));
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no active pointer (synthetic event) */ }
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const g = gestureRef.current;
     if (!g || g.pointerId !== e.pointerId) return;
     const dx = e.clientX - g.startX;
-    if (!g.moved && Math.abs(dx) > TAP_SLOP) g.moved = true;
+    if (!g.moved && Math.abs(dx) > TAP_SLOP) {
+      g.moved = true;
+      setPressed(null);
+    }
     if (g.moved && g.strip) g.strip.scrollLeft = g.startScrollLeft - dx;
   };
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    setPressed(null);
     const g = gestureRef.current;
     if (!g || g.pointerId !== e.pointerId) return;
     gestureRef.current = null;
@@ -158,9 +178,13 @@ export function SuggestionBar({
     const chip = chips[Number(g.button.getAttribute('data-chip'))];
     if (chip) onSelect(chip.s, e);
   };
-  const onPointerCancel = () => { gestureRef.current = null; };
+  const onPointerCancel = () => { gestureRef.current = null; setPressed(null); };
+
+  const pressedStyle = (key: string, fill: boolean): React.CSSProperties =>
+    pressed === key ? { transform: 'scale(0.97)', ...(fill ? { backgroundColor: colors.dropdownHover } : { filter: 'brightness(0.9)' }) } : {};
 
   const buttonBase: React.CSSProperties = {
+    transition: 'transform 80ms ease-out, filter 80ms ease-out, background-color 80ms ease-out',
     fontFamily: styles.fontFamily,
     fontSize: styles.dropdownItemFontSize,
     lineHeight: 1.2,
@@ -188,6 +212,7 @@ export function SuggestionBar({
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
+      onPointerLeave={() => setPressed(null)}
       style={{
         flex: '1 1 100%',
         display: 'flex',
@@ -206,8 +231,9 @@ export function SuggestionBar({
         type="button"
         className="ei-bar-open"
         aria-expanded={sheetOpen}
+        data-pressed={pressed === 'open' || undefined}
         onClick={onToggleSheet}
-        style={{ ...buttonBase, backgroundColor: 'transparent', color: colors.text, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        style={{ ...buttonBase, backgroundColor: 'transparent', color: colors.text, display: 'inline-flex', alignItems: 'center', gap: '6px', ...pressedStyle('open', true) }}
       >
         <span>{label}</span>
         <span aria-hidden style={{ fontSize: '10px' }}>{sheetOpen ? '▾' : '▴'}</span>
@@ -227,12 +253,14 @@ export function SuggestionBar({
                 type="button"
                 data-chip={chipIdx}
                 className={cx('ei-chip', selected && 'ei-chip--selected')}
+                data-pressed={pressed === `chip-${chipIdx}` || undefined}
                 onClick={e => onSelect(s, e)}
                 style={{
                   ...buttonBase,
                   backgroundColor: selected ? colors.dropdownSelected : colors.dropdownHover,
                   color: selected ? '#ffffff' : colors.text,
                   borderColor: selected ? colors.dropdownSelected : styles.dropdownBorderColor,
+                  ...pressedStyle(`chip-${chipIdx}`, false),
                 }}
               >
                 {s.label}
@@ -247,8 +275,9 @@ export function SuggestionBar({
         aria-label="More actions"
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        data-pressed={pressed === 'more' || undefined}
         onClick={onToggleMenu}
-        style={{ ...buttonBase, padding: 0, width: '36px', marginLeft: 'auto', backgroundColor: 'transparent', color: colors.text, fontSize: '20px', lineHeight: 1 }}
+        style={{ ...buttonBase, padding: 0, width: '36px', marginLeft: 'auto', backgroundColor: 'transparent', color: colors.text, fontSize: '20px', lineHeight: 1, ...pressedStyle('more', true) }}
       >
         ⋯
       </button>

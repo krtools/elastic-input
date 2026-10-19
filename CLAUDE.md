@@ -64,4 +64,4 @@ URL hash presets for device checks: `#placement=middle|bottom` pushes the input 
 
 ## Phone testing
 
-Phones are checked on an Android emulator run headless (`emulator -avd <name> -no-window ...`, driven with `adb shell input ...`, read with `adb exec-out screencap -p`), or a real phone reached through `npm run dev:host`. The emulator reaches the host at `http://10.0.2.2:<port>/` when the server binds all interfaces. Injected touches are exact points, so gesture-timing bugs (touch adjustment, the caret magnifier) still need a real phone. Machine-specific details (SDK paths, AVD names, ports) stay out of the repo.
+Phones are checked on an Android emulator, or a real phone reached through `npm run dev:host`. `DEVICE-TESTING.md` has the device setup, what an emulator can and cannot reproduce, the phone UI principles the component follows, and a session log — add to it after every session. Machine-specific details (SDK paths, AVD names, ports) stay out of the repo.

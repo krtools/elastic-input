@@ -1151,7 +1151,7 @@ The floating, caret-anchored dropdown suits a pointer. On a phone the on-screen 
 |-------|----------|
 | `'floating'` | The dropdown and date picker portals described above |
 | `'sheet'` | A **bar** inside the input box, below the text, plus a **bottom sheet** on demand |
-| `'auto'` (default) | `'sheet'` while `(max-width: 640px)` matches, else `'floating'`; tracked live (rotation, resize) |
+| `'auto'` (default) | `'sheet'` while `SHEET_MEDIA_QUERY` — `(max-width: 640px), ((pointer: coarse) and (max-height: 500px))` — matches: portrait phones by width, landscape phones by height (tablets, 768px+ on the short side, fall through), else `'floating'`; tracked live across rotation and resize. Known limit: a landscape phone with the keyboard open shows about 70 CSS px of page, so the bar sits below the fold (scroll to reach it) and the sheet gets what is left. (`sheetMediaQuery.test.ts` → "selects the sheet for portrait phones by width and landscape phones by height on a coarse pointer") |
 
 **The bar** (`.ei-bar`, `classNames.bar`) renders while the editor is focused (unless `open` is `'never'`), as a second row of the container (the container wraps; the box grows by one row). It stays put between completion steps — a bar that came and went with the list would move the layout on every accept. It holds a button and the acceptable suggestions as chips:
 
@@ -1589,7 +1589,7 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 |----------|------|---------|-------------|
 | `mode` | `'always' \| 'input' \| 'never' \| 'manual'` | `'always'` | When the dropdown appears; see §8.3 |
 | `alignToInput` | `boolean` | `false` | Full-width dropdown affixed to input bottom; see §8.2 |
-| `presentation` | `'floating' \| 'sheet' \| 'auto'` | `'auto'` | Floating dropdown, or a bar + bottom sheet for phones; `'auto'` = sheet below 640px; see §8.6 |
+| `presentation` | `'floating' \| 'sheet' \| 'auto'` | `'auto'` | Floating dropdown, or a bar + bottom sheet for phones; `'auto'` = sheet below 640px wide or, on coarse pointers, 500px tall; see §8.6 |
 | `maxSuggestions` | `number` | `10` | Max suggestions shown |
 | `suggestDebounceMs` | `number` | `200` | Debounce for async suggestions |
 | `showSavedSearchHint` | `boolean` | `features.savedSearches` | Show `#saved-search` hint in dropdown |

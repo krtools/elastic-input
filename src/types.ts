@@ -314,7 +314,8 @@ export interface DropdownConfig {
    * How suggestions are shown. `'floating'`: the caret-anchored dropdown.
    * `'sheet'`: a bar under the text with the suggestions as tappable chips and
    * a button that opens a bottom sheet with the full list (and the date
-   * picker) — made for phones. `'auto'` uses `'sheet'` below 640px.
+   * picker) — made for phones. `'auto'` uses `'sheet'` below 640px wide, or on a coarse
+   * pointer below 500px tall (a phone in landscape).
    * @default 'auto'
    */
   presentation?: 'floating' | 'sheet' | 'auto';

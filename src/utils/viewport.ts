@@ -17,3 +17,10 @@ export function getVisibleViewport(): VisibleViewport {
   if (vv) return { top: vv.offsetTop, left: vv.offsetLeft, width: vv.width, height: vv.height };
   return { top: 0, left: 0, width: window.innerWidth, height: window.innerHeight };
 }
+
+/**
+ * When `dropdown.presentation: 'auto'` picks the sheet: phones in portrait by
+ * width, phones in landscape by height on a coarse pointer (tablets, whose
+ * short side is 768px or more, fall through to the floating dropdown).
+ */
+export const SHEET_MEDIA_QUERY = '(max-width: 640px), ((pointer: coarse) and (max-height: 500px))';

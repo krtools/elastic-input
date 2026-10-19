@@ -43,7 +43,7 @@ import {
 import { DEFAULT_DEBOUNCE_MS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
 import { UndoStack } from '../utils/undoStack';
 import { resolveHomeEndKey } from '../utils/homeEndKeys';
-import { getVisibleViewport } from '../utils/viewport';
+import { getVisibleViewport, SHEET_MEDIA_QUERY } from '../utils/viewport';
 
 // ---------------------------------------------------------------------------
 // DatePickerPortal — small portal wrapper for the date picker
@@ -299,7 +299,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const renderType = dropdownConfig?.renderType;
   // Sheet presentation: bar + bottom sheet instead of the floating dropdown
   const presentation = dropdownConfig?.presentation ?? 'auto';
-  const narrowViewport = useMatchMedia('(max-width: 640px)');
+  const narrowViewport = useMatchMedia(SHEET_MEDIA_QUERY);
   const sheetMode = presentation === 'sheet' || (presentation === 'auto' && narrowViewport);
   const autoSelect = dropdownConfig?.autoSelect ?? false;
   const homeEndKeys = dropdownConfig?.homeEndKeys ?? false;

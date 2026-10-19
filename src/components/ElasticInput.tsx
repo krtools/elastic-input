@@ -117,9 +117,6 @@ interface ExternalErrors {
  * text is still the one they were set for; at the first edit their offsets no
  * longer apply and they are dropped for good.
  */
-// The bar menu offers Paste only where the async clipboard can be read (secure contexts)
-const canReadClipboard = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
-
 function mergeExternalErrors(
   ref: React.MutableRefObject<ExternalErrors | null>,
   text: string,
@@ -2663,9 +2660,10 @@ export function ElasticInput(props: ElasticInputProps) {
     handleInput();
   }, [handleInput]);
 
-  // Pasted text, from the clipboard event or the bar menu's Paste (no event),
-  // through interceptPaste when set
-  const applyPastedText = React.useCallback((pastedText: string, e?: React.ClipboardEvent) => {
+  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedText = normalizeTypographicChars(e.clipboardData.getData('text/plain'));
+
     if (interceptPaste) {
       const result = interceptPaste(pastedText, e);
       if (result != null && typeof (result as Promise<unknown>)?.then === 'function') {
@@ -2682,16 +2680,10 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [interceptPaste, doPaste]);
 
-  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
-    e.preventDefault();
-    applyPastedText(normalizeTypographicChars(e.clipboardData.getData('text/plain')), e);
-  }, [applyPastedText]);
-
-  // The bar menu's editing row. Phones have no Ctrl+C/V/A, and the native
-  // selection toolbar is easy to miss.
-  const copyQuery = React.useCallback(() => {
-    setMenuOpen(false);
-    const text = currentValueRef.current;
+  // The bar menu's editing row. Phones have no Ctrl+X/C/A, and the native
+  // selection toolbar is easy to miss. No Paste: reading the clipboard needs
+  // a permission prompt on Android, and the keyboard pastes already.
+  const copyText = React.useCallback((text: string) => {
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(text).catch(() => { /* denied */ });
       return;
@@ -2704,19 +2696,15 @@ export function ElasticInput(props: ElasticInputProps) {
     try { document.execCommand('copy'); } catch { /* unsupported */ }
     if (sel) api.setSelection(sel.start, sel.end);
   }, []);
-  const pasteFromClipboard = React.useCallback(() => {
+  const copyQuery = React.useCallback(() => {
     setMenuOpen(false);
-    // The first read on Android Chrome asks permission with a modal, which
-    // blurs the editor: bring focus and the caret back before inserting
-    const sel = apiRef.current?.getSelection() ?? null;
-    navigator.clipboard.readText()
-      .then(text => {
-        if (!text) return;
-        if (document.activeElement !== editorRef.current && sel) apiRef.current?.setSelection(sel.start, sel.end);
-        applyPastedText(normalizeTypographicChars(text));
-      })
-      .catch(() => { /* denied or empty */ });
-  }, [applyPastedText]);
+    copyText(currentValueRef.current);
+  }, [copyText]);
+  const cutQuery = React.useCallback(() => {
+    setMenuOpen(false);
+    copyText(currentValueRef.current);
+    apiRef.current?.setValue(''); // one undo step
+  }, [copyText]);
   const selectAllQuery = React.useCallback(() => {
     setMenuOpen(false);
     apiRef.current?.setSelection(0, currentValueRef.current.length);
@@ -2772,8 +2760,8 @@ export function ElasticInput(props: ElasticInputProps) {
   const barVisible = sheetMode && isFocused && dropdownMode !== 'never';
   const barActions: ActionEntry[] = menuOpen ? [
     { id: 'edit', segments: [
+      { id: 'cut', label: 'Cut', disabled: isEmpty, onSelect: cutQuery },
       { id: 'copy', label: 'Copy', disabled: isEmpty, onSelect: copyQuery },
-      ...(canReadClipboard ? [{ id: 'paste', label: 'Paste', onSelect: pasteFromClipboard }] : []),
       { id: 'select-all', label: 'Select all', disabled: isEmpty, onSelect: selectAllQuery },
     ] },
     ...(enableSavedSearches ? [{ id: 'saved-searches', label: 'Saved searches', hint: '#', onSelect: () => insertTrigger('#') }] : []),

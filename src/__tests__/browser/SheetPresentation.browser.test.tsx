@@ -517,30 +517,36 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     expect(q('.ei-sheet')).toBeNull();
   });
 
-  it('the editing row: Copy writes the query, Paste inserts the clipboard through interceptPaste, Select all selects it', async () => {
-    // readText blurs the editor first, as Chrome Android's permission dialog does
-    const clip = { text: 'status:active', writeText: (t: string) => { clip.text = t; return Promise.resolve(); }, readText: () => { (document.activeElement as HTMLElement | null)?.blur(); return Promise.resolve(clip.text); } };
+  it('the editing row: Cut copies and clears (one undo step), Copy writes the query, Select all selects it', async () => {
+    const clip = { text: '', writeText: (t: string) => { clip.text = t; return Promise.resolve(); } };
     Object.defineProperty(navigator, 'clipboard', { value: clip, configurable: true });
     try {
-      const seen: string[] = [];
-      const { api } = await setup({ interceptPaste: (t) => { seen.push(t); return t.toUpperCase(); } });
+      const { api, editor } = await setup();
       await click(q('.ei-bar-more'));
       expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
-      expect(qa('.ei-action-segment').map(el => el.textContent)).toEqual(['Copy', 'Paste', 'Select all']);
-      expect((qa('.ei-action-segment')[0] as HTMLButtonElement).disabled).toBe(true); // nothing to copy yet
+      expect(qa('.ei-action-segment').map(el => el.textContent)).toEqual(['Cut', 'Copy', 'Select all']);
+      expect(qa('.ei-action-segment').map(el => (el as HTMLButtonElement).disabled)).toEqual([true, true, true]); // empty input
+      await userEvent.keyboard('{Escape}');
+      expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+      await userEvent.type(editor, 'status:active');
+      await click(q('.ei-bar-more'));
+      expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
       await click(qa('.ei-action-segment')[1]);
-      expect(await waitFor(() => api.getValue() === 'STATUS:ACTIVE')).toBe(true);
-      expect(seen).toEqual(['status:active']);
-      expect(document.activeElement).toBe(q('.ei-editor')); // focus restored after the read
+      expect(await waitFor(() => clip.text === 'status:active')).toBe(true);
       expect(q('.ei-sheet')).toBeNull();
+      expect(api.getValue()).toBe('status:active');
       await click(q('.ei-bar-more'));
       expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
       await click(qa('.ei-action-segment')[2]);
       expect(await waitFor(() => { const sel = api.getSelection(); return !!sel && sel.start === 0 && sel.end === 13; })).toBe(true);
+      clip.text = '';
       await click(q('.ei-bar-more'));
       expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
       await click(qa('.ei-action-segment')[0]);
-      expect(await waitFor(() => clip.text === 'STATUS:ACTIVE')).toBe(true);
+      expect(await waitFor(() => api.getValue() === '' && clip.text === 'status:active')).toBe(true);
+      expect(document.activeElement).toBe(q('.ei-editor'));
+      await userEvent.keyboard('{Control>}z{/Control}');
+      expect(await waitFor(() => api.getValue() === 'status:active')).toBe(true);
     } finally {
       delete (navigator as unknown as { clipboard?: unknown }).clipboard;
     }

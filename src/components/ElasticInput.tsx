@@ -17,7 +17,7 @@ import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { SuggestionBar } from './SuggestionBar';
 import { SuggestionSheet } from './SuggestionSheet';
 import { SuggestionList } from './SuggestionItems';
-import { ActionList, ActionRow } from './ActionList';
+import { ActionList, ActionEntry } from './ActionList';
 import { useMatchMedia } from '../utils/useMatchMedia';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
@@ -117,6 +117,9 @@ interface ExternalErrors {
  * text is still the one they were set for; at the first edit their offsets no
  * longer apply and they are dropped for good.
  */
+// The bar menu offers Paste only where the async clipboard can be read (secure contexts)
+const canReadClipboard = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+
 function mergeExternalErrors(
   ref: React.MutableRefObject<ExternalErrors | null>,
   text: string,
@@ -142,11 +145,12 @@ interface DatePickerPortalProps {
   datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
   datePickerClassName?: string;
   wheelNavigation?: boolean;
+  touch?: boolean;
   /** Ref callback exposing the portal element for post-render flip re-checks. */
   elRef?: (el: HTMLDivElement | null) => void;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, elRef }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, touch, elRef }: DatePickerPortalProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -186,6 +190,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         onSelect={onSelect}
         colors={colorConfig}
         styles={styleConfig}
+        touch={touch}
         initialMode={datePickerInit?.mode}
         initialStart={datePickerInit?.start}
         initialEnd={datePickerInit?.end}
@@ -2658,10 +2663,9 @@ export function ElasticInput(props: ElasticInputProps) {
     handleInput();
   }, [handleInput]);
 
-  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pastedText = normalizeTypographicChars(e.clipboardData.getData('text/plain'));
-
+  // Pasted text, from the clipboard event or the bar menu's Paste (no event),
+  // through interceptPaste when set
+  const applyPastedText = React.useCallback((pastedText: string, e?: React.ClipboardEvent) => {
     if (interceptPaste) {
       const result = interceptPaste(pastedText, e);
       if (result != null && typeof (result as Promise<unknown>)?.then === 'function') {
@@ -2677,6 +2681,39 @@ export function ElasticInput(props: ElasticInputProps) {
       doPaste(pastedText);
     }
   }, [interceptPaste, doPaste]);
+
+  const handlePaste = React.useCallback((e: React.ClipboardEvent) => {
+    e.preventDefault();
+    applyPastedText(normalizeTypographicChars(e.clipboardData.getData('text/plain')), e);
+  }, [applyPastedText]);
+
+  // The bar menu's editing row. Phones have no Ctrl+C/V/A, and the native
+  // selection toolbar is easy to miss.
+  const copyQuery = React.useCallback(() => {
+    setMenuOpen(false);
+    const text = currentValueRef.current;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).catch(() => { /* denied */ });
+      return;
+    }
+    // No async clipboard (insecure context): copy a select-all, then restore
+    const api = apiRef.current;
+    if (!api) return;
+    const sel = api.getSelection();
+    api.setSelection(0, text.length);
+    try { document.execCommand('copy'); } catch { /* unsupported */ }
+    if (sel) api.setSelection(sel.start, sel.end);
+  }, []);
+  const pasteFromClipboard = React.useCallback(() => {
+    setMenuOpen(false);
+    navigator.clipboard.readText()
+      .then(text => { if (text) applyPastedText(normalizeTypographicChars(text)); })
+      .catch(() => { /* denied or empty */ });
+  }, [applyPastedText]);
+  const selectAllQuery = React.useCallback(() => {
+    setMenuOpen(false);
+    apiRef.current?.setSelection(0, currentValueRef.current.length);
+  }, []);
 
   const handleDateSelect = React.useCallback((dateStr: string) => {
     // Mark as navigation so 'input'-mode gating prevents date picker from re-opening
@@ -2726,7 +2763,12 @@ export function ElasticInput(props: ElasticInputProps) {
   // row, no layout jumps between completion steps); the sheet while opened
   const barSuggestions = showDropdown && suggestions.length > 0 ? suggestions : [];
   const barVisible = sheetMode && isFocused && dropdownMode !== 'never';
-  const barActions: ActionRow[] = menuOpen ? [
+  const barActions: ActionEntry[] = menuOpen ? [
+    { id: 'edit', segments: [
+      { id: 'copy', label: 'Copy', disabled: isEmpty, onSelect: copyQuery },
+      ...(canReadClipboard ? [{ id: 'paste', label: 'Paste', onSelect: pasteFromClipboard }] : []),
+      { id: 'select-all', label: 'Select all', disabled: isEmpty, onSelect: selectAllQuery },
+    ] },
     ...(enableSavedSearches ? [{ id: 'saved-searches', label: 'Saved searches', hint: '#', onSelect: () => insertTrigger('#') }] : []),
     ...(enableHistorySearch ? [{ id: 'history', label: 'History', hint: '!', onSelect: () => insertTrigger('!') }] : []),
     { id: 'clear', label: 'Clear', disabled: isEmpty, onSelect: clearQuery },
@@ -2858,6 +2900,7 @@ export function ElasticInput(props: ElasticInputProps) {
         position={dropdownPosition}
         colors={colors}
         styles={stylesProp}
+        itemMinHeight={coarsePointer ? 44 : undefined}
         visible={showDropdown && !sheetMode}
         fixedWidth={dropdownFixedWidth}
         renderHistoryItem={renderHistoryItem}
@@ -2873,6 +2916,7 @@ export function ElasticInput(props: ElasticInputProps) {
         <DatePickerPortal
           position={dropdownPosition}
           colors={mergedColors}
+          touch={coarsePointer}
           onSelect={handleDateSelect}
           colorConfig={colors}
           styleConfig={stylesProp}
@@ -2906,6 +2950,7 @@ export function ElasticInput(props: ElasticInputProps) {
               onSelect={(d: string) => { handleDateSelect(d); setSheetOpen(false); }}
               colors={mergedColors}
               styles={stylesProp}
+              touch={coarsePointer}
               initialMode={datePickerInit?.mode}
               initialStart={datePickerInit?.start}
               initialEnd={datePickerInit?.end}

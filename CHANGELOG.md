@@ -5,13 +5,16 @@
 ### Features
 
 - **`dropdown.presentation: 'sheet'`** — For phones: a bar under the text while focused (a "N suggestions" button plus the matches as swipeable chips) and a near-full-screen sheet with the full list or the date picker; a pick closes the sheet unless the field sets `FieldConfig.followUp`, which keeps it open to pick the value. `'auto'` (the default) uses it below 640px.
-- **Bar actions menu** — A ⋯ button on the bar opens Saved searches, History and Clear, plus entries from the new `barActions` prop.
+- **Bar actions menu** — A ⋯ button on the bar opens a Copy / Paste / Select all row, Saved searches, History and Clear, plus entries from the new `barActions` prop.
+- **`interceptPaste` event is optional** — Absent when the text comes from the bar menu's Paste.
 
 ### Fixes
 
 - **Mobile keyboards no longer rewrite queries** — The editor sets `autocapitalize="off"`, `autocorrect="off"` and `enterkeyhint="search"`.
 - **16px editor font on touch devices** — Default when `(pointer: coarse)` matches and no `styles.fontSize` is set, so iOS stops zooming into the input on focus.
 - **Error tooltips open with a tap** — A touch tap on underlined text pins the message; the next tap or an edit dismisses it.
+- **Finger-sized date picker on touch devices** — 42px day cells, 44px arrows and preset rows when `(pointer: coarse)` matches.
+- **44px dropdown rows on touch devices** — The floating dropdown's rows get a 44px minimum height when `(pointer: coarse)` matches.
 - **Dropdown and date picker avoid the on-screen keyboard** — Positioning uses the visual viewport instead of `window.innerHeight`, follows it when the keyboard opens, and caps the height to the space on the chosen side so the list scrolls instead of leaving the screen.
 
 ### Demo

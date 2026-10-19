@@ -6,6 +6,19 @@ import { getVisibleViewport, VisibleViewport } from '../utils/viewport';
 
 /** Visible area left above the sheet, so the page is still recognizable behind the backdrop. */
 const TOP_GAP = 48;
+/** A downward drag of the header past this (px) closes the sheet. */
+const DISMISS_DRAG = 80;
+
+// Entrance keyframes, injected once (the spinner's live in SuggestionItems)
+if (typeof document !== 'undefined') {
+  const styleId = 'elastic-input-sheet-keyframes';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = '@keyframes elastic-input-sheet-up { from { transform: translateY(32px); opacity: 0; } } @keyframes elastic-input-fade-in { from { opacity: 0; } }';
+    document.head.appendChild(style);
+  }
+}
 
 interface SuggestionSheetProps {
   title: string;
@@ -30,16 +43,18 @@ interface SuggestionSheetProps {
  * Bottom sheet for the sheet presentation. The user opted in by tapping the
  * bar, so it takes nearly the whole visible viewport (above the on-screen
  * keyboard; it follows visual-viewport changes), over a backdrop that closes
- * it on tap. Header with title, the current query and a close button; a
- * scrolling body.
+ * it on tap. Header with a drag handle, title, the current query and a close
+ * button; a scrolling body. A downward swipe on the header closes it too.
  */
 export function SuggestionSheet({
   title, detail, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex, fit,
 }: SuggestionSheetProps) {
   const portalRef = React.useRef<HTMLDivElement | null>(null);
+  const sheetElRef = React.useRef<HTMLDivElement | null>(null);
   const bodyElRef = React.useRef<HTMLDivElement | null>(null);
   const [, forceRender] = React.useReducer((n: number) => n + 1, 0);
   const [viewport, setViewport] = React.useState<VisibleViewport>(getVisibleViewport);
+  const [reducedMotion] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
   React.useEffect(() => {
     const container = document.createElement('div');
@@ -72,6 +87,29 @@ export function SuggestionSheet({
     item?.scrollIntoView({ block: 'nearest' });
   }, [selectedChildIndex]);
 
+  // Swipe down on the header to dismiss (touch and pen; the sheet follows the
+  // finger, then snaps back or closes)
+  const dragRef = React.useRef<{ pointerId: number; startY: number } | null>(null);
+  const setDragOffset = (dy: number) => { if (sheetElRef.current) sheetElRef.current.style.transform = dy > 0 ? `translateY(${dy}px)` : ''; };
+  const onHeaderPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse') return;
+    dragRef.current = { pointerId: e.pointerId, startY: e.clientY };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no active pointer (synthetic event) */ }
+  };
+  const onHeaderPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    setDragOffset(e.clientY - d.startY);
+  };
+  const onHeaderPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    setDragOffset(0);
+    if (e.clientY - d.startY > DISMISS_DRAG) onClose();
+  };
+  const onHeaderPointerCancel = () => { dragRef.current = null; setDragOffset(0); };
+
   // eslint-disable-next-line react-hooks/refs -- portal container gate (see AutocompleteDropdown)
   if (!portalRef.current) return null;
 
@@ -87,6 +125,7 @@ export function SuggestionSheet({
     bottom: `${bottomInset}px`,
     zIndex: styles.dropdownZIndex,
     backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    animation: reducedMotion ? undefined : 'elastic-input-fade-in 180ms ease-out',
   };
   const sheetStyle: React.CSSProperties = {
     position: 'fixed',
@@ -104,16 +143,37 @@ export function SuggestionSheet({
     borderRadius: '12px 12px 0 0',
     boxShadow: styles.dropdownShadow,
     fontFamily: styles.fontFamily,
+    animation: reducedMotion ? undefined : 'elastic-input-sheet-up 180ms ease-out',
   };
 
   const content = (
     <>
       <div className="ei-sheet-backdrop" style={backdropStyle} onMouseDown={keepFocus} onClick={onClose} />
-      <div className={cx('ei-sheet', className)} style={sheetStyle} ref={el => elRef?.(el)} onMouseDown={keepFocus}>
-        <div className="ei-sheet-header" style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
-          padding: '4px 4px 4px 16px', borderBottom: `1px solid ${styles.dropdownBorderColor}`, flexShrink: 0,
-        }}>
+      <div
+        className={cx('ei-sheet', className)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        style={sheetStyle}
+        ref={el => { sheetElRef.current = el; elRef?.(el); }}
+        onMouseDown={keepFocus}
+      >
+        <div
+          className="ei-sheet-header"
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerCancel}
+          style={{
+            position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+            padding: '10px 4px 4px 16px', borderBottom: `1px solid ${styles.dropdownBorderColor}`, flexShrink: 0,
+            touchAction: 'none',
+          }}
+        >
+          <div className="ei-sheet-handle" aria-hidden style={{
+            position: 'absolute', top: '4px', left: '50%', width: '36px', height: '4px', marginLeft: '-18px',
+            borderRadius: '2px', backgroundColor: styles.dropdownBorderColor,
+          }} />
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: styles.dropdownItemFontSize, fontWeight: 600 }}>{title}</div>
             {detail ? (

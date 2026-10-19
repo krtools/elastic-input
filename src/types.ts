@@ -764,8 +764,10 @@ export interface ElasticInputProps {
    *   return text; // pass through unchanged
    * }}
    * ```
+   *
+   * `event` is absent when the text comes from the bar menu's Paste action (sheet presentation).
    */
-  interceptPaste?: (text: string, event: React.ClipboardEvent) => string | null | Promise<string | null>;
+  interceptPaste?: (text: string, event?: React.ClipboardEvent) => string | null | Promise<string | null>;
   /**
    * Field name (or config) to use as the implicit field for bare (unfielded) terms.
    * When set, bare terms autocomplete as values of this field (instead of field names),

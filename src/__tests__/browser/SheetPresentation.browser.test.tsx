@@ -176,6 +176,76 @@ describe("presentation: 'sheet' — the bar", () => {
       touch('pointerup', more, m.left + 10, m.top + 10);
       expect(await waitFor(() => q('.ei-sheet .ei-action') !== null)).toBe(true);
     });
+
+    it('the whole row is the hit zone: a touch on the padding above a chip accepts it', async () => {
+      const { api, editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      const bar = q('.ei-bar')!;
+      const b = bar.getBoundingClientRect();
+      const c = q('.ei-chip')!.getBoundingClientRect();
+      expect(c.top - b.top).toBeGreaterThan(2);
+      touch('pointerdown', bar, c.left + 10, b.top + 2);
+      touch('pointerup', bar, c.left + 10, b.top + 2);
+      expect(await waitFor(() => api.getValue() === 'status:')).toBe(true);
+    });
+
+    it('fades the strip edge that hides more chips', async () => {
+      await page.viewport(375, 812);
+      const { editor } = await setup({ fields: MANY });
+      await userEvent.type(editor, 'attr');
+      expect(await waitFor(() => chips().length === 8)).toBe(true);
+      const strip = q('.ei-bar-chips')!;
+      const mask = () => getComputedStyle(strip).maskImage;
+      expect(await waitFor(() => mask().includes('linear-gradient'))).toBe(true);
+      expect(mask().startsWith('linear-gradient(to right, rgb(0, 0, 0)')).toBe(true); // solid left edge
+      expect(mask().endsWith('rgba(0, 0, 0, 0))')).toBe(true); // faded right edge
+      strip.scrollLeft = strip.scrollWidth;
+      strip.dispatchEvent(new Event('scroll'));
+      expect(await waitFor(() => mask().startsWith('linear-gradient(to right, rgba(0, 0, 0, 0)'))).toBe(true);
+      expect(mask().endsWith('rgb(0, 0, 0))')).toBe(true);
+    });
+
+    it('a strip that fits has no fade', async () => {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      expect(getComputedStyle(q('.ei-bar-chips')!).maskImage).toBe('none');
+    });
+
+    it('the sheet is a labelled modal dialog with a drag handle and an entrance animation', async () => {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      await click(q('.ei-bar-open'));
+      expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+      const sheet = q('.ei-sheet')!;
+      expect(sheet.getAttribute('role')).toBe('dialog');
+      expect(sheet.getAttribute('aria-modal')).toBe('true');
+      expect(sheet.getAttribute('aria-label')).toBe('Suggestions');
+      expect(q('.ei-sheet-handle')).not.toBeNull();
+      expect(getComputedStyle(sheet).animationName).toBe('elastic-input-sheet-up');
+    });
+
+    it('a downward swipe on the header closes the sheet; a short one snaps back', async () => {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      await click(q('.ei-bar-open'));
+      expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+      const header = q('.ei-sheet-header')!;
+      const h = header.getBoundingClientRect();
+      touch('pointerdown', header, h.left + 100, h.top + 20);
+      touch('pointermove', header, h.left + 100, h.top + 50);
+      expect(q('.ei-sheet')!.style.transform).toBe('translateY(30px)');
+      touch('pointerup', header, h.left + 100, h.top + 50);
+      await pause(50);
+      expect(q('.ei-sheet')).not.toBeNull();
+      expect(q('.ei-sheet')!.style.transform).toBe('');
+      touch('pointerdown', header, h.left + 100, h.top + 20);
+      touch('pointermove', header, h.left + 100, h.top + 150);
+      touch('pointerup', header, h.left + 100, h.top + 150);
+      expect(await waitFor(() => q('.ei-sheet') === null)).toBe(true);
+      expect(q('.ei-bar')).not.toBeNull();
+    });
   });
 
   it("in 'manual' mode the button requests suggestions, like Ctrl+Space", async () => {
@@ -200,8 +270,9 @@ describe("presentation: 'sheet' — the sheet", () => {
 
     await click(q('.ei-bar-open'));
     expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
+    // the slide-up transform lifts the rect for its first 180ms
+    expect(await waitFor(() => q('.ei-sheet')!.getBoundingClientRect().top <= 60)).toBe(true);
     const r = q('.ei-sheet')!.getBoundingClientRect();
-    expect(r.top).toBeLessThanOrEqual(60);
     expect(r.bottom).toBeGreaterThanOrEqual(window.innerHeight - 1);
     expect(r.width).toBeGreaterThanOrEqual(window.innerWidth - 1);
     expect(q('.ei-sheet-detail')!.textContent).toBe('sta');
@@ -375,7 +446,8 @@ describe("presentation: 'auto'", () => {
 });
 
 describe("presentation: 'sheet' — the ⋯ menu", () => {
-  const actions = () => qa('.ei-sheet .ei-action').map(el => el.firstElementChild?.textContent ?? '');
+  const rows = () => qa('.ei-sheet .ei-action:not(.ei-action-segment)');
+  const actions = () => rows().map(el => el.firstElementChild?.textContent ?? '');
   const SAVED = [{ query: '#vip' }, { query: '#new' }];
   const HISTORY = [{ query: 'status:active' }];
 
@@ -387,7 +459,7 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
     expect(actions()).toEqual(['Clear']); // no saved searches or history configured
     expect(q('.ei-sheet')!.getBoundingClientRect().height).toBeLessThan(200);
-    await click(q('.ei-action'));
+    await click(rows()[0]);
     expect(await waitFor(() => api.getValue() === '' && q('.ei-sheet') === null)).toBe(true);
     expect(document.activeElement).toBe(q('.ei-editor'));
   });
@@ -398,7 +470,7 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     await click(q('.ei-bar-more'));
     expect(await waitFor(() => actions().length === 3)).toBe(true);
     expect(actions()).toEqual(['Saved searches', 'History', 'Clear']);
-    await click(qa('.ei-action')[0]);
+    await click(rows()[0]);
     expect(await waitFor(() => api.getValue() === 'sta #')).toBe(true);
     expect(api.getSelection()).toEqual({ start: 5, end: 5 });
     expect(await waitFor(() => sheetItems().length === 2)).toBe(true);
@@ -411,8 +483,8 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     await click(q('.ei-bar-more'));
     expect(await waitFor(() => actions().length === 2)).toBe(true);
     expect(actions()).toEqual(['History', 'Clear']);
-    expect((qa('.ei-sheet .ei-action')[1] as HTMLButtonElement).disabled).toBe(true);
-    await click(qa('.ei-action')[0]);
+    expect((rows()[1] as HTMLButtonElement).disabled).toBe(true);
+    await click(rows()[0]);
     expect(await waitFor(() => api.getValue() === '!')).toBe(true);
     expect(await waitFor(() => sheetItems().length === 1)).toBe(true);
     expect(sheetItems()[0]).toContain('status:active');
@@ -424,7 +496,7 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     api.setSelection(2, 5); // "bcd"
     await click(q('.ei-bar-more'));
     expect(await waitFor(() => actions().length === 2)).toBe(true);
-    await click(qa('.ei-action')[0]);
+    await click(rows()[0]);
     expect(await waitFor(() => api.getValue() === 'a # e')).toBe(true);
     expect(api.getSelection()).toEqual({ start: 3, end: 3 });
   });
@@ -439,10 +511,37 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     expect(await waitFor(() => actions().length === 2)).toBe(true);
     expect(actions()).toEqual(['Clear', 'Uppercase']);
     expect(q('.ei-sheet .ei-action-hint')!.textContent).toBe('Aa');
-    await click(qa('.ei-action')[1]);
+    await click(rows()[1]);
     expect(await waitFor(() => api.getValue() === 'STA')).toBe(true);
     expect(seen).toEqual(['sta']);
     expect(q('.ei-sheet')).toBeNull();
+  });
+
+  it('the editing row: Copy writes the query, Paste inserts the clipboard through interceptPaste, Select all selects it', async () => {
+    const clip = { text: 'status:active', writeText: (t: string) => { clip.text = t; return Promise.resolve(); }, readText: () => Promise.resolve(clip.text) };
+    Object.defineProperty(navigator, 'clipboard', { value: clip, configurable: true });
+    try {
+      const seen: string[] = [];
+      const { api } = await setup({ interceptPaste: (t) => { seen.push(t); return t.toUpperCase(); } });
+      await click(q('.ei-bar-more'));
+      expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
+      expect(qa('.ei-action-segment').map(el => el.textContent)).toEqual(['Copy', 'Paste', 'Select all']);
+      expect((qa('.ei-action-segment')[0] as HTMLButtonElement).disabled).toBe(true); // nothing to copy yet
+      await click(qa('.ei-action-segment')[1]);
+      expect(await waitFor(() => api.getValue() === 'STATUS:ACTIVE')).toBe(true);
+      expect(seen).toEqual(['status:active']);
+      expect(q('.ei-sheet')).toBeNull();
+      await click(q('.ei-bar-more'));
+      expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
+      await click(qa('.ei-action-segment')[2]);
+      expect(await waitFor(() => { const sel = api.getSelection(); return !!sel && sel.start === 0 && sel.end === 13; })).toBe(true);
+      await click(q('.ei-bar-more'));
+      expect(await waitFor(() => qa('.ei-action-segment').length === 3)).toBe(true);
+      await click(qa('.ei-action-segment')[0]);
+      expect(await waitFor(() => clip.text === 'STATUS:ACTIVE')).toBe(true);
+    } finally {
+      delete (navigator as unknown as { clipboard?: unknown }).clipboard;
+    }
   });
 
   it('closes on Escape (the list stays), on its ×, and on blur', async () => {

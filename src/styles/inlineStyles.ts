@@ -220,7 +220,8 @@ export function getSquigglyStyle(left: number, width: number): React.CSSProperti
   };
 }
 
-export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Required<StyleConfig>): Styles {
+/** `touch`: finger-sized controls (44px arrows and presets, 42px day cells) for coarse pointers. */
+export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Required<StyleConfig>, touch = false): Styles {
   return {
     container: {
       padding: '12px',
@@ -238,14 +239,15 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       backgroundColor: 'transparent',
       border: 'none',
       cursor: 'pointer',
-      fontSize: '16px',
-      padding: '4px 8px',
+      fontSize: touch ? '22px' : '16px',
+      padding: touch ? '0' : '4px 8px',
+      ...(touch ? { minWidth: '44px', minHeight: '44px' } : {}),
       color: colors.text,
       borderRadius: '4px',
     },
     monthLabel: {
       fontWeight: 600,
-      fontSize: styles.fontSize,
+      fontSize: touch ? '16px' : styles.fontSize,
       color: colors.text,
     },
     weekDays: {
@@ -256,9 +258,9 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
     },
     weekDay: {
       textAlign: 'center' as const,
-      fontSize: '11px',
+      fontSize: touch ? '12px' : '11px',
       color: colors.placeholder,
-      padding: '4px',
+      padding: touch ? '6px 4px' : '4px',
       fontWeight: 600,
     },
     days: {
@@ -268,10 +270,11 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
     },
     day: {
       textAlign: 'center' as const,
-      padding: '6px',
+      padding: touch ? '0' : '6px',
+      ...(touch ? { minHeight: '42px' } : {}),
       cursor: 'pointer',
-      fontSize: styles.dropdownItemFontSize,
-      borderRadius: '4px',
+      fontSize: touch ? '16px' : styles.dropdownItemFontSize,
+      borderRadius: touch ? '8px' : '4px',
       color: colors.text,
       border: 'none',
       backgroundColor: 'transparent',
@@ -303,11 +306,12 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
     },
     rangeToggleButton: {
       flex: 1,
-      padding: '4px 8px',
+      padding: touch ? '0 8px' : '4px 8px',
+      ...(touch ? { minHeight: '40px' } : {}),
       border: 'none',
       borderRadius: '4px',
       cursor: 'pointer',
-      fontSize: '12px',
+      fontSize: touch ? '14px' : '12px',
       fontWeight: 500,
       backgroundColor: 'transparent',
       color: colors.text,
@@ -325,11 +329,12 @@ export function getDatePickerStyle(colors: Required<ColorConfig>, styles: Requir
       display: 'block',
       width: '100%',
       textAlign: 'left' as const,
-      padding: '4px 8px',
+      padding: touch ? '0 12px' : '4px 8px',
+      ...(touch ? { minHeight: '44px' } : {}),
       border: 'none',
       backgroundColor: 'transparent',
       cursor: 'pointer',
-      fontSize: '12px',
+      fontSize: touch ? '14px' : '12px',
       color: colors.dropdownSelected,
       borderRadius: '4px',
     },

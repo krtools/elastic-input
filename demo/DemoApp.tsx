@@ -422,6 +422,10 @@ function SpreadsheetDemo({ theme, colors }: { theme: ThemeColors; colors: ColorC
 
 export function DemoApp() {
   const [isDark, setIsDark] = React.useState(false);
+  // URL hash presets for device checks: #placement=middle|bottom pushes the
+  // input down the page (keyboard overlap); #presentation=sheet|floating
+  const hashParams = React.useMemo(() => new URLSearchParams(window.location.hash.replace(/^#/, '')), []);
+  const placement = hashParams.get('placement');
   const [activeTab, setActiveTab] = React.useState<TabId>('crm');
   const [showInspector, setShowInspector] = React.useState(false);
   // Below 900px the options panel is a full-screen drawer instead of a column
@@ -435,7 +439,10 @@ export function DemoApp() {
 
   // Dropdown options
   const [dropdownOpen, setDropdownOpen] = React.useState<'always' | 'never' | 'manual' | 'input'>('input');
-  const [presentation, setPresentation] = React.useState<'auto' | 'floating' | 'sheet'>('auto');
+  const [presentation, setPresentation] = React.useState<'auto' | 'floating' | 'sheet'>(() => {
+    const p = hashParams.get('presentation');
+    return p === 'sheet' || p === 'floating' ? p : 'auto';
+  });
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(false);
@@ -691,6 +698,10 @@ export function DemoApp() {
             <SpreadsheetDemo theme={theme} colors={colors} />
           ) : (
           <React.Fragment>
+
+          {placement === 'middle' || placement === 'bottom' ? (
+            <div aria-hidden style={{ height: placement === 'bottom' ? 'calc(100vh - 300px)' : '40vh' }} />
+          ) : null}
 
           {/* Search section */}
           <div style={styles.searchSection}>

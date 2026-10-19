@@ -19,6 +19,8 @@ interface AutocompleteDropdownProps {
   visible: boolean;
   /** When set, the dropdown uses this fixed width instead of min/max width constraints. */
   fixedWidth?: number;
+  /** Minimum row height in px (finger-sized rows on touch devices). */
+  itemMinHeight?: number;
   renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
   renderDropdownHeader?: (context: CursorContext) => React.ReactNode | null | undefined;
@@ -44,6 +46,7 @@ export function AutocompleteDropdown({
   styles,
   visible,
   fixedWidth,
+  itemMinHeight,
   renderHistoryItem,
   renderSavedSearchItem,
   renderDropdownHeader,
@@ -106,7 +109,7 @@ export function AutocompleteDropdown({
       {renderSuggestionHeader(headerContent, mergedColors, mergedStyles, classNames?.dropdownHeader)}
       {renderSuggestionItems({
         suggestions, selectedIndex, onSelect, colors: mergedColors, styles: mergedStyles,
-        renderHistoryItem, renderSavedSearchItem, renderType, itemClassName: classNames?.dropdownItem,
+        renderHistoryItem, renderSavedSearchItem, renderType, itemClassName: classNames?.dropdownItem, minHeight: itemMinHeight,
       })}
     </div>
   );

@@ -81,6 +81,13 @@ export function SuggestionBar({
   const scrollLeftRef = React.useRef(0);
   const lastElRef = React.useRef<HTMLDivElement | null>(null);
   const lastListRef = React.useRef(suggestions);
+  // The strip fades out at an edge that hides more chips
+  const [fade, setFade] = React.useState({ left: false, right: false });
+  const updateFade = (el: HTMLElement) => {
+    const left = el.scrollLeft > 1;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+    setFade(f => (f.left === left && f.right === right ? f : { left, right }));
+  };
   React.useLayoutEffect(() => {
     const el = stripRef.current;
     if (!el) return;
@@ -94,7 +101,11 @@ export function SuggestionBar({
       el.scrollLeft = scrollLeftRef.current; // remounted: restore
     }
     lastElRef.current = el;
+    updateFade(el);
   });
+  const fadeMask = fade.left || fade.right
+    ? `linear-gradient(to right, ${fade.left ? 'transparent, #000 24px' : '#000'}, ${fade.right ? '#000 calc(100% - 24px), transparent' : '#000'})`
+    : undefined;
 
   const barRef = React.useRef<HTMLDivElement | null>(null);
   const setBarRef = React.useCallback((el: HTMLDivElement | null) => {
@@ -109,14 +120,18 @@ export function SuggestionBar({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse') return;
     const target = e.target as Element;
-    const strip = target.closest<HTMLElement>('.ei-bar-chips');
+    // The whole row is the hit zone: a touch on the padding above or below a
+    // control counts for the control at that x (the row is 44px+, the controls 36px)
+    const bar = e.currentTarget.getBoundingClientRect();
+    const under = target.closest('button') ? target : (document.elementFromPoint(e.clientX, bar.top + bar.height / 2) ?? target);
+    const strip = under.closest<HTMLElement>('.ei-bar-chips');
     gestureRef.current = {
       pointerId: e.pointerId,
       startX: e.clientX,
       startScrollLeft: strip?.scrollLeft ?? 0,
       moved: false,
       strip,
-      button: target.closest('button'),
+      button: under.closest('button'),
     };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* no active pointer (synthetic event) */ }
   };
@@ -201,8 +216,8 @@ export function SuggestionBar({
         <div
           className="ei-bar-chips"
           ref={stripRef}
-          onScroll={e => { scrollLeftRef.current = e.currentTarget.scrollLeft; }}
-          style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, overscrollBehaviorX: 'contain' }}
+          onScroll={e => { scrollLeftRef.current = e.currentTarget.scrollLeft; updateFade(e.currentTarget); }}
+          style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', flex: 1, minWidth: 0, overscrollBehaviorX: 'contain', maskImage: fadeMask, WebkitMaskImage: fadeMask }}
         >
           {chips.map(({ s, i }, chipIdx) => {
             const selected = i === selectedIndex;

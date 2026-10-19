@@ -25,6 +25,8 @@ export interface CalendarProps {
   onChange: (start: Date, end: Date | null) => void;
   /** Rendered below the grid — preset buttons, a clear action, whatever. */
   children?: React.ReactNode;
+  /** Finger-sized controls (coarse pointers): 44px arrows, 42px day cells. @default false */
+  touch?: boolean;
   /** Mouse wheel over the calendar steps the view: down = forward, up = back,
    *  one month/year/decade per tick depending on the current view level.
    *  Page scroll is suppressed while over the calendar. @default false */
@@ -54,7 +56,7 @@ const BUTTON_PROPS = { type: 'button' as const, tabIndex: -1 };
  * controlled selection, no chrome, no mode toggle, no serialization.
  * Used internally by ElasticInput's date picker; exported for standalone use.
  */
-export function Calendar({ mode, start, end: endProp, onChange, children, colors, styles: styleConfig, className, wheelNavigation = false }: CalendarProps) {
+export function Calendar({ mode, start, end: endProp, onChange, children, colors, styles: styleConfig, className, wheelNavigation = false, touch = false }: CalendarProps) {
   const end = mode === 'range' ? (endProp ?? null) : null;
 
   // View month: in range mode prefer the end date so "now" is visible
@@ -91,7 +93,7 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
 
   const mergedColors = mergeColors(colors);
   const mergedStyleConfig = mergeStyles(styleConfig);
-  const styles = getDatePickerStyle(mergedColors, mergedStyleConfig);
+  const styles = getDatePickerStyle(mergedColors, mergedStyleConfig, touch);
 
   // Displayed selection: an in-progress range (with hover preview) wins over
   // the controlled value
@@ -317,7 +319,8 @@ export function Calendar({ mode, start, end: endProp, onChange, children, colors
             backgroundColor: 'transparent',
             border: 'none',
             cursor: canZoomOut ? 'pointer' : 'default',
-            padding: '2px 8px',
+            padding: touch ? '0 8px' : '2px 8px',
+            minHeight: touch ? '44px' : undefined,
             borderRadius: '4px',
           }}
           onClick={canZoomOut ? zoomOut : undefined}

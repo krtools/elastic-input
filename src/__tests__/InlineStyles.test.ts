@@ -87,7 +87,7 @@ describe('getEditorWrapStyle — squiggle/placeholder coordinate space', () => {
   it('is positioned, flexible, and shrinkable', () => {
     const s = getEditorWrapStyle();
     expect(s.position).toBe('relative');
-    expect(s.flex).toBe('1 1 auto');
+    expect(s.flex).toBe('1 1 0%'); // basis 0: a long query never pushes a slot to its own line
     expect(s.minWidth).toBe(0);
   });
 });

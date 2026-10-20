@@ -9,6 +9,7 @@
 ### Fixes
 
 - **The bar floats under the input** — Positioned like the dropdown (and flipped above when there is no room below), so the input no longer grows a row while focused or widens shrink-to-fit parents such as table cells.
+- **Prefix and suffix stay beside a long query** — The editor's flex basis is 0, so wrapped text no longer pushes a slot onto its own line.
 
 ## 0.23.0 — 2026-10-19
 

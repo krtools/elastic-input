@@ -62,7 +62,9 @@ export function getEditorWrapStyle(): React.CSSProperties {
     position: 'relative',
     display: 'flex',
     flexDirection: 'column',
-    flex: '1 1 auto',
+    // Basis 0, not the text's width: the editor only ever takes what the slots
+    // leave, so a long query can never push a prefix/suffix onto its own line
+    flex: '1 1 0%',
     minWidth: 0,
     alignSelf: 'stretch',
   };

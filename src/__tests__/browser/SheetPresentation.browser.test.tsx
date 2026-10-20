@@ -118,6 +118,21 @@ describe("presentation: 'sheet' — the bar", () => {
     expect(Math.round(q('.ei-bar')!.getBoundingClientRect().top - c.bottom)).toBe(4);
   });
 
+  it('prefix and suffix stay on the first text line beside a long wrapped query', async () => {
+    await page.viewport(375, 812);
+    const { editor } = await setup({ prefix: 'P', suffix: 'GO', multiline: true });
+    await userEvent.type(editor, 'adsfkjah sdfkla hsdfjla hsdfjla shdfklajd fhakjsd akjlds hakdsjl h');
+    const ed = q('.ei-editor')!.getBoundingClientRect();
+    expect(ed.height).toBeGreaterThan(50); // wrapped onto several lines
+    const c = q('.ei-container')!.getBoundingClientRect();
+    const p = q('.ei-prefix')!.getBoundingClientRect();
+    const sfx = q('.ei-suffix')!.getBoundingClientRect();
+    expect(p.top - c.top).toBeLessThan(4);
+    expect(sfx.top - c.top).toBeLessThan(4);
+    expect(p.right).toBeLessThanOrEqual(ed.left + 1);
+    expect(sfx.left).toBeGreaterThanOrEqual(ed.right - 1);
+  });
+
   it('shows a count button and chips; a chip accepts and the next step takes over', async () => {
     const { api, editor } = await setup();
     await userEvent.type(editor, 'sta');

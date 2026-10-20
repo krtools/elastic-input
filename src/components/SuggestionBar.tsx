@@ -1,7 +1,9 @@
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import { Suggestion, isAcceptableSuggestion } from '../autocomplete/suggestionTypes';
 import { cx } from '../utils/cx';
 import { ColorConfig, StyleConfig } from '../types';
+import { getVisibleViewport } from '../utils/viewport';
 
 /**
  * What the bar's button says for the current suggestion list: a count of
@@ -23,6 +25,36 @@ export function barStatusLabel(suggestions: Suggestion[], datePicker: boolean, i
 
 /** Movement (px) beyond which a touch is a pan, not a tap. */
 export const TAP_SLOP = 6;
+/** Space between the input box and the bar (px). */
+const BAR_GAP = 4;
+/** Height assumed for the flip decision before the bar has been measured. */
+const BAR_HEIGHT_ESTIMATE = 46;
+
+export interface BarPosition {
+  /** Document y of the bar's top edge (below) or bottom edge (above). */
+  top: number;
+  left: number;
+  width: number;
+  /** Flipped above the input: `top` anchors the bottom edge. */
+  above: boolean;
+}
+
+/**
+ * Where the bar goes for an anchor (the input container): its full width,
+ * `BAR_GAP` below its bottom edge, or above its top edge when the visible
+ * viewport has no room below and more room above.
+ */
+export function getBarPosition(anchorRect: DOMRect, barHeight: number, viewport = getVisibleViewport(), scrollX = window.scrollX, scrollY = window.scrollY): BarPosition {
+  const roomBelow = viewport.top + viewport.height - anchorRect.bottom - BAR_GAP;
+  const roomAbove = anchorRect.top - viewport.top - BAR_GAP;
+  const above = roomBelow < barHeight && roomAbove > roomBelow;
+  return {
+    top: above ? anchorRect.top + scrollY - BAR_GAP : anchorRect.bottom + scrollY + BAR_GAP,
+    left: anchorRect.left + scrollX,
+    width: anchorRect.width,
+    above,
+  };
+}
 
 interface SuggestionBarProps {
   suggestions: Suggestion[];
@@ -39,6 +71,10 @@ interface SuggestionBarProps {
   colors: Required<ColorConfig>;
   styles: Required<StyleConfig>;
   className?: string;
+  /** The input container the bar is anchored to. */
+  anchorRef: React.RefObject<HTMLElement>;
+  /** The bar element (for focus-within checks). */
+  elRef?: (el: HTMLDivElement | null) => void;
 }
 
 interface TouchGesture {
@@ -61,19 +97,61 @@ interface TouchGesture {
 const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
 
 /**
- * The compact, in-flow alternative to the floating dropdown (sheet
- * presentation): a row under the text, shown while the editor is focused,
- * with a button that opens the sheet and the acceptable suggestions as
- * tappable chips.
+ * The compact alternative to the floating dropdown (sheet presentation): a
+ * row floating under the input while the editor is focused, with a button
+ * that opens the sheet and the acceptable suggestions as tappable chips. A
+ * body portal positioned like the dropdown, so the input box never changes
+ * size and shrink-to-fit parents (table cells) never widen to the chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
-  // Android's caret handle reaches ~13px below the text line; on coarse
-  // pointers the row keeps 12px of top padding so the chips sit under it
-  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+
+  // Portal container
+  const portalRef = React.useRef<HTMLDivElement | null>(null);
+  const [, forceRender] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    portalRef.current = container;
+    forceRender();
+    return () => {
+      document.body.removeChild(container);
+      portalRef.current = null;
+    };
+  }, []);
+
+  // Position: under (or above) the anchor, re-read after every render — the
+  // editor grows with its text — and on scroll, resize, the visual viewport
+  // (keyboard) and the anchor's own size
+  const barRef = React.useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = React.useState<BarPosition | null>(null);
+  const updatePosition = React.useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const next = getBarPosition(anchor.getBoundingClientRect(), barRef.current?.offsetHeight || BAR_HEIGHT_ESTIMATE);
+    setPos(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.above === next.above) ? p : next);
+  }, [anchorRef]);
+  React.useLayoutEffect(() => { updatePosition(); });
+  React.useEffect(() => {
+    const vv = window.visualViewport;
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    vv?.addEventListener('resize', updatePosition);
+    vv?.addEventListener('scroll', updatePosition);
+    const anchor = anchorRef.current;
+    const ro = typeof ResizeObserver !== 'undefined' && anchor ? new ResizeObserver(updatePosition) : null;
+    if (anchor) ro?.observe(anchor);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+      vv?.removeEventListener('resize', updatePosition);
+      vv?.removeEventListener('scroll', updatePosition);
+      ro?.disconnect();
+    };
+  }, [anchorRef, updatePosition]);
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -107,12 +185,12 @@ export function SuggestionBar({
     ? `linear-gradient(to right, ${fade.left ? 'transparent, #000 24px' : '#000'}, ${fade.right ? '#000 calc(100% - 24px), transparent' : '#000'})`
     : undefined;
 
-  const barRef = React.useRef<HTMLDivElement | null>(null);
   const setBarRef = React.useCallback((el: HTMLDivElement | null) => {
     barRef.current?.removeEventListener('touchstart', cancelTouchStart);
     barRef.current = el;
     el?.addEventListener('touchstart', cancelTouchStart, { passive: false });
-  }, []);
+    elRef?.(el);
+  }, [elRef]);
 
   // The control a pointer is down on shows a pressed state (the cancelled
   // touchstart suppresses :active and the tap highlight); cleared on release,
@@ -201,7 +279,10 @@ export function SuggestionBar({
     WebkitTouchCallout: 'none',
   } as React.CSSProperties;
 
-  return (
+  // eslint-disable-next-line react-hooks/refs -- portal container gate (see AutocompleteDropdown)
+  if (!portalRef.current) return null;
+
+  const content = (
     <div
       className={cx('ei-bar', className)}
       ref={setBarRef}
@@ -214,15 +295,28 @@ export function SuggestionBar({
       onPointerCancel={onPointerCancel}
       onPointerLeave={() => setPressed(null)}
       style={{
-        flex: '1 1 100%',
+        position: 'absolute',
+        top: pos ? `${pos.top}px` : 0,
+        left: pos ? `${pos.left}px` : 0,
+        width: pos ? `${pos.width}px` : undefined,
+        transform: pos?.above ? 'translateY(-100%)' : undefined,
+        visibility: pos ? 'visible' : 'hidden', // measured before it is shown
+        zIndex: styles.dropdownZIndex,
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
         minHeight: '44px',
-        padding: coarsePointer ? '12px 8px 4px' : '4px 8px',
-        borderTop: `1px solid ${styles.dropdownBorderColor}`,
+        // The 4px gap plus the input's own bottom padding keep the chips
+        // clear of Android's caret handle (~13px below the text line)
+        padding: '4px 8px',
         boxSizing: 'border-box',
         minWidth: 0,
+        backgroundColor: colors.background,
+        color: colors.text,
+        border: `1px solid ${styles.dropdownBorderColor}`,
+        borderRadius: styles.dropdownBorderRadius,
+        boxShadow: styles.dropdownShadow,
+        fontFamily: styles.fontFamily,
         userSelect: 'none',
         touchAction: 'none', // pointer events keep coming (no pointercancel for a pan)
       }}
@@ -283,4 +377,7 @@ export function SuggestionBar({
       </button>
     </div>
   );
+
+  // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above
+  return ReactDOM.createPortal(content, portalRef.current);
 }

@@ -73,6 +73,51 @@ describe("presentation: 'sheet' — the bar", () => {
     expect(await waitFor(() => q('.ei-bar') === null)).toBe(true);
   });
 
+  it('floats under the input: the box keeps its size, the bar spans its width just below, outside the container', async () => {
+    const { editor } = await setup();
+    const container = q('.ei-container')!;
+    const before = container.getBoundingClientRect();
+    await userEvent.type(editor, 'sta');
+    expect(await waitFor(() => chips().length === 1)).toBe(true);
+    const bar = q('.ei-bar')!;
+    expect(container.contains(bar)).toBe(false);
+    const c = container.getBoundingClientRect();
+    const b = bar.getBoundingClientRect();
+    expect(c.height).toBe(before.height); // no second row
+    expect(Math.round(b.top - c.bottom)).toBe(4);
+    expect(Math.abs(b.left - c.left)).toBeLessThan(1);
+    expect(Math.abs(b.width - c.width)).toBeLessThan(1);
+    expect(getComputedStyle(bar).position).toBe('absolute');
+  });
+
+  it('flips above the input when the viewport has no room below', async () => {
+    await page.viewport(375, 812);
+    document.body.style.paddingTop = '740px';
+    try {
+      const { editor } = await setup();
+      await userEvent.type(editor, 'sta');
+      expect(await waitFor(() => chips().length === 1)).toBe(true);
+      const c = q('.ei-container')!.getBoundingClientRect();
+      const b = q('.ei-bar')!.getBoundingClientRect();
+      expect(b.bottom).toBeLessThanOrEqual(c.top);
+      expect(Math.round(c.top - b.bottom)).toBe(4);
+    } finally {
+      document.body.style.paddingTop = '';
+    }
+  });
+
+  it('follows the input as the editor grows', async () => {
+    const { editor } = await setup({ multiline: true });
+    await userEvent.type(editor, 'sta');
+    expect(await waitFor(() => chips().length === 1)).toBe(true);
+    const top1 = q('.ei-bar')!.getBoundingClientRect().top;
+    await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+    await userEvent.type(editor, 'seg');
+    expect(await waitFor(() => q('.ei-bar')!.getBoundingClientRect().top > top1 + 10)).toBe(true);
+    const c = q('.ei-container')!.getBoundingClientRect();
+    expect(Math.round(q('.ei-bar')!.getBoundingClientRect().top - c.bottom)).toBe(4);
+  });
+
   it('shows a count button and chips; a chip accepts and the next step takes over', async () => {
     const { api, editor } = await setup();
     await userEvent.type(editor, 'sta');

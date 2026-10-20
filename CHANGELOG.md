@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **The bar floats under the input** — Positioned like the dropdown (and flipped above when there is no room below), so the input no longer grows a row while focused or widens shrink-to-fit parents such as table cells.
+
 ## 0.23.0 — 2026-10-19
 
 The mobile release: a phone presentation for the suggestions, finger-sized targets throughout, and keyboard-aware positioning.

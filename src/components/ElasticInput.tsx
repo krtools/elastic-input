@@ -492,6 +492,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const apiRef = React.useRef<ElasticInputAPI | null>(null);
   const sheetElRef = React.useRef<HTMLDivElement | null>(null);
+  const barElRef = React.useRef<HTMLDivElement | null>(null);
 
   // Keep refs to latest state values needed in callbacks
   const stateRef = React.useRef({
@@ -517,6 +518,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (dropdownListRef.current?.contains(node)) return true;
     if (datePickerElRef.current?.contains(node)) return true;
     if (sheetElRef.current?.contains(node)) return true;
+    if (barElRef.current?.contains(node)) return true;
     return false;
   }, []);
 
@@ -2810,7 +2812,7 @@ export function ElasticInput(props: ElasticInputProps) {
   return (
     <div
       ref={containerRef}
-      style={sheetMode ? { ...containerStyle, flexWrap: 'wrap' } : containerStyle}
+      style={containerStyle}
       className={cx('ei-container', className, classNames?.container)}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -2885,6 +2887,8 @@ export function ElasticInput(props: ElasticInputProps) {
           colors={mergedColors}
           styles={mergedStyleConfig}
           className={classNames?.bar}
+          anchorRef={containerRef}
+          elRef={el => { barElRef.current = el; }}
         />
       ) : null}
 

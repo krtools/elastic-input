@@ -85,6 +85,7 @@ export function getEditableStyle(colors: Required<ColorConfig>, styles: Required
     wordWrap: 'break-word',
     overflowWrap: 'break-word',
     overflow: 'auto',
+    maxHeight: styles.inputMaxHeight,
     cursor: 'text',
   };
 }

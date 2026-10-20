@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **`styles.inputMaxHeight`** — Caps the editor's height; the text scrolls inside it.
+
 ### Fixes
 
 - **The bar floats under the input** — Positioned like the dropdown (and flipped above when there is no room below), so the input no longer grows a row while focused or widens shrink-to-fit parents such as table cells.

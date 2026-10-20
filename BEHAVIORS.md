@@ -1682,6 +1682,7 @@ The `styles` prop accepts a `StyleConfig` object for structural/layout customiza
 | `fontFamily` | `string` | `'SF Mono', 'Fira Code', ...` | Shared font across input and dropdown |
 | `fontSize` | `string` | `14px` | Base font size for the input |
 | `inputMinHeight` | `string` | `40px` | Minimum input height (border-box, applied to the container) |
+| `inputMaxHeight` | `string` | `none` | Maximum editor height before its text scrolls (applied to the editor, which owns `overflow: auto`; a `max-height` on the container does nothing because a flex row cannot shrink its items — `InputMaxHeight.browser.test.tsx` → "caps the editor and scrolls its text; the container never overflows") |
 | `inputPadding` | `string` | `8px 12px` | Editor text padding (the placeholder mirrors it verbatim) |
 | `inputBorderWidth` | `string` | `2px` | Input border width |
 | `inputBorderColor` | `string` | `#d0d7de` | Input border color |

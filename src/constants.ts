@@ -69,6 +69,7 @@ export const DEFAULT_STYLES: Required<StyleConfig> = {
   lineHeight: '1.5',
 
   inputMinHeight: '40px',
+  inputMaxHeight: 'none',
   inputPadding: '8px 12px',
   inputBorderWidth: '2px',
   inputBorderColor: '#d0d7de',

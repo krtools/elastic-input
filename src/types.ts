@@ -209,6 +209,12 @@ export interface StyleConfig {
   lineHeight?: string;
   /** Minimum height of the input element. */
   inputMinHeight?: string;
+  /**
+   * Maximum height of the editor before its text scrolls (a `max-height` on
+   * the container cannot do this: a flex row does not shrink its items).
+   * @default 'none'
+   */
+  inputMaxHeight?: string;
   /** Padding inside the input element. */
   inputPadding?: string;
   /** Border width of the input element. */

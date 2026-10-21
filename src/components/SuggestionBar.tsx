@@ -57,6 +57,12 @@ interface SuggestionBarProps {
   elRef?: (el: HTMLDivElement | null) => void;
   /** Reports which side of the input the bar is on, so the box can square the corners it joins. */
   onFlip?: (flipped: boolean) => void;
+  /**
+   * `'floating'`: a portal flush under (or above) the box, drawn as part of
+   * it; the box keeps its size. `'inline'`: a second row inside the box,
+   * which grows by that row and pushes what is below instead of covering it.
+   */
+  placement: 'floating' | 'inline';
 }
 
 interface TouchGesture {
@@ -86,11 +92,12 @@ const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
  * size and shrink-to-fit parents (table cells) never widen to the chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef, onFlip,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef, onFlip, placement,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
-  const portal = useBodyPortal();
+  const floating = placement === 'floating';
+  const portal = useBodyPortal(floating);
   const borderWidth = parseFloat(styles.inputBorderWidth) || 1;
   // Android's caret handle reaches ~13px below the text line; on coarse
   // pointers extra top padding keeps the chips under it
@@ -101,11 +108,11 @@ export function SuggestionBar({
   // every render — the editor grows with its text — and whenever the page,
   // the visual viewport (keyboard) or the anchor itself moves or resizes.
   const barRef = React.useRef<HTMLDivElement | null>(null);
-  const [placement, setPlacement] = React.useState<BarPlacement | null>(null);
+  const [pos, setPos] = React.useState<BarPlacement | null>(null);
   const lastFlippedRef = React.useRef<boolean | null>(null);
   const updatePlacement = React.useCallback(() => {
     const anchor = anchorRef.current;
-    if (!anchor) return;
+    if (!anchor || !floating) return;
     const rect = anchor.getBoundingClientRect();
     const pos = getDropdownPosition(rect, barRef.current?.offsetHeight || BAR_HEIGHT_ESTIMATE, rect.width, undefined, BAR_GAP);
     const flipped = !!pos.flipped;
@@ -115,10 +122,10 @@ export function SuggestionBar({
       lastFlippedRef.current = flipped;
       onFlip?.(flipped);
     }
-    setPlacement(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.flipped === next.flipped) ? p : next);
-  }, [anchorRef, borderWidth, onFlip]);
+    setPos(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.flipped === next.flipped) ? p : next);
+  }, [anchorRef, borderWidth, onFlip, floating]);
   React.useLayoutEffect(() => { updatePlacement(); });
-  useReposition(updatePlacement, anchorRef);
+  useReposition(updatePlacement, anchorRef, floating);
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -246,28 +253,50 @@ export function SuggestionBar({
     WebkitTouchCallout: 'none',
   } as React.CSSProperties;
 
-  if (!portal) return null;
+  if (floating && !portal) return null;
 
-  // Joined to the box: the box squares the corners on this side (via onFlip);
-  // the bar carries the side and outer borders in the focus colour, the
-  // divider as the border it shares with the box, the corners, and the focus
-  // ring — clipped at the seam so it does not tint the box.
-  const flipped = !!placement?.flipped;
   const bw = styles.inputBorderWidth;
   const radius = styles.inputBorderRadius;
-  // Longhands only: React clears a removed longhand to '' without re-applying
-  // the shorthand it came from, so mixing them breaks on a flip
-  const edge = `${bw} solid ${styles.inputFocusBorderColor}`;
   const divider = `${bw} solid ${styles.dropdownBorderColor}`;
-  const joined: React.CSSProperties = {
-    borderTop: flipped ? edge : divider,
-    borderRight: edge,
-    borderBottom: flipped ? divider : edge,
-    borderLeft: edge,
-    borderRadius: flipped ? `${radius} ${radius} 0 0` : `0 0 ${radius} ${radius}`,
-    boxShadow: styles.inputFocusShadow,
-    clipPath: flipped ? 'inset(-8px -8px 0 -8px)' : 'inset(0 -8px -8px -8px)',
-  };
+  let placementStyle: React.CSSProperties;
+  if (floating) {
+    // Joined to the box: the box squares the corners on this side (via
+    // onFlip); the bar carries the side and outer borders in the focus
+    // colour, the divider as the border it shares with the box, the corners,
+    // and the focus ring — clipped at the seam so it does not tint the box.
+    // Longhands only: React clears a removed longhand to '' without
+    // re-applying the shorthand it came from, so mixing them breaks on a flip.
+    const flipped = !!pos?.flipped;
+    const edge = `${bw} solid ${styles.inputFocusBorderColor}`;
+    placementStyle = {
+      position: 'absolute',
+      top: pos ? `${pos.top}px` : 0,
+      left: pos ? `${pos.left}px` : 0,
+      width: pos ? `${pos.width}px` : undefined,
+      // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
+      transform: flipped ? 'translateY(-100%)' : undefined,
+      visibility: pos ? 'visible' : 'hidden', // measured before it is shown
+      zIndex: styles.dropdownZIndex,
+      backgroundColor: colors.background,
+      color: colors.text,
+      borderTop: flipped ? edge : divider,
+      borderRight: edge,
+      borderBottom: flipped ? divider : edge,
+      borderLeft: edge,
+      borderRadius: flipped ? `${radius} ${radius} 0 0` : `0 0 ${radius} ${radius}`,
+      boxShadow: styles.inputFocusShadow,
+      clipPath: flipped ? 'inset(-8px -8px 0 -8px)' : 'inset(0 -8px -8px -8px)',
+    };
+  } else {
+    // A second row of the box. contain: inline-size keeps the chips out of
+    // the box's intrinsic width, so a shrink-to-fit parent (a table cell)
+    // does not widen to them.
+    placementStyle = {
+      flex: '1 1 100%',
+      contain: 'inline-size',
+      borderTop: divider,
+    };
+  }
 
   const content = (
     <div
@@ -282,14 +311,6 @@ export function SuggestionBar({
       onPointerCancel={onPointerCancel}
       onPointerLeave={() => setPressed(null)}
       style={{
-        position: 'absolute',
-        top: placement ? `${placement.top}px` : 0,
-        left: placement ? `${placement.left}px` : 0,
-        width: placement ? `${placement.width}px` : undefined,
-        // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
-        transform: placement?.flipped ? 'translateY(-100%)' : undefined,
-        visibility: placement ? 'visible' : 'hidden', // measured before it is shown
-        zIndex: styles.dropdownZIndex,
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
@@ -297,12 +318,10 @@ export function SuggestionBar({
         padding: coarsePointer ? '8px 8px 4px' : '4px 8px',
         boxSizing: 'border-box',
         minWidth: 0,
-        backgroundColor: colors.background,
-        color: colors.text,
-        ...joined,
         fontFamily: styles.fontFamily,
         userSelect: 'none',
         touchAction: 'none', // pointer events keep coming (no pointercancel for a pan)
+        ...placementStyle,
       }}
     >
       <button
@@ -362,5 +381,5 @@ export function SuggestionBar({
     </div>
   );
 
-  return ReactDOM.createPortal(content, portal);
+  return floating && portal ? ReactDOM.createPortal(content, portal) : content;
 }

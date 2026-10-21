@@ -325,6 +325,15 @@ export interface DropdownConfig {
    * @default 'auto'
    */
   presentation?: 'floating' | 'sheet' | 'auto';
+  /**
+   * Where the sheet presentation's bar goes. `'floating'`: flush under (or
+   * above) the input box and drawn as part of it; the box keeps its size, so
+   * nothing below it moves, but it is covered while the bar shows.
+   * `'inline'`: a second row inside the box, which grows by that row while
+   * focused and pushes what is below instead of covering it.
+   * @default 'floating'
+   */
+  barPlacement?: 'floating' | 'inline';
   /** Maximum number of suggestions shown. @default 10 */
   maxSuggestions?: number;
   /** Debounce delay in ms for async `fetchSuggestions` calls. @default 200 */

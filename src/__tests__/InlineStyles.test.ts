@@ -88,7 +88,7 @@ describe('getEditorWrapStyle — squiggle/placeholder coordinate space', () => {
     const s = getEditorWrapStyle();
     expect(s.position).toBe('relative');
     expect(s.flex).toBe('1 1 0%'); // basis 0: a long query never pushes a slot to its own line
-    expect(s.minWidth).toBe(0);
+    expect(s.minWidth).toBe(1); // non-zero: a 100%-basis row (the inline bar) must wrap under it
   });
 });
 

@@ -63,9 +63,11 @@ export function getEditorWrapStyle(): React.CSSProperties {
     display: 'flex',
     flexDirection: 'column',
     // Basis 0, not the text's width: the editor only ever takes what the slots
-    // leave, so a long query can never push a prefix/suffix onto its own line
+    // leave, so a long query can never push a prefix/suffix onto its own line.
+    // The 1px minimum keeps its hypothetical size non-zero, so a 100%-basis
+    // row (the inline bar) wraps under it instead of sharing the line.
     flex: '1 1 0%',
-    minWidth: 0,
+    minWidth: 1,
     alignSelf: 'stretch',
   };
 }

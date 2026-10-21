@@ -257,6 +257,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const dropdownOpenIsCallback = typeof dropdownOpen === 'function';
   const dropdownMode = dropdownOpenIsCallback ? null : dropdownOpen;
   const dropdownAlignToInput = dropdownConfig?.alignToInput ?? false;
+  const barInline = (dropdownConfig?.barPlacement ?? 'floating') === 'inline';
   const maxSuggestions = dropdownConfig?.maxSuggestions;
   const effectiveMaxSuggestions = maxSuggestions || DEFAULT_MAX_SUGGESTIONS;
   const suggestDebounceMs = dropdownConfig?.suggestDebounceMs;
@@ -2786,12 +2787,13 @@ export function ElasticInput(props: ElasticInputProps) {
   return (
     <div
       ref={containerRef}
-      // While the bar shows, the box squares the corners it shares with it
-      // (the shorthand, not longhands: React does not re-apply a shorthand
-      // after clearing a longhand that overrode it)
-      style={barVisible
-        ? { ...containerStyle, borderRadius: barFlipped ? `0 0 ${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius}` : `${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius} 0 0` }
-        : containerStyle}
+      // While the bar shows: an inline bar is a second row (the box wraps); a
+      // floating bar has the box square the corners it shares with it (the
+      // shorthand, not longhands: React does not re-apply a shorthand after
+      // clearing a longhand that overrode it)
+      style={!barVisible ? containerStyle
+        : barInline ? { ...containerStyle, flexWrap: 'wrap' }
+        : { ...containerStyle, borderRadius: barFlipped ? `0 0 ${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius}` : `${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius} 0 0` }}
       className={cx('ei-container', className, classNames?.container)}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -2869,6 +2871,7 @@ export function ElasticInput(props: ElasticInputProps) {
           anchorRef={containerRef}
           elRef={el => { barElRef.current = el; }}
           onFlip={setBarFlipped}
+          placement={barInline ? 'inline' : 'floating'}
         />
       ) : null}
 

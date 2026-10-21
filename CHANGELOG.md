@@ -5,6 +5,7 @@
 ### Features
 
 - **`styles.inputMaxHeight`** — Caps the editor's height; the text scrolls inside it.
+- **`dropdown.barPlacement`** — `'inline'` keeps the bar inside the input box as a second row, for layouts where covering the content below is worse than growing.
 
 ### Fixes
 

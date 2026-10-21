@@ -7,11 +7,12 @@ import * as React from 'react';
  * zoom), and — with `anchorRef` — the anchor's own size changes. Listeners
  * are attached once; the latest callback is always the one that runs.
  */
-export function useReposition(callback: () => void, anchorRef?: React.RefObject<Element>): void {
+export function useReposition(callback: () => void, anchorRef?: React.RefObject<Element>, enabled = true): void {
   const callbackRef = React.useRef(callback);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref pattern
   callbackRef.current = callback;
   React.useEffect(() => {
+    if (!enabled) return; // a component that sometimes renders in flow instead
     const run = () => callbackRef.current();
     const vv = window.visualViewport;
     window.addEventListener('resize', run);
@@ -28,5 +29,5 @@ export function useReposition(callback: () => void, anchorRef?: React.RefObject<
       vv?.removeEventListener('scroll', run);
       observer?.disconnect();
     };
-  }, [anchorRef]);
+  }, [anchorRef, enabled]);
 }

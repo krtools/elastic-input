@@ -43,7 +43,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | Term | Meaning |
 |------|---------|
 | **dropdown** | The autocomplete suggestion list that appears below the input |
-| **bar** | Sheet presentation: the row floating under the input box while focused, with a status/count button and the suggestions as chips (`.ei-bar`) |
+| **bar** | Sheet presentation: the row under the input box while focused — floating flush against it, or a second row inside it with `barPlacement: 'inline'` — with a status/count button and the suggestions as chips (`.ei-bar`) |
 | **sheet** | Sheet presentation: the bottom sheet the bar's button opens, holding the full suggestion list or the date picker (`.ei-sheet`) |
 | **actions menu** | Sheet presentation: the short list the bar's ⋯ button opens in the sheet — Saved searches, History, Clear and the consumer's `barActions` (`.ei-action`) |
 | **suggestion** | A single item in the dropdown |

@@ -135,6 +135,7 @@ describe("presentation: 'sheet' — the bar", () => {
     await userEvent.type(editor, 'adsfkjah sdfkla hsdfjla hsdfjla shdfklajd fhakjsd akjlds hakdsjl h');
     const ed = q('.ei-editor')!.getBoundingClientRect();
     expect(ed.height).toBeGreaterThan(50); // wrapped onto several lines
+    expect(ed.width).toBeGreaterThan(150); // and has the width the slots leave
     const c = q('.ei-container')!.getBoundingClientRect();
     const p = q('.ei-prefix')!.getBoundingClientRect();
     const sfx = q('.ei-suffix')!.getBoundingClientRect();
@@ -663,5 +664,50 @@ describe("presentation: 'sheet' — the ⋯ menu", () => {
     expect(await waitFor(() => q('.ei-sheet') !== null)).toBe(true);
     api.blur();
     expect(await waitFor(() => q('.ei-sheet') === null && q('.ei-bar') === null)).toBe(true);
+  });
+});
+
+describe("dropdown.barPlacement: 'inline'", () => {
+  const MANY_FIELDS: FieldConfig[] = Array.from({ length: 8 }, (_, i) => ({ name: `attribute_${i}`, type: 'string' as const }));
+
+  it('renders the bar as a second row inside the box, which grows by that row', async () => {
+    const { api, editor } = await setup({}, { barPlacement: 'inline' });
+    const container = q('.ei-container')!;
+    await userEvent.type(editor, 'sta');
+    expect(await waitFor(() => chips().length === 1)).toBe(true);
+    const bar = q('.ei-bar')!;
+    expect(container.contains(bar)).toBe(true);
+    expect(getComputedStyle(bar).position).toBe('static');
+    const editorHeight = q('.ei-editor')!.getBoundingClientRect().height;
+    expect(container.getBoundingClientRect().height).toBeGreaterThan(editorHeight + 36); // one more row
+    expect(getComputedStyle(container).flexWrap).toBe('wrap');
+    expect(getComputedStyle(container).borderBottomLeftRadius).not.toBe('0px'); // no corner squaring
+    expect(bar.getBoundingClientRect().bottom).toBeLessThanOrEqual(container.getBoundingClientRect().bottom);
+    api.blur();
+    expect(await waitFor(() => q('.ei-bar') === null)).toBe(true);
+    expect(container.getBoundingClientRect().height).toBeLessThan(editorHeight + 10); // back to one row
+  });
+
+  it("keeps the chips out of a shrink-to-fit parent's width", async () => {
+    const { editor } = await setup({ fields: MANY_FIELDS }, { barPlacement: 'inline' });
+    const host = q('.ei-container')!.parentElement!;
+    host.style.width = 'max-content';
+    await userEvent.type(editor, 'attr');
+    expect(await waitFor(() => chips().length === 8)).toBe(true);
+    expect(q('.ei-bar-chips')!.scrollWidth).toBeGreaterThan(400); // the chips are wider than this
+    expect(host.getBoundingClientRect().width).toBeLessThan(250); // but the box is not
+  });
+
+  it('prefix and suffix stay beside a long wrapped query', async () => {
+    await page.viewport(375, 812);
+    const { editor } = await setup({ prefix: 'P', suffix: 'GO', multiline: true }, { barPlacement: 'inline' });
+    await userEvent.type(editor, 'adsfkjah sdfkla hsdfjla hsdfjla shdfklajd fhakjsd akjlds hakdsjl h');
+    const ed = q('.ei-editor')!.getBoundingClientRect();
+    expect(ed.height).toBeGreaterThan(50);
+    expect(ed.width).toBeGreaterThan(150); // and has the width the slots leave
+    const c = q('.ei-container')!.getBoundingClientRect();
+    expect(q('.ei-prefix')!.getBoundingClientRect().top - c.top).toBeLessThan(4);
+    expect(q('.ei-suffix')!.getBoundingClientRect().top - c.top).toBeLessThan(4);
+    expect(q('.ei-suffix')!.getBoundingClientRect().left).toBeGreaterThanOrEqual(ed.right - 1);
   });
 });

@@ -23,6 +23,13 @@ const FIELDS: FieldConfig[] = [
 const slowFields = (ms: number) => () => new Promise<FieldConfig[]>(r => setTimeout(() => r(FIELDS), ms));
 const items = () => qa('.ei-dropdown-item').map(el => el.textContent ?? '');
 
+/** Lets a test swap the fields loader after mount (a new prop identity re-runs the loader). */
+function Harness({ initial, expose, inputRef }: { initial: ElasticInputProps['fields']; expose: (set: (f: ElasticInputProps['fields']) => void) => void; inputRef: (a: ElasticInputAPI) => void }) {
+  const [fields, setFields] = React.useState(() => initial);
+  expose(f => setFields(() => f));
+  return React.createElement(ElasticInput, { fields, inputRef, dropdown: { open: 'input', loadingDelay: 0, suggestDebounceMs: 0, showOperators: false } });
+}
+
 function mount(props: Partial<ElasticInputProps> = {}, dropdown: Record<string, unknown> = {}) {
   const handle: { api: ElasticInputAPI | null } = { api: null };
   renderInto(React.createElement(ElasticInput, {
@@ -64,6 +71,19 @@ describe('suggestions requested while async fields load', () => {
     api.openDropdown();
     expect(await waitFor(() => q('.ei-bar-open span')?.textContent === 'Loading fields...')).toBe(true);
     expect(await waitFor(() => q('.ei-bar-open span')?.textContent === '2 suggestions', 2000)).toBe(true);
+  });
+
+  it('a loader that re-runs after the first load keeps answering from the retained fields', async () => {
+    const handle: { api: ElasticInputAPI | null; set: ((f: ElasticInputProps['fields']) => void) | null } = { api: null, set: null };
+    renderInto(React.createElement(Harness, { initial: slowFields(50), expose: (set) => { handle.set = set; }, inputRef: (a) => { handle.api = a; } }));
+    await new Promise(r => setTimeout(r, 200)); // first load done
+    handle.set!(slowFields(1500)); // a new identity: the loader runs again, slowly
+    await new Promise(r => setTimeout(r, 50));
+    const editorEl = q('.ei-editor')!;
+    await page.elementLocator(editorEl).click();
+    await userEvent.type(page.elementLocator(editorEl), 'sta');
+    expect(await waitFor(() => items().length === 1 && items()[0].includes('status'), 500)).toBe(true);
+    expect(items().join('|')).not.toContain('Loading fields');
   });
 
   it('a request after the load is immediate, as before', async () => {

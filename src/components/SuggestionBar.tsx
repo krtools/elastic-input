@@ -55,6 +55,8 @@ interface SuggestionBarProps {
   anchorRef: React.RefObject<HTMLElement>;
   /** The bar element (for focus-within checks). */
   elRef?: (el: HTMLDivElement | null) => void;
+  /** Coarse pointer: extra top padding keeps the chips under Android's caret handle (~13px below the text line). */
+  touch: boolean;
   /** Reports which side of the input the bar is on, so the box can square the corners it joins. */
   onFlip?: (flipped: boolean) => void;
   /**
@@ -92,16 +94,13 @@ const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
  * size and shrink-to-fit parents (table cells) never widen to the chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef, onFlip, placement,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef, onFlip, placement, touch,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
   const floating = placement === 'floating';
   const portal = useBodyPortal(floating);
   const borderWidth = parseFloat(styles.inputBorderWidth) || 1;
-  // Android's caret handle reaches ~13px below the text line; on coarse
-  // pointers extra top padding keeps the chips under it
-  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
 
   // Under (or above) the anchor, the dropdown's placement rule, overlapping
   // the box's border on that side so the two read as one box. Re-read after
@@ -315,7 +314,7 @@ export function SuggestionBar({
         alignItems: 'center',
         gap: '8px',
         minHeight: '44px',
-        padding: coarsePointer ? '8px 8px 4px' : '4px 8px',
+        padding: touch ? '8px 8px 4px' : '4px 8px',
         boxSizing: 'border-box',
         minWidth: 0,
         fontFamily: styles.fontFamily,

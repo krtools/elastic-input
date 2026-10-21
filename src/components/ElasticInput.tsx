@@ -137,8 +137,7 @@ interface DatePickerPortalProps {
   position: DropdownPosition;
   colors: Required<ColorConfig>;
   onSelect: (dateStr: string) => void;
-  colorConfig?: ColorConfig;
-  styleConfig?: StyleConfig;
+  styles: Required<StyleConfig>;
   datePickerInit?: DatePickerInit | null;
   fixedWidth?: number;
   datePresets?: { label: string; value: string; type?: 'single' | 'range' }[];
@@ -149,15 +148,14 @@ interface DatePickerPortalProps {
   elRef?: (el: HTMLDivElement | null) => void;
 }
 
-function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, touch, elRef }: DatePickerPortalProps) {
+function DatePickerPortal({ position, colors, onSelect, styles, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, touch, elRef }: DatePickerPortalProps) {
   const portal = useBodyPortal();
   if (!portal) return null;
 
-  const mergedStyleConfig = mergeStyles(styleConfig);
   const style: React.CSSProperties = {
     position: 'absolute',
-    zIndex: mergedStyleConfig.dropdownZIndex,
-    ...getDropdownStyle(colors, mergedStyleConfig),
+    zIndex: styles.dropdownZIndex,
+    ...getDropdownStyle(colors, styles),
     top: `${position.top}px`,
     left: `${position.left}px`,
     // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
@@ -172,8 +170,8 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
     <div className="ei-datepicker-portal" style={style} ref={el => elRef?.(el)} onMouseDown={(e: React.MouseEvent) => e.preventDefault()}>
       <DateRangePicker
         onSelect={onSelect}
-        colors={colorConfig}
-        styles={styleConfig}
+        colors={colors}
+        styles={styles}
         touch={touch}
         initialMode={datePickerInit?.mode}
         initialStart={datePickerInit?.start}
@@ -265,7 +263,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // caps the rendered size, but we also need to cap the height passed to the
   // flip logic in getDropdownPosition to avoid positioning off-screen.
   // Touch devices get a 16px editor font unless styles.fontSize says otherwise
-  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
+  const coarsePointer = useMatchMedia('(pointer: coarse)');
   const stylesProp = React.useMemo(() => resolveTouchStyles(stylesPropRaw, coarsePointer), [stylesPropRaw, coarsePointer]);
   const dropdownMaxHeightPx = parseInt(stylesProp?.dropdownMaxHeight || '300', 10) || 300;
 
@@ -2837,8 +2835,8 @@ export function ElasticInput(props: ElasticInputProps) {
           errors={validationErrors}
           editorRef={editorEl}
           cursorOffset={cursorOffset}
-          colors={colors}
-          styles={stylesProp}
+          colors={mergedColors}
+          styles={mergedStyleConfig}
           containerRef={editorWrapEl}
           classNames={classNames ? { squiggly: classNames.squiggly, tooltip: classNames.tooltip } : undefined}
         />
@@ -2872,6 +2870,7 @@ export function ElasticInput(props: ElasticInputProps) {
           elRef={el => { barElRef.current = el; }}
           onFlip={setBarFlipped}
           placement={barInline ? 'inline' : 'floating'}
+          touch={coarsePointer}
         />
       ) : null}
 
@@ -2880,8 +2879,8 @@ export function ElasticInput(props: ElasticInputProps) {
         selectedIndex={selectedSuggestionIndex}
         onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
         position={dropdownPosition}
-        colors={colors}
-        styles={stylesProp}
+        colors={mergedColors}
+        styles={mergedStyleConfig}
         itemMinHeight={coarsePointer ? 44 : undefined}
         visible={showDropdown && !sheetMode}
         fixedWidth={dropdownFixedWidth}
@@ -2900,8 +2899,7 @@ export function ElasticInput(props: ElasticInputProps) {
           colors={mergedColors}
           touch={coarsePointer}
           onSelect={handleDateSelect}
-          colorConfig={colors}
-          styleConfig={stylesProp}
+          styles={mergedStyleConfig}
           datePickerInit={datePickerInit}
           fixedWidth={undefined}
           datePresets={datePresetsProp}
@@ -2931,7 +2929,7 @@ export function ElasticInput(props: ElasticInputProps) {
             <DateRangePicker
               onSelect={(d: string) => { handleDateSelect(d); setSheetOpen(false); }}
               colors={mergedColors}
-              styles={stylesProp}
+              styles={mergedStyleConfig}
               touch={coarsePointer}
               initialMode={datePickerInit?.mode}
               initialStart={datePickerInit?.start}

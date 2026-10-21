@@ -2,7 +2,6 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { ValidationError, isErrorDeferred } from '../validation/Validator';
 import { ColorConfig, StyleConfig } from '../types';
-import { mergeColors, mergeStyles } from '../styles/inlineStyles';
 import { cx } from '../utils/cx';
 import { getVisibleViewport } from '../utils/viewport';
 
@@ -10,8 +9,8 @@ interface ValidationSquigglesProps {
   errors: ValidationError[];
   editorRef: HTMLDivElement | null;
   cursorOffset: number;
-  colors?: ColorConfig;
-  styles?: StyleConfig;
+  colors: Required<ColorConfig>;
+  styles: Required<StyleConfig>;
   containerRef?: HTMLDivElement | null;
   /** Custom class names for squiggly and tooltip elements. */
   classNames?: {
@@ -258,8 +257,6 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
 
   if (rects.length === 0) return null;
 
-  const mergedColors = mergeColors(colors);
-  const mergedStyles = mergeStyles(styles);
 
   const hoveredRect = hover ? rects.find(r => r.error === hover.error) ?? null : null;
 
@@ -267,7 +264,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     <>
       {rects.map((r, i) => {
         const isWarning = r.error.severity === 'warning';
-        const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
+        const squigglyColor = isWarning ? colors.warning : colors.error;
         const svgBg = squigglyBgForColor(squigglyColor);
         const waveTop = r.top + r.height - 2;
 
@@ -293,7 +290,7 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
       })}
       {hoveredRect != null && (() => {
         const isWarning = hoveredRect.error.severity === 'warning';
-        const squigglyColor = isWarning ? mergedColors.warning : mergedColors.error;
+        const squigglyColor = isWarning ? colors.warning : colors.error;
         // Convert editor-relative coords to viewport-fixed for the portal
         const editorRect = editorRef?.getBoundingClientRect();
         const fixedLeft = (editorRect?.left ?? 0) + mousePos.x;
@@ -320,14 +317,14 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
               position: 'fixed',
               top: `${fixedTop}px`,
               left: `${fixedLeft}px`,
-              zIndex: mergedStyles.dropdownZIndex,
-              backgroundColor: mergedColors.background,
+              zIndex: styles.dropdownZIndex,
+              backgroundColor: colors.background,
               color: squigglyColor,
               border: `1px solid ${squigglyColor}`,
               borderRadius: '4px',
               padding: '4px 8px',
               fontSize: '12px',
-              fontFamily: mergedStyles.fontFamily,
+              fontFamily: styles.fontFamily,
               lineHeight: '1.4',
               whiteSpace: 'nowrap',
               pointerEvents: 'none',

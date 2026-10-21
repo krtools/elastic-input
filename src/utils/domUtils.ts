@@ -215,3 +215,12 @@ export function adjustFlippedPosition(
   }
   return null;
 }
+
+/** Adds a `<style>` with this id to the document once (the keyframes components need). No-op without a document. */
+export function ensureStyle(id: string, css: string): void {
+  if (typeof document === 'undefined' || document.getElementById(id)) return;
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent = css;
+  document.head.appendChild(style);
+}

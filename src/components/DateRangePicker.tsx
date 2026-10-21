@@ -1,14 +1,14 @@
 import * as React from 'react';
 import { ColorConfig, StyleConfig } from '../types';
-import { mergeColors, mergeStyles, getDatePickerStyle } from '../styles/inlineStyles';
+import { getDatePickerStyle } from '../styles/inlineStyles';
 import { cx } from '../utils/cx';
 import { formatDate } from '../utils/dateUtils';
 import { Calendar } from './Calendar';
 
 interface DateRangePickerProps {
   onSelect: (dateStr: string) => void;
-  colors?: ColorConfig;
-  styles?: StyleConfig;
+  colors: Required<ColorConfig>;
+  styles: Required<StyleConfig>;
   initialMode?: 'single' | 'range';
   initialStart?: Date | null;
   initialEnd?: Date | null;
@@ -40,9 +40,7 @@ export function DateRangePicker({ onSelect, colors, styles: styleConfig, initial
   const [start, setStart] = React.useState<Date | null>(initialStart ?? null);
   const [end, setEnd] = React.useState<Date | null>(initialEnd ?? null);
 
-  const mergedColors = mergeColors(colors);
-  const mergedStyleConfig = mergeStyles(styleConfig);
-  const styles = getDatePickerStyle(mergedColors, mergedStyleConfig, touch);
+  const styles = getDatePickerStyle(colors, styleConfig, touch);
 
   const switchMode = (newMode: 'single' | 'range') => {
     setMode(newMode);

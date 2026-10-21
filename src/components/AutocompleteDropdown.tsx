@@ -6,7 +6,7 @@ import { DropdownPosition } from '../utils/domUtils';
 
 import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch, SuggestionItem } from '../types';
 import { CursorContext } from '../parser/Parser';
-import { mergeColors, mergeStyles, getDropdownStyle } from '../styles/inlineStyles';
+import { getDropdownStyle } from '../styles/inlineStyles';
 import { renderSuggestionItems, renderSuggestionHeader } from './SuggestionItems';
 import { useBodyPortal } from '../utils/useBodyPortal';
 
@@ -15,8 +15,8 @@ interface AutocompleteDropdownProps {
   selectedIndex: number;
   onSelect: (suggestion: Suggestion, event: React.MouseEvent) => void;
   position: DropdownPosition | null;
-  colors?: ColorConfig;
-  styles?: StyleConfig;
+  colors: Required<ColorConfig>;
+  styles: Required<StyleConfig>;
   visible: boolean;
   /** When set, the dropdown uses this fixed width instead of min/max width constraints. */
   fixedWidth?: number;
@@ -80,24 +80,22 @@ export function AutocompleteDropdown({
     return null;
   }
 
-  const mergedColors = mergeColors(colors);
-  const mergedStyles = mergeStyles(styles);
   const dropdownStyle: React.CSSProperties = {
-    ...getDropdownStyle(mergedColors, mergedStyles),
+    ...getDropdownStyle(colors, styles),
     top: `${position.top}px`,
     left: `${position.left}px`,
     // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
     ...(position.flipped ? { transform: 'translateY(-100%)' } : {}),
     // Never taller than the space on the chosen side (see DropdownPosition.maxHeight)
-    ...(position.maxHeight != null ? { maxHeight: `min(${mergedStyles.dropdownMaxHeight}, ${position.maxHeight}px)` } : {}),
+    ...(position.maxHeight != null ? { maxHeight: `min(${styles.dropdownMaxHeight}, ${position.maxHeight}px)` } : {}),
     ...(fixedWidth != null ? { width: `${fixedWidth}px`, minWidth: 'unset', maxWidth: 'unset' } : {}),
   };
 
   const content = (
     <div className={cx('ei-dropdown', classNames?.dropdown)} style={dropdownStyle} ref={el => { listRef.current = el; listRefCallback?.(el); }} onMouseDown={e => e.preventDefault()}>
-      {renderSuggestionHeader(headerContent, mergedColors, mergedStyles, classNames?.dropdownHeader)}
+      {renderSuggestionHeader(headerContent, colors, styles, classNames?.dropdownHeader)}
       {renderSuggestionItems({
-        suggestions, selectedIndex, onSelect, colors: mergedColors, styles: mergedStyles,
+        suggestions, selectedIndex, onSelect, colors: colors, styles: styles,
         renderHistoryItem, renderSavedSearchItem, renderType, itemClassName: classNames?.dropdownItem, minHeight: itemMinHeight,
       })}
     </div>

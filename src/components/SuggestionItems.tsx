@@ -8,17 +8,9 @@ import {
   getDropdownItemDescStyle,
   getDropdownItemTypeStyle,
 } from '../styles/inlineStyles';
+import { ensureStyle } from '../utils/domUtils';
 
-// Inject spinner keyframes once
-if (typeof document !== 'undefined') {
-  const styleId = 'elastic-input-keyframes';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = '@keyframes elastic-input-spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(style);
-  }
-}
+ensureStyle('elastic-input-keyframes', '@keyframes elastic-input-spin { to { transform: rotate(360deg); } }');
 
 export function highlightMatch(text: string, partial: string | undefined, isSelected: boolean): React.ReactNode {
   if (!partial || partial.length === 0) return text;

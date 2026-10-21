@@ -5,22 +5,15 @@ import { ColorConfig, StyleConfig } from '../types';
 import { getVisibleViewport, VisibleViewport } from '../utils/viewport';
 import { useBodyPortal } from '../utils/useBodyPortal';
 import { useReposition } from '../utils/useReposition';
+import { useMatchMedia } from '../utils/useMatchMedia';
+import { ensureStyle } from '../utils/domUtils';
 
 /** Visible area left above the sheet, so the page is still recognizable behind the backdrop. */
 const TOP_GAP = 48;
 /** A downward drag of the header past this (px) closes the sheet. */
 const DISMISS_DRAG = 80;
 
-// Entrance keyframes, injected once (the spinner's live in SuggestionItems)
-if (typeof document !== 'undefined') {
-  const styleId = 'elastic-input-sheet-keyframes';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = '@keyframes elastic-input-sheet-up { from { transform: translateY(32px); opacity: 0; } } @keyframes elastic-input-fade-in { from { opacity: 0; } }';
-    document.head.appendChild(style);
-  }
-}
+ensureStyle('elastic-input-sheet-keyframes', '@keyframes elastic-input-sheet-up { from { transform: translateY(32px); opacity: 0; } } @keyframes elastic-input-fade-in { from { opacity: 0; } }');
 
 const sameViewport = (a: VisibleViewport, b: VisibleViewport) =>
   a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
@@ -58,7 +51,7 @@ export function SuggestionSheet({
   const sheetElRef = React.useRef<HTMLDivElement | null>(null);
   const bodyElRef = React.useRef<HTMLDivElement | null>(null);
   const [viewport, setViewport] = React.useState<VisibleViewport>(getVisibleViewport);
-  const [reducedMotion] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  const reducedMotion = useMatchMedia('(prefers-reduced-motion: reduce)');
 
   // Follow the visual viewport: the keyboard opening/closing and pinch zoom
   useReposition(() => {

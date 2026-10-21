@@ -336,8 +336,7 @@ export function ElasticInput(props: ElasticInputProps) {
   // request made during the load waits for.
   const fieldsReadyRef = React.useRef<Promise<void>>(Promise.resolve());
   const fieldsReadySettleRef = React.useRef<{ resolve: () => void; reject: (e: unknown) => void } | null>(null);
-  // Only the first load is waited for: once fields are in, a re-run of the
-  // loader (a new prop identity) keeps answering from the fields it has.
+  // Whether fields have ever been in (a later load is a re-run)
   const fieldsLoadedOnceRef = React.useRef(Array.isArray(fieldsProp));
   // True while a re-run of the loader is in flight (fields were in already)
   const fieldsReloadRef = React.useRef(false);
@@ -912,8 +911,10 @@ export function ElasticInput(props: ElasticInputProps) {
           replaceStart, replaceEnd, matchPartial: partial,
         })) };
       }
-      if (stateRef.current.fieldsLoading && !fieldsLoadedOnceRef.current && (ctx.type === 'FIELD_NAME' || ctx.type === 'EMPTY')) {
-        // The field list itself is what is loading (first load): wait for the engine to have it
+      if (stateRef.current.fieldsLoading && (ctx.type === 'FIELD_NAME' || ctx.type === 'EMPTY')) {
+        // The field list itself is what is loading — the first load or a re-run
+        // after the prop's identity changed: wait for the engine to have it.
+        // A list already showing for this task holds until loadingDelay passes.
         return { label: 'Loading fields...', debounce: false, fetch: async () => {
           await fieldsReadyRef.current;
           const loaded = engineRef.current.getSuggestions(stateRef.current.tokens, offset);

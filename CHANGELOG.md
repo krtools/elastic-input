@@ -4,7 +4,7 @@
 
 ### Fixes
 
-- **Suggestions requested during an async fields load now open** — `api.openDropdown()`, Ctrl+Space and typing wait for the loader through the same path as async values: a "Loading fields..." spinner, then the list; a rejected loader shows an error row.
+- **Suggestions requested during an async fields load now open** — `api.openDropdown()`, Ctrl+Space and typing wait for the loader through the same path as async values, for the first load and for a re-run after the `fields` identity changes: a "Loading fields..." spinner after `loadingDelay`, then the list; a rejected loader shows an error row.
 
 ## 0.24.0 — 2026-10-21
 

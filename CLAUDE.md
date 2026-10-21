@@ -60,7 +60,7 @@ No snapshots. Assert on specific values, offsets, and error messages.
 
 `demo/` contains a standalone app with three tabs (CRM, Logs, E-Commerce) showcasing all features. `demo/DemoConfig.ts` has field definitions, mock async data, and the `demoValidateValue` function demonstrating the validation API.
 
-URL hash presets for device checks: `#placement=middle|bottom` pushes the input down the page (keyboard-overlap checks); `#presentation=sheet|floating` presets the Presentation option.
+URL hash presets for device checks: `#placement=middle|bottom` pushes the input down the page (keyboard-overlap checks); `#presentation=sheet|floating` and `#barPlacement=inline` preset those options.
 
 ## Phone testing
 

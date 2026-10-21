@@ -15,7 +15,7 @@ Phone checks for this component: how to set up a test device, what an emulator c
 - From the emulator, `10.0.2.2` is the host machine. The server must listen on all interfaces (`npm run dev:host`); a Vite server without `--host` may bind only the IPv6 loopback, and the page never loads.
 - Anything that needs a **secure context** (the async clipboard API, permission-gated features) will not work over a plain `http://10.0.2.2` origin: `navigator.clipboard` is simply undefined. Tunnel instead with `adb reverse tcp:<port> tcp:<port>` and open `http://localhost:<port>/` on the device; `localhost` counts as secure. `adb reverse --remove-all` undoes it.
 - Open a page with `adb shell am start -a android.intent.action.VIEW -d "<url>" com.android.chrome`. Each call opens a new tab; change the URL hash to force a fresh load of the same page, and close tabs now and then.
-- The demo has hash presets for device checks: `#placement=middle|bottom` moves the input down the page, `#presentation=sheet|floating` presets the option.
+- The demo has hash presets for device checks: `#placement=middle|bottom` moves the input down the page, `#presentation=sheet|floating` and `#barPlacement=inline` preset those options.
 
 ### A real phone
 

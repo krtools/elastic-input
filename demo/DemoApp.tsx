@@ -443,6 +443,7 @@ export function DemoApp() {
     const p = hashParams.get('presentation');
     return p === 'sheet' || p === 'floating' ? p : 'auto';
   });
+  const [barPlacement, setBarPlacement] = React.useState<'floating' | 'inline'>(() => (hashParams.get('barPlacement') === 'inline' ? 'inline' : 'floating'));
   const [dropdownAlignToInput, setDropdownAlignToInput] = React.useState(false);
   const [showDropdownHeaders, setShowDropdownHeaders] = React.useState(false);
   const [showOperators, setShowOperators] = React.useState(false);
@@ -722,6 +723,7 @@ export function DemoApp() {
                   dropdown={{
                     open: dropdownOpen,
                     presentation,
+                    barPlacement,
                     alignToInput: dropdownAlignToInput,
                     autoSelect,
                     homeEndKeys,
@@ -1010,6 +1012,16 @@ export function DemoApp() {
                   { value: 'sheet', label: 'Sheet' },
                 ]}
                 onChange={setPresentation}
+                theme={theme}
+              />
+              <OptionSelect
+                label="Bar placement"
+                value={barPlacement}
+                options={[
+                  { value: 'floating', label: 'Floating (covers below)' },
+                  { value: 'inline', label: 'Inline (grows the box)' },
+                ]}
+                onChange={setBarPlacement}
                 theme={theme}
               />
               <OptionToggle label="Full-width align" checked={dropdownAlignToInput} onChange={setDropdownAlignToInput} theme={theme} />

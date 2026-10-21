@@ -15,6 +15,7 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -30,19 +31,6 @@ function deferred<T>() {
   let resolve!: (v: T) => void;
   const promise = new Promise<T>(res => { resolve = res; });
   return { promise, resolve };
-}
-
-async function waitFor(
-  fn: () => boolean,
-  timeout = 3000,
-  interval = 50,
-): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, interval));
-  }
-  return false;
 }
 
 function editorEl(): HTMLElement {

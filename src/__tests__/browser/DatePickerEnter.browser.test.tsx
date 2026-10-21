@@ -11,19 +11,11 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI } from '../../types';
 import { getCaretCharOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
 const QUERY = 'created:[2026-09-01 TO 2026-09-16]';
-
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 async function typeRangeWithPickerOpen() {
   const searches: string[] = [];

@@ -9,6 +9,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, FieldConfig, SuggestionItem, InputStatus } from '../../types';
 import { ASTNode } from '../../parser/ast';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -29,19 +30,6 @@ function mockFetchSuggestions(fieldName: string, partial: string): Promise<Sugge
 
 const DROPDOWN = '.ei-dropdown';
 const EDITOR = '.ei-editor';
-
-async function waitFor(
-  fn: () => boolean | Promise<boolean>,
-  timeout = 3000,
-  interval = 50,
-): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (await fn()) return true;
-    await new Promise(r => setTimeout(r, interval));
-  }
-  return false;
-}
 
 function dropdownVisible(): boolean {
   const el = document.querySelector(DROPDOWN);

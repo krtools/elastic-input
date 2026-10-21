@@ -7,19 +7,11 @@ import { page, userEvent } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
 const LONG_MESSAGE = 'This value is definitely not acceptable here, please choose something else entirely';
-
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 const nextFrame = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 

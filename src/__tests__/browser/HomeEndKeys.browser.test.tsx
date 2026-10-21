@@ -10,6 +10,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig } from '../../types';
 import { getCaretCharOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -20,15 +21,6 @@ const FIELDS: FieldConfig[] = [
 ];
 
 const TEXT = 'st foo';
-
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 const settle = () => new Promise(r => setTimeout(r, 100));
 

@@ -8,11 +8,11 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, FieldConfig } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { q } from './helpers';
 
 afterEach(() => cleanup());
 
 const FIELDS: FieldConfig[] = [{ name: 'status', type: 'string' }];
-const q = (sel: string) => document.querySelector(sel) as HTMLElement | null;
 
 describe('styles.inputMaxHeight', () => {
   it('caps the editor and scrolls its text; the container never overflows', async () => {

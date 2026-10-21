@@ -10,6 +10,7 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { DropdownConfig, DropdownOpenContext, ElasticInputAPI, ElasticInputProps, FieldConfig } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -20,15 +21,6 @@ const FIELDS: FieldConfig[] = [
 
 const fetchStatus = (_field: string, partial: string) =>
   Promise.resolve(['active', 'archived'].filter(v => v.startsWith(partial)).map(text => ({ text })));
-
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 /** Long enough for every sync and async dropdown path to have settled. */
 const settle = () => new Promise(r => setTimeout(r, 400));

@@ -10,6 +10,7 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, ElasticInputProps, FieldConfig } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause, q, qa } from './helpers';
 
 afterEach(async () => {
   cleanup();
@@ -28,18 +29,6 @@ const FOLLOW_UP_FIELDS: FieldConfig[] = [
 const fetchValues = (_f: string, partial: string) =>
   Promise.resolve(['active', 'archived'].filter(v => v.startsWith(partial)).map(text => ({ text })));
 
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
-
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
-const q = (sel: string) => document.querySelector(sel) as HTMLElement | null;
-const qa = (sel: string) => Array.from(document.querySelectorAll(sel)) as HTMLElement[];
 const barLabel = () => q('.ei-bar-open span')?.textContent ?? null;
 const chips = () => qa('.ei-chip').map(el => el.textContent);
 const sheetItems = () => qa('.ei-sheet .ei-dropdown-item').map(el => el.textContent ?? '');

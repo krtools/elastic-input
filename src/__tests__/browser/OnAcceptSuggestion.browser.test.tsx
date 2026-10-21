@@ -11,6 +11,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { AcceptSuggestionContext, ElasticInputAPI, ElasticInputProps, FieldConfig } from '../../types';
 import { getSelectionCharRange } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause } from './helpers';
 
 afterEach(cleanup);
 
@@ -27,16 +28,6 @@ const VALUES: Record<string, string[]> = {
 const fetchValues = (field: string, partial: string) =>
   Promise.resolve((VALUES[field] ?? []).filter(v => v.startsWith(partial)).map(text => ({ text })));
 
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
-
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 const items = () => Array.from(document.querySelectorAll('.ei-dropdown-item')) as HTMLElement[];
 const labels = () => items().map(el => el.textContent ?? '');
 const selectedLabel = () => document.querySelector('.ei-dropdown-item--selected')?.textContent ?? null;

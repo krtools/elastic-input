@@ -12,6 +12,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig } from '../../types';
 import { CursorContext } from '../../parser/Parser';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -22,15 +23,6 @@ const FIELDS: FieldConfig[] = [
 ];
 
 const NO_RESULTS = '.ei-dropdown-item--no-results';
-
-async function waitFor(fn: () => boolean, timeout = 2000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 /** Long enough for every sync and async path to have settled. */
 const settle = () => new Promise(r => setTimeout(r, 400));

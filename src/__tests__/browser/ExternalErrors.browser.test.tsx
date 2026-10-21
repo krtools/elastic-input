@@ -10,6 +10,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, ElasticInputProps, FieldConfig, InputStatus } from '../../types';
 import { ValidationError } from '../../validation/Validator';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause } from './helpers';
 
 afterEach(cleanup);
 
@@ -17,16 +18,6 @@ const FIELDS: FieldConfig[] = [{ name: 'status', type: 'string' }];
 const QUERY = 'status:active';
 const BACKEND: ValidationError = { message: 'Rejected by the backend', start: 7, end: 13 };
 
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
-
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 const squiggles = () => document.querySelectorAll('.ei-squiggly').length;
 
 /** Editor focused holding QUERY (no built-in errors), caret at the end. */

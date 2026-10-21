@@ -10,6 +10,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { FieldConfig } from '../../types';
 import { defaultFilterFields } from '../../autocomplete/AutocompleteEngine';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause } from './helpers';
 
 afterEach(cleanup);
 
@@ -18,16 +19,6 @@ const FIELDS: FieldConfig[] = [
   { name: 'lastName', type: 'string' },
 ];
 
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
-
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 const labels = () => Array.from(document.querySelectorAll('.ei-dropdown-item')).map(el => el.textContent ?? '');
 
 const isSubsequence = (needle: string, hay: string) => {

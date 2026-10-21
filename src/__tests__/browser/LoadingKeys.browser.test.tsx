@@ -14,6 +14,7 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, FieldConfig, SuggestionItem } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor } from './helpers';
 
 afterEach(cleanup);
 
@@ -30,19 +31,6 @@ function deferred<T>() {
   let reject!: (e: unknown) => void;
   const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
   return { promise, resolve, reject };
-}
-
-async function waitFor(
-  fn: () => boolean | Promise<boolean>,
-  timeout = 3000,
-  interval = 50,
-): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (await fn()) return true;
-    await new Promise(r => setTimeout(r, interval));
-  }
-  return false;
 }
 
 function dropdownVisible(): boolean {

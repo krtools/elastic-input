@@ -10,21 +10,12 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, ElasticInputProps, FieldConfig } from '../../types';
 import { getCaretCharOffset } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause } from './helpers';
 
 afterEach(cleanup);
 
 const FIELDS: FieldConfig[] = [{ name: 'status', type: 'string' }];
 
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
-
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 const editorEl = () => document.querySelector('.ei-editor') as HTMLElement;
 const lineBreaks = () => editorEl().querySelectorAll('br:not([data-sentinel])').length;
 

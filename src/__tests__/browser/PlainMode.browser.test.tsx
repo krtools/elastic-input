@@ -11,21 +11,13 @@ import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, ElasticInputProps, FieldConfig } from '../../types';
 import { renderInto, cleanup } from './renderHelper';
+import { waitFor, pause } from './helpers';
 
 afterEach(cleanup);
 
 const FIELDS: FieldConfig[] = [{ name: 'status', type: 'string' }];
 const LONG = 'this is a long plain value';
 const LONG_2 = 'another long plain value here';
-
-async function waitFor(fn: () => boolean, timeout = 3000): Promise<boolean> {
-  const deadline = Date.now() + timeout;
-  while (Date.now() < deadline) {
-    if (fn()) return true;
-    await new Promise(r => setTimeout(r, 50));
-  }
-  return false;
-}
 
 const settle = () => new Promise(r => setTimeout(r, 150));
 
@@ -118,7 +110,6 @@ describe('plain mode shows values that were not typed', () => {
   });
 });
 
-const pause = (ms: number) => new Promise(r => setTimeout(r, ms));
 const dropdownOpen = () => document.querySelectorAll('.ei-dropdown-item').length > 0;
 const undo = () => userEvent.keyboard('{Control>}z{/Control}');
 const redo = () => userEvent.keyboard('{Control>}y{/Control}');

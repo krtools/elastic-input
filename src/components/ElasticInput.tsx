@@ -339,6 +339,8 @@ export function ElasticInput(props: ElasticInputProps) {
   // Only the first load is waited for: once fields are in, a re-run of the
   // loader (a new prop identity) keeps answering from the fields it has.
   const fieldsLoadedOnceRef = React.useRef(Array.isArray(fieldsProp));
+  // True while a re-run of the loader is in flight (fields were in already)
+  const fieldsReloadRef = React.useRef(false);
 
   // Identity-only churn on the array form (a new array every render built from
   // the same element references, e.g. `[...FIELDS]`) is absorbed here: keeping
@@ -352,6 +354,7 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
     let cancelled = false;
+    fieldsReloadRef.current = fieldsLoadedOnceRef.current;
     setFieldsLoading(true);
     fieldsReadyRef.current = new Promise<void>((resolve, reject) => { fieldsReadySettleRef.current = { resolve, reject }; });
     fieldsReadyRef.current.catch(() => { /* reported where it is awaited */ });
@@ -1437,10 +1440,21 @@ export function ElasticInput(props: ElasticInputProps) {
       processInput(currentValueRef.current, false);
     }
     // Async fields just arrived and the engine now has them: release any
-    // suggestion request waiting on them (the request shows them itself)
+    // suggestion request waiting on them (a first load is shown by that
+    // request). A re-run that changed the fields refreshes a list that is
+    // open, or the completion of a partial being typed, in place.
     if (fieldsJustLoadedRef.current) {
       fieldsJustLoadedRef.current = false;
       fieldsReadySettleRef.current?.resolve();
+      const editor = editorRef.current;
+      if (fieldsReloadRef.current && editor && document.activeElement === editor) {
+        const s = stateRef.current;
+        const partial = s.cursorContext?.partial ?? '';
+        if (s.showDropdown || partial.length > 0) {
+          dropdownTriggerRef.current = s.showDropdown ? 'ctrlSpace' : 'input';
+          updateSuggestionsRef.current(s.tokens, getCaretCharOffset(editor));
+        }
+      }
     }
     // Deliberately keyed on the field/engine options only: savedSearches /
     // searchHistory may be inline arrays (identity churn per render) and

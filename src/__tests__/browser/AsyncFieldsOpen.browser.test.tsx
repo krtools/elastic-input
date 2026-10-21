@@ -20,7 +20,7 @@ const FIELDS: FieldConfig[] = [
   { name: 'status', type: 'string' },
   { name: 'segment', type: 'string' },
 ];
-const slowFields = (ms: number) => () => new Promise<FieldConfig[]>(r => setTimeout(() => r(FIELDS), ms));
+const slowFields = (ms: number, fields: FieldConfig[] = FIELDS) => () => new Promise<FieldConfig[]>(r => setTimeout(() => r(fields), ms));
 const items = () => qa('.ei-dropdown-item').map(el => el.textContent ?? '');
 
 /** Lets a test swap the fields loader after mount (a new prop identity re-runs the loader). */
@@ -84,6 +84,19 @@ describe('suggestions requested while async fields load', () => {
     await userEvent.type(page.elementLocator(editorEl), 'sta');
     expect(await waitFor(() => items().length === 1 && items()[0].includes('status'), 500)).toBe(true);
     expect(items().join('|')).not.toContain('Loading fields');
+  });
+
+  it('a re-run that changes the fields refreshes an open list in place', async () => {
+    const handle: { api: ElasticInputAPI | null; set: ((f: ElasticInputProps['fields']) => void) | null } = { api: null, set: null };
+    renderInto(React.createElement(Harness, { initial: slowFields(50), expose: (set) => { handle.set = set; }, inputRef: (a) => { handle.api = a; } }));
+    await new Promise(r => setTimeout(r, 200));
+    const editorEl = q('.ei-editor')!;
+    await page.elementLocator(editorEl).click();
+    await userEvent.type(page.elementLocator(editorEl), 'se');
+    expect(await waitFor(() => items().length === 1 && items()[0].includes('segment'))).toBe(true);
+    handle.set!(slowFields(150, [{ name: 'service', type: 'string' }, { name: 'session', type: 'string' }]));
+    // nothing typed: the open list switches to the new fields when they land
+    expect(await waitFor(() => items().length === 2 && items().join('|').includes('service') && items().join('|').includes('session'), 1500)).toBe(true);
   });
 
   it('a request after the load is immediate, as before', async () => {

@@ -147,21 +147,27 @@ const MIN_DROPDOWN_SPACE = 96;
 const CARET_GAP = 4;
 const EDGE_MARGIN = 8;
 
+/**
+ * Where a floating box goes for an anchor rect (the caret, or the input
+ * container for full-width boxes such as the bar): below it unless only
+ * above fits, else the roomier side. `gap` is the space between anchor and box.
+ */
 export function getDropdownPosition(
   caretRect: DOMRect,
   dropdownHeight: number,
   dropdownWidth: number,
   viewport: VisibleViewport = getVisibleViewport(),
+  gap: number = CARET_GAP,
 ): DropdownPosition {
   const viewportBottom = viewport.top + viewport.height;
   const viewportRight = viewport.left + viewport.width;
-  const spaceBelow = viewportBottom - caretRect.bottom - CARET_GAP - EDGE_MARGIN;
-  const spaceAbove = caretRect.top - CARET_GAP - viewport.top - EDGE_MARGIN;
+  const spaceBelow = viewportBottom - caretRect.bottom - gap - EDGE_MARGIN;
+  const spaceAbove = caretRect.top - gap - viewport.top - EDGE_MARGIN;
 
   // Below unless only above fits; when neither fits, the roomier side. Flipped
   // anchors the bottom edge just above the caret.
   const flipped = dropdownHeight > spaceBelow && (dropdownHeight <= spaceAbove || spaceAbove > spaceBelow);
-  const top = flipped ? caretRect.top + window.scrollY - CARET_GAP : caretRect.bottom + window.scrollY + CARET_GAP;
+  const top = flipped ? caretRect.top + window.scrollY - gap : caretRect.bottom + window.scrollY + gap;
   const maxHeight = Math.max(MIN_DROPDOWN_SPACE, Math.floor(flipped ? spaceAbove : spaceBelow));
   let clientLeft = caretRect.left;
 

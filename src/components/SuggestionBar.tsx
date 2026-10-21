@@ -3,7 +3,9 @@ import * as ReactDOM from 'react-dom';
 import { Suggestion, isAcceptableSuggestion } from '../autocomplete/suggestionTypes';
 import { cx } from '../utils/cx';
 import { ColorConfig, StyleConfig } from '../types';
-import { getVisibleViewport } from '../utils/viewport';
+import { getDropdownPosition, DropdownPosition } from '../utils/domUtils';
+import { useBodyPortal } from '../utils/useBodyPortal';
+import { useReposition } from '../utils/useReposition';
 
 /**
  * What the bar's button says for the current suggestion list: a count of
@@ -30,30 +32,8 @@ const BAR_GAP = 4;
 /** Height assumed for the flip decision before the bar has been measured. */
 const BAR_HEIGHT_ESTIMATE = 46;
 
-export interface BarPosition {
-  /** Document y of the bar's top edge (below) or bottom edge (above). */
-  top: number;
-  left: number;
+interface BarPlacement extends DropdownPosition {
   width: number;
-  /** Flipped above the input: `top` anchors the bottom edge. */
-  above: boolean;
-}
-
-/**
- * Where the bar goes for an anchor (the input container): its full width,
- * `BAR_GAP` below its bottom edge, or above its top edge when the visible
- * viewport has no room below and more room above.
- */
-export function getBarPosition(anchorRect: DOMRect, barHeight: number, viewport = getVisibleViewport(), scrollX = window.scrollX, scrollY = window.scrollY): BarPosition {
-  const roomBelow = viewport.top + viewport.height - anchorRect.bottom - BAR_GAP;
-  const roomAbove = anchorRect.top - viewport.top - BAR_GAP;
-  const above = roomBelow < barHeight && roomAbove > roomBelow;
-  return {
-    top: above ? anchorRect.top + scrollY - BAR_GAP : anchorRect.bottom + scrollY + BAR_GAP,
-    left: anchorRect.left + scrollX,
-    width: anchorRect.width,
-    above,
-  };
 }
 
 interface SuggestionBarProps {
@@ -108,50 +88,24 @@ export function SuggestionBar({
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
+  const portal = useBodyPortal();
 
-  // Portal container
-  const portalRef = React.useRef<HTMLDivElement | null>(null);
-  const [, forceRender] = React.useReducer((n: number) => n + 1, 0);
-  React.useEffect(() => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    portalRef.current = container;
-    forceRender();
-    return () => {
-      document.body.removeChild(container);
-      portalRef.current = null;
-    };
-  }, []);
-
-  // Position: under (or above) the anchor, re-read after every render — the
-  // editor grows with its text — and on scroll, resize, the visual viewport
-  // (keyboard) and the anchor's own size
+  // Under (or above) the anchor, the dropdown's placement rule. Re-read after
+  // every render — the editor grows with its text — and whenever the page,
+  // the visual viewport (keyboard) or the anchor itself moves or resizes.
   const barRef = React.useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = React.useState<BarPosition | null>(null);
-  const updatePosition = React.useCallback(() => {
+  const [placement, setPlacement] = React.useState<BarPlacement | null>(null);
+  const updatePlacement = React.useCallback(() => {
     const anchor = anchorRef.current;
     if (!anchor) return;
-    const next = getBarPosition(anchor.getBoundingClientRect(), barRef.current?.offsetHeight || BAR_HEIGHT_ESTIMATE);
-    setPos(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.above === next.above) ? p : next);
+    const rect = anchor.getBoundingClientRect();
+    const pos = getDropdownPosition(rect, barRef.current?.offsetHeight || BAR_HEIGHT_ESTIMATE, rect.width, undefined, BAR_GAP);
+    // Full width of the anchor: the dropdown's horizontal edge clamp does not apply
+    const next: BarPlacement = { top: pos.top, left: rect.left + window.scrollX, flipped: pos.flipped, width: rect.width };
+    setPlacement(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.flipped === next.flipped) ? p : next);
   }, [anchorRef]);
-  React.useLayoutEffect(() => { updatePosition(); });
-  React.useEffect(() => {
-    const vv = window.visualViewport;
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
-    vv?.addEventListener('resize', updatePosition);
-    vv?.addEventListener('scroll', updatePosition);
-    const anchor = anchorRef.current;
-    const ro = typeof ResizeObserver !== 'undefined' && anchor ? new ResizeObserver(updatePosition) : null;
-    if (anchor) ro?.observe(anchor);
-    return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
-      vv?.removeEventListener('resize', updatePosition);
-      vv?.removeEventListener('scroll', updatePosition);
-      ro?.disconnect();
-    };
-  }, [anchorRef, updatePosition]);
+  React.useLayoutEffect(() => { updatePlacement(); });
+  useReposition(updatePlacement, anchorRef);
 
   // The strip's scroll position survives a remount of the same list (a
   // re-render leaves the live position alone), and starts over for a new list
@@ -279,8 +233,7 @@ export function SuggestionBar({
     WebkitTouchCallout: 'none',
   } as React.CSSProperties;
 
-  // eslint-disable-next-line react-hooks/refs -- portal container gate (see AutocompleteDropdown)
-  if (!portalRef.current) return null;
+  if (!portal) return null;
 
   const content = (
     <div
@@ -296,11 +249,12 @@ export function SuggestionBar({
       onPointerLeave={() => setPressed(null)}
       style={{
         position: 'absolute',
-        top: pos ? `${pos.top}px` : 0,
-        left: pos ? `${pos.left}px` : 0,
-        width: pos ? `${pos.width}px` : undefined,
-        transform: pos?.above ? 'translateY(-100%)' : undefined,
-        visibility: pos ? 'visible' : 'hidden', // measured before it is shown
+        top: placement ? `${placement.top}px` : 0,
+        left: placement ? `${placement.left}px` : 0,
+        width: placement ? `${placement.width}px` : undefined,
+        // Flipped: `top` anchors the bottom edge (see DropdownPosition in domUtils)
+        transform: placement?.flipped ? 'translateY(-100%)' : undefined,
+        visibility: placement ? 'visible' : 'hidden', // measured before it is shown
         zIndex: styles.dropdownZIndex,
         display: 'flex',
         alignItems: 'center',
@@ -378,6 +332,5 @@ export function SuggestionBar({
     </div>
   );
 
-  // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above
-  return ReactDOM.createPortal(content, portalRef.current);
+  return ReactDOM.createPortal(content, portal);
 }

@@ -8,6 +8,7 @@ import { ColorConfig, StyleConfig, HistoryEntry, SavedSearch, SuggestionItem } f
 import { CursorContext } from '../parser/Parser';
 import { mergeColors, mergeStyles, getDropdownStyle } from '../styles/inlineStyles';
 import { renderSuggestionItems, renderSuggestionHeader } from './SuggestionItems';
+import { useBodyPortal } from '../utils/useBodyPortal';
 
 interface AutocompleteDropdownProps {
   suggestions: Suggestion[];
@@ -55,19 +56,8 @@ export function AutocompleteDropdown({
   renderType,
   classNames,
 }: AutocompleteDropdownProps) {
-  const portalRef = React.useRef<HTMLDivElement | null>(null);
+  const portal = useBodyPortal();
   const listRef = React.useRef<HTMLDivElement | null>(null);
-
-  // Create/destroy portal container
-  React.useEffect(() => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    portalRef.current = container;
-    return () => {
-      document.body.removeChild(container);
-      portalRef.current = null;
-    };
-  }, []);
 
   // Compute header content (must be stable across render + effect)
   const headerContent = renderDropdownHeader && cursorContext
@@ -86,8 +76,7 @@ export function AutocompleteDropdown({
     }
   }, [selectedIndex, hasHeader]);
 
-  // eslint-disable-next-line react-hooks/refs -- portal container gate: the ref is only set by the mount effect; reading it during render is how the portal waits for its container
-  if (!portalRef.current || !visible || suggestions.length === 0 || !position) {
+  if (!portal || !visible || suggestions.length === 0 || !position) {
     return null;
   }
 
@@ -114,6 +103,5 @@ export function AutocompleteDropdown({
     </div>
   );
 
-  // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above; stable for the life of the component
-  return ReactDOM.createPortal(content, portalRef.current);
+  return ReactDOM.createPortal(content, portal);
 }

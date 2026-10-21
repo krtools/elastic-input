@@ -3,6 +3,8 @@ import * as ReactDOM from 'react-dom';
 import { cx } from '../utils/cx';
 import { ColorConfig, StyleConfig } from '../types';
 import { getVisibleViewport, VisibleViewport } from '../utils/viewport';
+import { useBodyPortal } from '../utils/useBodyPortal';
+import { useReposition } from '../utils/useReposition';
 
 /** Visible area left above the sheet, so the page is still recognizable behind the backdrop. */
 const TOP_GAP = 48;
@@ -19,6 +21,9 @@ if (typeof document !== 'undefined') {
     document.head.appendChild(style);
   }
 }
+
+const sameViewport = (a: VisibleViewport, b: VisibleViewport) =>
+  a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height;
 
 interface SuggestionSheetProps {
   title: string;
@@ -49,37 +54,17 @@ interface SuggestionSheetProps {
 export function SuggestionSheet({
   title, detail, onClose, colors, styles, className, children, elRef, bodyRef, selectedChildIndex, fit,
 }: SuggestionSheetProps) {
-  const portalRef = React.useRef<HTMLDivElement | null>(null);
+  const portal = useBodyPortal();
   const sheetElRef = React.useRef<HTMLDivElement | null>(null);
   const bodyElRef = React.useRef<HTMLDivElement | null>(null);
-  const [, forceRender] = React.useReducer((n: number) => n + 1, 0);
   const [viewport, setViewport] = React.useState<VisibleViewport>(getVisibleViewport);
   const [reducedMotion] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
-  React.useEffect(() => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    portalRef.current = container;
-    forceRender();
-    return () => {
-      document.body.removeChild(container);
-      portalRef.current = null;
-    };
-  }, []);
-
   // Follow the visual viewport: the keyboard opening/closing and pinch zoom
-  React.useEffect(() => {
-    const update = () => setViewport(getVisibleViewport());
-    const vv = window.visualViewport;
-    window.addEventListener('resize', update);
-    vv?.addEventListener('resize', update);
-    vv?.addEventListener('scroll', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      vv?.removeEventListener('resize', update);
-      vv?.removeEventListener('scroll', update);
-    };
-  }, []);
+  useReposition(() => {
+    const next = getVisibleViewport();
+    setViewport(v => (sameViewport(v, next) ? v : next));
+  });
 
   React.useEffect(() => {
     if (selectedChildIndex == null || !bodyElRef.current) return;
@@ -110,8 +95,7 @@ export function SuggestionSheet({
   };
   const onHeaderPointerCancel = () => { dragRef.current = null; setDragOffset(0); };
 
-  // eslint-disable-next-line react-hooks/refs -- portal container gate (see AutocompleteDropdown)
-  if (!portalRef.current) return null;
+  if (!portal) return null;
 
   const bottomInset = Math.max(0, window.innerHeight - (viewport.top + viewport.height));
   // Keep the editor focused (and the keyboard up) while interacting with either layer
@@ -209,6 +193,5 @@ export function SuggestionSheet({
     </>
   );
 
-  // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above
-  return ReactDOM.createPortal(content, portalRef.current);
+  return ReactDOM.createPortal(content, portal);
 }

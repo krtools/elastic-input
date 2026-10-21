@@ -44,6 +44,8 @@ import { DEFAULT_DEBOUNCE_MS, DEFAULT_MAX_SUGGESTIONS } from '../constants';
 import { UndoStack } from '../utils/undoStack';
 import { resolveHomeEndKey } from '../utils/homeEndKeys';
 import { getVisibleViewport, SHEET_MEDIA_QUERY } from '../utils/viewport';
+import { useBodyPortal } from '../utils/useBodyPortal';
+import { useReposition } from '../utils/useReposition';
 
 // ---------------------------------------------------------------------------
 // DatePickerPortal — small portal wrapper for the date picker
@@ -148,23 +150,8 @@ interface DatePickerPortalProps {
 }
 
 function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig, datePickerInit, fixedWidth, datePresets, datePickerClassName, wheelNavigation, touch, elRef }: DatePickerPortalProps) {
-  const portalRef = React.useRef<HTMLDivElement | null>(null);
-  const [ready, setReady] = React.useState(false);
-
-  React.useEffect(() => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    portalRef.current = container;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- portal container is created imperatively on mount; one deliberate re-render once it exists
-    setReady(true);
-    return () => {
-      document.body.removeChild(container);
-      portalRef.current = null;
-    };
-  }, []);
-
-  // eslint-disable-next-line react-hooks/refs -- portal container gate: reading the mount-effect-owned ref during render is how the portal waits for its container
-  if (!ready || !portalRef.current) return null;
+  const portal = useBodyPortal();
+  if (!portal) return null;
 
   const mergedStyleConfig = mergeStyles(styleConfig);
   const style: React.CSSProperties = {
@@ -196,8 +183,7 @@ function DatePickerPortal({ position, colors, onSelect, colorConfig, styleConfig
         wheelNavigation={wheelNavigation}
       />
     </div>,
-    // eslint-disable-next-line react-hooks/refs -- portal target: guarded non-null above; stable for the life of the component
-    portalRef.current
+    portal
   );
 }
 
@@ -1735,9 +1721,10 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [dropdownPosition, showDropdown, showDatePicker, suggestions, dropdownAlignToInput, datePickerEl, sheetMode]);
 
-  // Reposition dropdown on window resize / scroll so it stays anchored
-  React.useEffect(() => {
-    const reposition = () => {
+  // Keep the dropdown / date picker anchored across scroll, resize, the
+  // visual viewport and the container's own size
+  useReposition(() => {
+    {
       const s = stateRef.current;
       if (!s.showDropdown && !s.showDatePicker) return;
 
@@ -1757,22 +1744,8 @@ export function ElasticInput(props: ElasticInputProps) {
           setDropdownPosition(getDropdownPosition(rect, height, 300));
         }
       }
-    };
-
-    // The visual viewport resizes/scrolls when the on-screen keyboard opens
-    // or the page is pinch-zoomed; window events fire for neither
-    const vv = window.visualViewport;
-    window.addEventListener('resize', reposition);
-    window.addEventListener('scroll', reposition, true);
-    vv?.addEventListener('resize', reposition);
-    vv?.addEventListener('scroll', reposition);
-    return () => {
-      window.removeEventListener('resize', reposition);
-      window.removeEventListener('scroll', reposition, true);
-      vv?.removeEventListener('resize', reposition);
-      vv?.removeEventListener('scroll', reposition);
-    };
-  }, [dropdownAlignToInput, dropdownMaxHeightPx]);
+    }
+  }, containerRef);
 
   // Track Tab presses and pointer activity for selectAllOnTabFocus: focus
   // counts as a Tab only when it follows a Tab keydown. Focus with neither

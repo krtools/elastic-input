@@ -476,6 +476,7 @@ export function ElasticInput(props: ElasticInputProps) {
   const [datePickerInit, setDatePickerInit] = React.useState<DatePickerInit | null>(null);
   const [sheetOpen, setSheetOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [barFlipped, setBarFlipped] = React.useState(false);
   const apiRef = React.useRef<ElasticInputAPI | null>(null);
   const sheetElRef = React.useRef<HTMLDivElement | null>(null);
   const barElRef = React.useRef<HTMLDivElement | null>(null);
@@ -2785,7 +2786,12 @@ export function ElasticInput(props: ElasticInputProps) {
   return (
     <div
       ref={containerRef}
-      style={containerStyle}
+      // While the bar shows, the box squares the corners it shares with it
+      // (the shorthand, not longhands: React does not re-apply a shorthand
+      // after clearing a longhand that overrode it)
+      style={barVisible
+        ? { ...containerStyle, borderRadius: barFlipped ? `0 0 ${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius}` : `${mergedStyleConfig.inputBorderRadius} ${mergedStyleConfig.inputBorderRadius} 0 0` }
+        : containerStyle}
       className={cx('ei-container', className, classNames?.container)}
       onFocus={handleFocus}
       onBlur={handleBlur}
@@ -2862,6 +2868,7 @@ export function ElasticInput(props: ElasticInputProps) {
           className={classNames?.bar}
           anchorRef={containerRef}
           elRef={el => { barElRef.current = el; }}
+          onFlip={setBarFlipped}
         />
       ) : null}
 

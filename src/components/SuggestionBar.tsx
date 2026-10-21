@@ -27,8 +27,8 @@ export function barStatusLabel(suggestions: Suggestion[], datePicker: boolean, i
 
 /** Movement (px) beyond which a touch is a pan, not a tap. */
 export const TAP_SLOP = 6;
-/** Space between the input box and the bar (px). */
-const BAR_GAP = 4;
+/** Space between the input box and the bar: none — the bar is drawn as part of the box. */
+const BAR_GAP = 0;
 /** Height assumed for the flip decision before the bar has been measured. */
 const BAR_HEIGHT_ESTIMATE = 46;
 
@@ -55,6 +55,8 @@ interface SuggestionBarProps {
   anchorRef: React.RefObject<HTMLElement>;
   /** The bar element (for focus-within checks). */
   elRef?: (el: HTMLDivElement | null) => void;
+  /** Reports which side of the input the bar is on, so the box can square the corners it joins. */
+  onFlip?: (flipped: boolean) => void;
 }
 
 interface TouchGesture {
@@ -84,26 +86,37 @@ const cancelTouchStart = (e: TouchEvent) => { e.preventDefault(); };
  * size and shrink-to-fit parents (table cells) never widen to the chips.
  */
 export function SuggestionBar({
-  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef,
+  suggestions, selectedIndex, datePicker, idle, sheetOpen, menuOpen, onSelect, onToggleSheet, onToggleMenu, colors, styles, className, anchorRef, elRef, onFlip,
 }: SuggestionBarProps) {
   const chips = datePicker ? [] : suggestions.map((s, i) => ({ s, i })).filter(({ s }) => isAcceptableSuggestion(s));
   const label = barStatusLabel(suggestions, datePicker, idle);
   const portal = useBodyPortal();
+  const borderWidth = parseFloat(styles.inputBorderWidth) || 1;
+  // Android's caret handle reaches ~13px below the text line; on coarse
+  // pointers extra top padding keeps the chips under it
+  const [coarsePointer] = React.useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches);
 
-  // Under (or above) the anchor, the dropdown's placement rule. Re-read after
+  // Under (or above) the anchor, the dropdown's placement rule, overlapping
+  // the box's border on that side so the two read as one box. Re-read after
   // every render — the editor grows with its text — and whenever the page,
   // the visual viewport (keyboard) or the anchor itself moves or resizes.
   const barRef = React.useRef<HTMLDivElement | null>(null);
   const [placement, setPlacement] = React.useState<BarPlacement | null>(null);
+  const lastFlippedRef = React.useRef<boolean | null>(null);
   const updatePlacement = React.useCallback(() => {
     const anchor = anchorRef.current;
     if (!anchor) return;
     const rect = anchor.getBoundingClientRect();
     const pos = getDropdownPosition(rect, barRef.current?.offsetHeight || BAR_HEIGHT_ESTIMATE, rect.width, undefined, BAR_GAP);
+    const flipped = !!pos.flipped;
     // Full width of the anchor: the dropdown's horizontal edge clamp does not apply
-    const next: BarPlacement = { top: pos.top, left: rect.left + window.scrollX, flipped: pos.flipped, width: rect.width };
+    const next: BarPlacement = { top: pos.top + (flipped ? borderWidth : -borderWidth), left: rect.left + window.scrollX, flipped, width: rect.width };
+    if (lastFlippedRef.current !== flipped) {
+      lastFlippedRef.current = flipped;
+      onFlip?.(flipped);
+    }
     setPlacement(p => (p && p.top === next.top && p.left === next.left && p.width === next.width && p.flipped === next.flipped) ? p : next);
-  }, [anchorRef]);
+  }, [anchorRef, borderWidth, onFlip]);
   React.useLayoutEffect(() => { updatePlacement(); });
   useReposition(updatePlacement, anchorRef);
 
@@ -235,6 +248,27 @@ export function SuggestionBar({
 
   if (!portal) return null;
 
+  // Joined to the box: the box squares the corners on this side (via onFlip);
+  // the bar carries the side and outer borders in the focus colour, the
+  // divider as the border it shares with the box, the corners, and the focus
+  // ring — clipped at the seam so it does not tint the box.
+  const flipped = !!placement?.flipped;
+  const bw = styles.inputBorderWidth;
+  const radius = styles.inputBorderRadius;
+  // Longhands only: React clears a removed longhand to '' without re-applying
+  // the shorthand it came from, so mixing them breaks on a flip
+  const edge = `${bw} solid ${styles.inputFocusBorderColor}`;
+  const divider = `${bw} solid ${styles.dropdownBorderColor}`;
+  const joined: React.CSSProperties = {
+    borderTop: flipped ? edge : divider,
+    borderRight: edge,
+    borderBottom: flipped ? divider : edge,
+    borderLeft: edge,
+    borderRadius: flipped ? `${radius} ${radius} 0 0` : `0 0 ${radius} ${radius}`,
+    boxShadow: styles.inputFocusShadow,
+    clipPath: flipped ? 'inset(-8px -8px 0 -8px)' : 'inset(0 -8px -8px -8px)',
+  };
+
   const content = (
     <div
       className={cx('ei-bar', className)}
@@ -260,16 +294,12 @@ export function SuggestionBar({
         alignItems: 'center',
         gap: '8px',
         minHeight: '44px',
-        // The 4px gap plus the input's own bottom padding keep the chips
-        // clear of Android's caret handle (~13px below the text line)
-        padding: '4px 8px',
+        padding: coarsePointer ? '8px 8px 4px' : '4px 8px',
         boxSizing: 'border-box',
         minWidth: 0,
         backgroundColor: colors.background,
         color: colors.text,
-        border: `1px solid ${styles.dropdownBorderColor}`,
-        borderRadius: styles.dropdownBorderRadius,
-        boxShadow: styles.dropdownShadow,
+        ...joined,
         fontFamily: styles.fontFamily,
         userSelect: 'none',
         touchAction: 'none', // pointer events keep coming (no pointercancel for a pan)

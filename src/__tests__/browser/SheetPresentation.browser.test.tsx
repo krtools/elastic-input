@@ -74,7 +74,7 @@ describe("presentation: 'sheet' — the bar", () => {
   });
 
   it('floats under the input: the box keeps its size, the bar spans its width just below, outside the container', async () => {
-    const { editor } = await setup();
+    const { api, editor } = await setup();
     const container = q('.ei-container')!;
     const before = container.getBoundingClientRect();
     await userEvent.type(editor, 'sta');
@@ -84,10 +84,19 @@ describe("presentation: 'sheet' — the bar", () => {
     const c = container.getBoundingClientRect();
     const b = bar.getBoundingClientRect();
     expect(c.height).toBe(before.height); // no second row
-    expect(Math.round(b.top - c.bottom)).toBe(4);
+    const bw = parseFloat(getComputedStyle(container).borderBottomWidth);
+    expect(Math.round(c.bottom - b.top)).toBe(bw); // flush: overlaps the box's bottom border
     expect(Math.abs(b.left - c.left)).toBeLessThan(1);
     expect(Math.abs(b.width - c.width)).toBeLessThan(1);
     expect(getComputedStyle(bar).position).toBe('absolute');
+    // joined: the box squares its bottom corners, the bar rounds its own
+    expect(getComputedStyle(container).borderBottomLeftRadius).toBe('0px');
+    expect(getComputedStyle(bar).borderTopLeftRadius).toBe('0px');
+    expect(getComputedStyle(bar).borderBottomLeftRadius).not.toBe('0px');
+    expect(getComputedStyle(bar).borderLeftColor).toBe(getComputedStyle(container).borderLeftColor);
+    api.blur();
+    expect(await waitFor(() => q('.ei-bar') === null)).toBe(true);
+    expect(getComputedStyle(container).borderBottomLeftRadius).not.toBe('0px'); // corners back
   });
 
   it('flips above the input when the viewport has no room below', async () => {
@@ -99,8 +108,10 @@ describe("presentation: 'sheet' — the bar", () => {
       expect(await waitFor(() => chips().length === 1)).toBe(true);
       const c = q('.ei-container')!.getBoundingClientRect();
       const b = q('.ei-bar')!.getBoundingClientRect();
-      expect(b.bottom).toBeLessThanOrEqual(c.top);
-      expect(Math.round(c.top - b.bottom)).toBe(4);
+      const bw = parseFloat(getComputedStyle(q('.ei-container')!).borderTopWidth);
+      expect(Math.round(b.bottom - c.top)).toBe(bw); // flush: overlaps the box's top border
+      expect(getComputedStyle(q('.ei-container')!).borderTopLeftRadius).toBe('0px');
+      expect(getComputedStyle(q('.ei-bar')!).borderBottomLeftRadius).toBe('0px');
     } finally {
       document.body.style.paddingTop = '';
     }
@@ -115,7 +126,7 @@ describe("presentation: 'sheet' — the bar", () => {
     await userEvent.type(editor, 'seg');
     expect(await waitFor(() => q('.ei-bar')!.getBoundingClientRect().top > top1 + 10)).toBe(true);
     const c = q('.ei-container')!.getBoundingClientRect();
-    expect(Math.round(q('.ei-bar')!.getBoundingClientRect().top - c.bottom)).toBe(4);
+    expect(Math.round(c.bottom - q('.ei-bar')!.getBoundingClientRect().top)).toBe(parseFloat(getComputedStyle(q('.ei-container')!).borderBottomWidth));
   });
 
   it('prefix and suffix stay on the first text line beside a long wrapped query', async () => {

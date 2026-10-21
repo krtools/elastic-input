@@ -149,7 +149,7 @@ function OptionToggle({ label, checked, onChange, theme }: {
   label: string; checked: boolean; onChange: (v: boolean) => void; theme: ThemeColors;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: theme.text }}>
+    <label style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: theme.text }}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.currentTarget.checked)} />
       {label}
     </label>
@@ -160,11 +160,11 @@ function OptionSelect<T extends string | number>({ label, value, options, onChan
   label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; theme: ThemeColors;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
-      <span style={{ minWidth: 0 }}>{label}</span>
+    <label style={{ display: 'contents', fontSize: '13px', color: theme.text }}>
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
       <select
         style={{
-          flex: 1,
+          minWidth: 0,
           padding: '3px 6px',
           border: `1px solid ${theme.border}`,
           borderRadius: '4px',
@@ -189,12 +189,13 @@ function OptionNumber({ label, value, onChange, min, max, theme }: {
   label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; theme: ThemeColors;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
-      <span style={{ minWidth: 0 }}>{label}</span>
+    <label style={{ display: 'contents', fontSize: '13px', color: theme.text }}>
+      <span style={{ whiteSpace: 'nowrap' }}>{label}</span>
       <input
         type="number"
         style={{
-          width: '60px',
+          justifySelf: 'start',
+          width: '72px',
           padding: '3px 6px',
           border: `1px solid ${theme.border}`,
           borderRadius: '4px',
@@ -218,25 +219,25 @@ function OptionColor({ label, value, onChange, theme }: {
   label: string; value: string; onChange: (v: string) => void; theme: ThemeColors;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: theme.text }}>
+    <label style={{ display: 'contents', fontSize: '13px', color: theme.text }}>
+      <span>{label}</span>
       <input
         type="color"
         value={value}
         onChange={e => onChange(e.target.value)}
-        style={{ width: '24px', height: '20px', padding: 0, border: `1px solid ${theme.border}`, borderRadius: '3px', cursor: 'pointer', backgroundColor: 'transparent' }}
+        style={{ justifySelf: 'start', alignSelf: 'center', width: '28px', height: '22px', padding: 0, border: `1px solid ${theme.border}`, borderRadius: '3px', cursor: 'pointer', backgroundColor: 'transparent' }}
       />
-      <span>{label}</span>
     </label>
   );
 }
 
 function OptionGroup({ label, children, theme }: { label: string; children: React.ReactNode; theme: ThemeColors }) {
   return (
-    <div style={{ marginBottom: '12px' }}>
-      <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.5px', color: theme.textSecondary, marginBottom: '6px' }}>
+    <div style={{ marginBottom: '16px' }}>
+      <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: theme.text, paddingBottom: '5px', marginBottom: '8px', borderBottom: `1px solid ${theme.border}` }}>
         {label}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '5px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'max-content minmax(0, 1fr)', columnGap: '10px', rowGap: '7px', alignItems: 'baseline' }}>
         {children}
       </div>
     </div>
@@ -611,12 +612,12 @@ export function DemoApp() {
   const panelStyle: React.CSSProperties = narrow
     ? { padding: '14px 16px 32px' }
     : {
-      width: '220px',
+      width: '264px',
       flexShrink: 0,
       backgroundColor: theme.surface,
       border: `1px solid ${theme.border}`,
       borderRadius: '8px',
-      padding: '14px',
+      padding: '12px 14px 14px',
       alignSelf: 'flex-start',
       position: 'sticky',
       top: '16px',
@@ -972,11 +973,14 @@ export function DemoApp() {
                   fontSize: '12px',
                   fontFamily: 'monospace',
                   boxSizing: 'border-box' as const,
+                  gridColumn: '1 / -1',
                 }}
               />
               <button
                 onClick={() => setControlledValue('')}
                 style={{
+                  gridColumn: '1 / -1',
+                  justifySelf: 'end',
                   padding: '3px 10px',
                   fontSize: '11px',
                   border: `1px solid ${theme.border}`,
@@ -1007,7 +1011,7 @@ export function DemoApp() {
                 label="Presentation"
                 value={presentation}
                 options={[
-                  { value: 'auto', label: 'Auto (sheet < 640px)' },
+                  { value: 'auto', label: 'Auto' },
                   { value: 'floating', label: 'Floating' },
                   { value: 'sheet', label: 'Sheet' },
                 ]}
@@ -1018,8 +1022,8 @@ export function DemoApp() {
                 label="Bar placement"
                 value={barPlacement}
                 options={[
-                  { value: 'floating', label: 'Floating (covers below)' },
-                  { value: 'inline', label: 'Inline (grows the box)' },
+                  { value: 'floating', label: 'Floating' },
+                  { value: 'inline', label: 'Inline' },
                 ]}
                 onChange={setBarPlacement}
                 theme={theme}

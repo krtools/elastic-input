@@ -8,7 +8,7 @@ import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
-import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, SavedSearch, HistoryEntry, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent, BarAction } from '../types';
+import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent, BarAction } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
 import { buildHighlightedHTML } from './HighlightedContent';
@@ -119,6 +119,19 @@ interface ExternalErrors {
  * text is still the one they were set for; at the first edit their offsets no
  * longer apply and they are dropped for good.
  */
+/**
+ * Something the engine has to wait for before it can complete: a value
+ * fetch, saved searches, history, or the fields loader itself. One shape, so
+ * all of them share the spinner, task, abort and no-results handling.
+ */
+interface AsyncSource {
+  /** Spinner row text while waiting. */
+  label: string;
+  /** Keystroke fetches debounce; waiting for the field list does not. */
+  debounce: boolean;
+  fetch: () => Promise<Suggestion[]>;
+}
+
 function mergeExternalErrors(
   ref: React.MutableRefObject<ExternalErrors | null>,
   text: string,
@@ -316,8 +329,13 @@ export function ElasticInput(props: ElasticInputProps) {
   // mid-partial only in the former case.
   const [fieldsLoading, setFieldsLoading] = React.useState(!Array.isArray(fieldsProp));
   // Set when an async load actually delivered new fields; consumed by the
-  // rebuild effect to re-surface suggestions for the partial being typed.
+  // rebuild effect, which then releases fieldsReady.
   const fieldsJustLoadedRef = React.useRef(false);
+  // Settles once the engine has the fields an async loader delivered (after
+  // the rebuild effect) or with the loader's error — what a suggestion
+  // request made during the load waits for.
+  const fieldsReadyRef = React.useRef<Promise<void>>(Promise.resolve());
+  const fieldsReadySettleRef = React.useRef<{ resolve: () => void; reject: (e: unknown) => void } | null>(null);
 
   // Identity-only churn on the array form (a new array every render built from
   // the same element references, e.g. `[...FIELDS]`) is absorbed here: keeping
@@ -332,18 +350,25 @@ export function ElasticInput(props: ElasticInputProps) {
     }
     let cancelled = false;
     setFieldsLoading(true);
+    fieldsReadyRef.current = new Promise<void>((resolve, reject) => { fieldsReadySettleRef.current = { resolve, reject }; });
+    fieldsReadyRef.current.catch(() => { /* reported where it is awaited */ });
     fieldsProp().then(result => {
       if (cancelled) return;
       setFieldsLoading(false);
       setResolvedFields(prev => {
-        if (arrayShallowEqual(prev, result)) return prev;
+        if (arrayShallowEqual(prev, result)) {
+          fieldsReadySettleRef.current?.resolve(); // no rebuild coming
+          return prev;
+        }
         fieldsJustLoadedRef.current = true;
         return result;
       });
-    }).catch(() => {
+    }).catch(e => {
       // A rejected loader must still clear the flag — otherwise the
       // mid-partial Tab block would hold focus forever (keyboard trap).
-      if (!cancelled) setFieldsLoading(false);
+      if (cancelled) return;
+      setFieldsLoading(false);
+      fieldsReadySettleRef.current?.reject(e);
     });
     return () => { cancelled = true; };
   }, [fieldsProp]);
@@ -853,19 +878,43 @@ export function ElasticInput(props: ElasticInputProps) {
       result.context.type,
       resolvedField ? resolvedField.name : result.context.fieldName,
     );
-    const willFetchAsync = !!(
-      fetchSuggestionsProp &&
-      result.context.type === 'FIELD_VALUE' &&
-      result.context.fieldName &&
-      resolvedField?.type !== 'boolean' &&
-      resolvedField?.suggestions !== false
-    ) || !!(
-      typeof savedSearches === 'function' &&
-      result.context.type === 'SAVED_SEARCH'
-    ) || !!(
-      typeof searchHistory === 'function' &&
-      result.context.type === 'HISTORY_REF'
-    );
+    const ctx = result.context;
+    const partial = ctx.partial;
+    const replaceStart = ctx.token ? ctx.token.start : offset;
+    const replaceEnd = ctx.token ? ctx.token.end : offset;
+    const source: AsyncSource | null = (() => {
+      if (ctx.type === 'SAVED_SEARCH' && typeof savedSearches === 'function') {
+        const load = savedSearches;
+        return { label: 'Searching...', debounce: true, fetch: async () => (await load(partial)).map((item): Suggestion => ({
+          text: item.query, label: item.label || item.query, description: item.description, type: 'savedSearch',
+          replaceStart, replaceEnd, matchPartial: partial, sourceData: item,
+        })) };
+      }
+      if (ctx.type === 'HISTORY_REF' && typeof searchHistory === 'function') {
+        const load = searchHistory;
+        return { label: 'Searching...', debounce: true, fetch: async () => (await load(partial)).map((item): Suggestion => ({
+          text: AutocompleteEngine.wrapHistoryQuery(item.query), label: item.label || item.query, description: item.description, type: 'history',
+          replaceStart, replaceEnd, matchPartial: partial, sourceData: item,
+        })) };
+      }
+      if (ctx.type === 'FIELD_VALUE' && fetchSuggestionsProp && ctx.fieldName && resolvedField?.type !== 'boolean' && resolvedField?.suggestions !== false) {
+        const load = fetchSuggestionsProp;
+        const fieldName = resolvedField ? resolvedField.name : ctx.fieldName; // alias → canonical
+        return { label: 'Searching...', debounce: true, fetch: async () => (await load(fieldName, partial)).map((item): Suggestion => ({
+          text: item.text, label: item.label || item.text, description: item.description, type: item.type,
+          replaceStart, replaceEnd, matchPartial: partial,
+        })) };
+      }
+      if (stateRef.current.fieldsLoading && (ctx.type === 'FIELD_NAME' || ctx.type === 'EMPTY')) {
+        // The field list itself is what is loading: wait for the engine to have it
+        return { label: 'Loading fields...', debounce: false, fetch: async () => {
+          await fieldsReadyRef.current;
+          const loaded = engineRef.current.getSuggestions(stateRef.current.tokens, offset);
+          return applyFieldHint(loaded.suggestions, loaded.context);
+        } };
+      }
+      return null;
+    })();
 
     if (result.showDatePicker) {
       // Context changed to date picker — cancel any async cycle
@@ -910,11 +959,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // context update — first entry AND subsequent keystrokes. The loadingDelay
     // timer is restarted each keystroke, so rapid typing never flashes the
     // spinner; it only surfaces if the user pauses and the fetch is slow.
-    if (willFetchAsync) {
-      const token = result.context.token;
-      const start = token ? token.start : offset;
-      const end = token ? token.end : offset;
-
+    if (source) {
       // Held-result preservation is per completion task: previous results may
       // stay visible across keystrokes only while the user keeps typing the
       // SAME field's value (type-ahead — accepting a shown stale result is
@@ -936,10 +981,10 @@ export function ElasticInput(props: ElasticInputProps) {
         loadingDelayTimerRef.current = null;
         const loadingSuggestion: Suggestion = {
           text: '',
-          label: 'Searching...',
+          label: source.label,
           type: 'loading',
-          replaceStart: start,
-          replaceEnd: end,
+          replaceStart,
+          replaceEnd,
         };
         setSuggestions([loadingSuggestion]);
         if (!dropdownAlignToInput) setShowDropdown(false);
@@ -988,10 +1033,9 @@ export function ElasticInput(props: ElasticInputProps) {
       }
     }
 
-    // Handle async fetch (field values, saved searches, or history)
-    if (willFetchAsync) {
-      const partial = result.context.partial;
-      const debounceMs = suggestDebounceMs || DEFAULT_DEBOUNCE_MS;
+    // Run the source: field values, saved searches, history, or the fields loader
+    if (source) {
+      const debounceMs = source.debounce ? (suggestDebounceMs || DEFAULT_DEBOUNCE_MS) : 0;
 
       asyncActiveRef.current = true;
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
@@ -1002,56 +1046,9 @@ export function ElasticInput(props: ElasticInputProps) {
       abortControllerRef.current = controller;
 
       debounceTimerRef.current = setTimeout(async () => {
-        const token = result.context.token;
-        const start = token ? token.start : offset;
-        const end = token ? token.end : offset;
-
         try {
-          let mapped: Suggestion[];
-
-          if (result.context.type === 'SAVED_SEARCH' && typeof savedSearches === 'function') {
-            const fetched: SavedSearch[] = await savedSearches(partial);
-            if (controller.signal.aborted) return;
-            mapped = fetched.map(s => ({
-              text: s.query,
-              label: s.label || s.query,
-              description: s.description,
-              type: 'savedSearch',
-              replaceStart: start,
-              replaceEnd: end,
-              matchPartial: partial,
-              sourceData: s,
-            }));
-          } else if (result.context.type === 'HISTORY_REF' && typeof searchHistory === 'function') {
-            const fetched: HistoryEntry[] = await searchHistory(partial);
-            if (controller.signal.aborted) return;
-            mapped = fetched.map(h => ({
-              text: AutocompleteEngine.wrapHistoryQuery(h.query),
-              label: h.label || h.query,
-              description: h.description,
-              type: 'history',
-              replaceStart: start,
-              replaceEnd: end,
-              matchPartial: partial,
-              sourceData: h,
-            }));
-          } else {
-            // FIELD_VALUE — resolve alias to canonical field name
-            const rawFieldName = result.context.fieldName!;
-            const resolved = engineRef.current.resolveField(rawFieldName);
-            const fieldName = resolved ? resolved.name : rawFieldName;
-            const fetched = await fetchSuggestionsProp!(fieldName, partial);
-            if (controller.signal.aborted) return;
-            mapped = fetched.map(s => ({
-              text: s.text,
-              label: s.label || s.text,
-              description: s.description,
-              type: s.type,
-              replaceStart: start,
-              replaceEnd: end,
-              matchPartial: partial,
-            }));
-          }
+          let mapped = await source.fetch();
+          if (controller.signal.aborted) return;
 
           // Cancel loading delay — results arrived before spinner was needed
           if (loadingDelayTimerRef.current) { clearTimeout(loadingDelayTimerRef.current); loadingDelayTimerRef.current = null; }
@@ -1067,7 +1064,7 @@ export function ElasticInput(props: ElasticInputProps) {
           if (mapped.length > 0) {
             // When showFieldSuggestions is enabled, append field suggestions after async values
             if (defaultFieldConfig?.showFieldSuggestions) {
-              const fieldSuggs = engineRef.current.getFieldSuggestions(partial, start, end);
+              const fieldSuggs = engineRef.current.getFieldSuggestions(partial, replaceStart, replaceEnd);
               mapped = [...mapped, ...fieldSuggs].slice(0, effectiveMaxSuggestions);
             }
             setSuggestions(mapped);
@@ -1103,8 +1100,8 @@ export function ElasticInput(props: ElasticInputProps) {
               text: '',
               label: errorMsg,
               type: 'error',
-              replaceStart: start,
-              replaceEnd: end,
+              replaceStart,
+              replaceEnd,
             };
             setSuggestions([errorSuggestion]);
             setSelectedSuggestionIndex(-1);
@@ -1435,18 +1432,11 @@ export function ElasticInput(props: ElasticInputProps) {
     if (currentValueRef.current) {
       processInput(currentValueRef.current, false);
     }
-    // Async fields just arrived: if the user is mid-partial in the focused
-    // editor (Tab may have been blocked waiting for exactly this), surface the
-    // suggestions they were waiting for. processInput above refreshed
-    // stateRef.tokens synchronously, so the engine sees the new fields.
+    // Async fields just arrived and the engine now has them: release any
+    // suggestion request waiting on them (the request shows them itself)
     if (fieldsJustLoadedRef.current) {
       fieldsJustLoadedRef.current = false;
-      const partial = stateRef.current.cursorContext?.partial ?? '';
-      if (partial.length > 0 && editorRef.current && document.activeElement === editorRef.current) {
-        dropdownTriggerRef.current = 'input';
-        const offset = getCaretCharOffset(editorRef.current);
-        updateSuggestionsRef.current(stateRef.current.tokens, offset);
-      }
+      fieldsReadySettleRef.current?.resolve();
     }
     // Deliberately keyed on the field/engine options only: savedSearches /
     // searchHistory may be inline arrays (identity churn per render) and

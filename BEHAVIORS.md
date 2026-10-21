@@ -1652,11 +1652,11 @@ Consumers should still hoist `fields`, `colors`, and `dropdown.open` to module s
 
 When `fields` is an async function (`() => Promise<FieldConfig[]>`), the component starts with an empty field list while loading. During this time:
 - No "Unknown field" errors are raised (there are no known fields to compare against)
-- No field autocomplete suggestions appear
+- A suggestion request for a field-name context (typing a partial, Ctrl+Space, `api.openDropdown()`, the sheet bar's button) goes through the **same async path as value fetches**: the fields loader is one more `AsyncSource` beside `fetchSuggestions`, async `savedSearches` and async `searchHistory`. It shows the "Loading fields..." spinner row after `loadingDelay`, keeps the task/abort rules, and lists the fields once the engine has them (a readiness promise settled after the engine rebuild); no keystroke debounce applies to it. The sheet bar's button reads the same row.
 - The input is fully functional — users can type freely
 - Tab is blocked mid-partial so a fast typist isn't kicked out of the input before completions can appear (see §7.2.2); the loading state is tracked explicitly, so a consumer passing a static empty `fields` array is never affected
-- When the loader resolves and the editor is focused with a non-empty partial at the caret, suggestions for that partial surface automatically
-- If the loader **rejects**, the loading state clears (Tab unblocks) and the field list stays empty
+- If the loader **rejects**, the loading state clears (Tab unblocks), the field list stays empty, and a pending request shows the error row with the loader's message
+- **Tests:** `AsyncFieldsOpen.browser.test.tsx` → "focus + openDropdown right after mount shows the spinner, then the fields", "a partial typed during the load completes once the fields arrive", "a rejected loader shows the error row and unblocks", "the sheet bar reads the loading row too", "a request after the load is immediate, as before"
 
 Once the promise resolves, the engine and validator are rebuilt and the current input is re-validated with the loaded fields. The async function should be memoized (e.g. with `useCallback`) to avoid re-fetching on every render.
 

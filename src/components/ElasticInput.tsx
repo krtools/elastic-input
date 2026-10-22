@@ -2705,6 +2705,33 @@ export function ElasticInput(props: ElasticInputProps) {
     const start = saved ? saved.start : s.cursorOffset;
     const end = saved ? saved.end : s.cursorOffset;
 
+    // A pick behaves like accepting a suggestion, so the interceptor sees one:
+    // synthetic, type 'date', text = what the picker would insert
+    if (onAcceptSuggestion) {
+      const query = currentValueRef.current;
+      const result = onAcceptSuggestion({
+        suggestion: { text: dateStr, label: dateStr, type: 'date', replaceStart: start, replaceEnd: end },
+        cursorContext: s.cursorContext || { type: 'FIELD_VALUE' as const, partial: '' },
+        query,
+      });
+      // false, or a value the handler already changed: the insert is theirs.
+      // The picker still closes as after a pick; a changed value gets the
+      // suggestions for wherever the handler left the caret.
+      if (result === false || currentValueRef.current !== query) {
+        const changed = currentValueRef.current !== query;
+        if (!changed) closeDropdown();
+        const id = requestAnimationFrame(() => {
+          rafIdsRef.current.delete(id);
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.focus();
+          if (changed) updateSuggestionsFromTokens(stateRef.current.tokens, getCaretCharOffset(editor));
+        });
+        rafIdsRef.current.add(id);
+        return;
+      }
+    }
+
     const before = currentValueRef.current.slice(0, start);
     const after = currentValueRef.current.slice(end);
 
@@ -2730,7 +2757,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (editorRef.current) editorRef.current.focus();
       updateSuggestionsFromTokens(newTokens, newCursorPos);
     });
-  }, [applyNewValue, updateSuggestionsFromTokens, trailingSpaceOnAccept]);
+  }, [applyNewValue, updateSuggestionsFromTokens, trailingSpaceOnAccept, onAcceptSuggestion, closeDropdown]);
 
   // --- Render ---
 

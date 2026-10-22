@@ -541,7 +541,8 @@ export interface AcceptSuggestionContext {
   query: string;
   /**
    * The key press or click that triggered the accept. `undefined` when it
-   * came from the API (`api.submit()`, `api.acceptSuggestion()`).
+   * came from the API (`api.submit()`, `api.acceptSuggestion()`) or the date
+   * picker.
    */
   event?: React.KeyboardEvent | React.MouseEvent;
 }
@@ -733,7 +734,10 @@ export interface ElasticInputProps {
    * (Tab, Enter, click, `api.submit()`, `api.acceptSuggestion()`). Return
    * `false` to skip the default insert and make the edit yourself with
    * `api.set()`; the rest of the accept (Enter's submit, `onTab` actions)
-   * still runs. Not called for date picker selections.
+   * still runs. Date picker picks — a day, a range, a preset, Clear — arrive
+   * as a synthetic suggestion: `type: 'date'`, `text` is what the picker
+   * would insert (`''` for Clear), `replaceStart`/`replaceEnd` the value or
+   * range it replaces, and no `event`.
    *
    * @example
    * ```tsx

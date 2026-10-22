@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **`onAcceptSuggestion` fires for date picks** — A day, a range, a preset or Clear from the date picker arrives as a synthetic `type: 'date'` suggestion; returning `false` skips the insert as for any other suggestion.
+
 ## 0.24.1 — 2026-10-21
 
 ### Fixes

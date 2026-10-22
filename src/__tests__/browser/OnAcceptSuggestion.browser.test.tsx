@@ -18,6 +18,7 @@ afterEach(cleanup);
 const FIELDS: FieldConfig[] = [
   { name: 'complex', type: 'string' },
   { name: 'status', type: 'string' },
+  { name: 'created', type: 'date' },
 ];
 
 const VALUES: Record<string, string[]> = {
@@ -238,5 +239,61 @@ describe('onAcceptSuggestion — returning false with api.set', () => {
     await userEvent.keyboard('{Tab}');
     await pause(300);
     expect(handle.api!.getValue()).toBe('complex:()');
+  });
+});
+
+describe('date picker picks', () => {
+  const PRESETS = [{ label: 'Today', value: '[now/d TO now]' }];
+  const openPicker = async (editor: ReturnType<typeof page.elementLocator>) => {
+    await editor.click();
+    await userEvent.type(editor, 'created:');
+    expect(await waitFor(() => document.querySelector('.ei-datepicker') !== null)).toBe(true);
+  };
+  const day = (n: string) => Array.from(document.querySelectorAll('.ei-datepicker-days .ei-datepicker-day')).find(b => b.textContent === n) as HTMLElement;
+  const preset = (label: string) => Array.from(document.querySelectorAll('.ei-datepicker-presets button')).find(b => b.textContent === label) as HTMLElement;
+
+  it('a date pick arrives as a synthetic date suggestion and inserts the date', async () => {
+    const { calls, handle, editor } = setup(() => undefined, { datePresets: PRESETS });
+    await openPicker(editor);
+    await page.elementLocator(day('15')).click();
+    expect(await waitFor(() => calls.length === 1)).toBe(true);
+    const ctx = calls[0];
+    expect(ctx.suggestion.type).toBe('date');
+    expect(ctx.suggestion.text).toMatch(/^\d{4}-\d{2}-15$/);
+    expect(ctx.suggestion.replaceStart).toBe(8);
+    expect(ctx.suggestion.replaceEnd).toBe(8);
+    expect(ctx.cursorContext.type).toBe('FIELD_VALUE');
+    expect(ctx.query).toBe('created:');
+    expect(ctx.event).toBeUndefined();
+    expect(await waitFor(() => handle.api!.getValue() === 'created:' + ctx.suggestion.text + ' ')).toBe(true);
+  });
+
+  it('a preset arrives the same way', async () => {
+    const { calls, handle, editor } = setup(() => undefined, { datePresets: PRESETS });
+    await openPicker(editor);
+    await page.elementLocator(preset('Today')).click();
+    expect(await waitFor(() => calls.length === 1)).toBe(true);
+    expect(calls[0].suggestion.type).toBe('date');
+    expect(calls[0].suggestion.text).toBe('[now/d TO now]');
+    expect(await waitFor(() => handle.api!.getValue() === 'created:[now/d TO now] ')).toBe(true);
+  });
+
+  it('returning false, or editing the value, skips the date insert', async () => {
+    const { calls, handle, editor } = setup(() => false, { datePresets: PRESETS });
+    await openPicker(editor);
+    await page.elementLocator(day('15')).click();
+    expect(await waitFor(() => calls.length === 1)).toBe(true);
+    await pause(100);
+    expect(handle.api!.getValue()).toBe('created:');
+    expect(document.querySelector('.ei-datepicker')).toBeNull(); // the pick still closed the picker
+    cleanup();
+
+    const own = setup(({ suggestion, query }, api) => {
+      api.set({ value: query.slice(0, suggestion.replaceStart) + '"' + suggestion.text + '"', selection: query.length + suggestion.text.length + 2 });
+    }, { datePresets: PRESETS });
+    await openPicker(own.editor);
+    await page.elementLocator(day('15')).click();
+    expect(await waitFor(() => own.calls.length === 1)).toBe(true);
+    expect(await waitFor(() => own.handle.api!.getValue() === 'created:"' + own.calls[0].suggestion.text + '"')).toBe(true);
   });
 });

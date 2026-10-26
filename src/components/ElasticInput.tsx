@@ -4,14 +4,14 @@ import { Lexer } from '../lexer/Lexer';
 import { Token, TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
-import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
+import { getClauseRangeAtOffset, getClauseNodeRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
 import { ElasticInputProps, ElasticInputAPI, ColorConfig, StyleConfig, FieldConfig, FieldType, DropdownOpenProp, DropdownOpenPreset, DropdownOpenContext, InputStatus, InputUpdate, SlotContent, BarAction } from '../types';
 import { cx } from '../utils/cx';
 import { arrayShallowEqual } from '../utils/arrayShallowEqual';
-import { buildHighlightedHTML } from './HighlightedContent';
+import { buildHighlightedHTML, clearCaretMarks } from './HighlightedContent';
 import { findMatchingParen } from '../highlighting/parenMatch';
 import { AutocompleteDropdown } from './AutocompleteDropdown';
 import { SuggestionBar } from './SuggestionBar';
@@ -229,6 +229,12 @@ export function useLazyRef<T>(init: () => T): React.MutableRefObject<T> {
  * @see {@link ElasticInputProps} for available props
  * @see {@link ElasticInputAPI} for the imperative API (via `inputRef`)
  */
+/** What a caret move can change in the rendered HTML: the paren match and the active clause. */
+function highlightKey(match: { openStart: number; closeStart: number } | null, clause: { start: number; end: number } | null): string {
+  return `${match ? `${match.openStart},${match.closeStart}` : ''}|${clause ? `${clause.start},${clause.end}` : ''}`;
+}
+const EMPTY_HIGHLIGHT_KEY = highlightKey(null, null);
+
 export function ElasticInput(props: ElasticInputProps) {
   const {
     fields: fieldsProp, onSearch, onChange, onValidationChange, value, defaultValue,
@@ -618,16 +624,32 @@ export function ElasticInput(props: ElasticInputProps) {
   const HIGHLIGHT_DEBOUNCE_THRESHOLD = 80;
   const HIGHLIGHT_DEBOUNCE_MS = 60;
 
-  const applyHighlight = React.useCallback((tokens: Token[], offset: number) => {
+  // The editor's HTML for a caret position: paren match, per-type colours and
+  // the clause the caret is in (§9.5.7). Remembers the caret-dependent parts
+  // so the caret-move effect can skip a rebuild that would change nothing.
+  const highlightKeyRef = React.useRef<string | null>(null);
+  const renderHighlight = React.useCallback((tokens: Token[], ast: ASTNode | null, offset: number): string => {
+    const match = findMatchingParen(tokens, offset);
+    const clause = getClauseNodeRangeAtOffset(ast, offset);
+    highlightKeyRef.current = highlightKey(match, clause);
+    return buildHighlightedHTML(tokens, colors, {
+      cursorOffset: offset,
+      tokenClassName: classNames?.token,
+      fieldTypeMap,
+      activeClause: clause,
+      activeClauseClassName: classNames?.activeClause,
+    });
+  }, [colors, classNames?.token, classNames?.activeClause, fieldTypeMap]);
+
+  const applyHighlight = React.useCallback((tokens: Token[], ast: ASTNode | null, offset: number) => {
     if (!editorRef.current) return;
-    const html = buildHighlightedHTML(tokens, colors, { cursorOffset: offset, tokenClassName: classNames?.token, fieldTypeMap });
-    editorRef.current.innerHTML = html;
+    editorRef.current.innerHTML = renderHighlight(tokens, ast, offset);
     // Only restore caret when the editor is focused — setting a selection range
     // on a blurred contentEditable re-focuses it.
     if (document.activeElement === editorRef.current) {
       setCaretCharOffset(editorRef.current, offset);
     }
-  }, [colors, classNames?.token, fieldTypeMap]);
+  }, [renderHighlight]);
 
   const isPlainLength = React.useCallback(
     (text: string) => plainModeLength != null && text.length >= plainModeLength,
@@ -692,12 +714,12 @@ export function ElasticInput(props: ElasticInputProps) {
           highlightTimerRef.current = null;
           if (editorRef.current) {
             const freshOffset = getCaretCharOffset(editorRef.current);
-            applyHighlight(newTokens, freshOffset);
+            applyHighlight(newTokens, newAst, freshOffset);
           }
         }, HIGHLIGHT_DEBOUNCE_MS);
       } else {
         if (highlightTimerRef.current) { clearTimeout(highlightTimerRef.current); highlightTimerRef.current = null; }
-        applyHighlight(newTokens, offset);
+        applyHighlight(newTokens, newAst, offset);
       }
 
       setTokens(newTokens);
@@ -1240,8 +1262,7 @@ export function ElasticInput(props: ElasticInputProps) {
     const newErrors = mergeExternalErrors(externalErrorsRef, newValue, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newCursorPos, tokenClassName: classNames?.token, fieldTypeMap });
-      editorRef.current.innerHTML = html;
+      editorRef.current.innerHTML = renderHighlight(newTokens, newAst, newCursorPos);
       setCaretCharOffset(editorRef.current, newCursorPos);
     }
 
@@ -1269,7 +1290,7 @@ export function ElasticInput(props: ElasticInputProps) {
       const id = requestAnimationFrame(() => { rafIdsRef.current.delete(id); thenDo(newTokens, newAst); });
       rafIdsRef.current.add(id);
     }
-  }, [recordUndoEntry, lineNormalize, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [recordUndoEntry, lineNormalize, isPlainLength, applyPlainValue, renderHighlight, onChange, onValidationChange, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
 
   // Menu entries "Saved searches" / "History": insert the trigger at the caret
   // (replacing a selection) as typing it would, then show its list in the
@@ -1786,47 +1807,60 @@ export function ElasticInput(props: ElasticInputProps) {
     return () => editor.removeEventListener('scroll', onEditorScroll);
   }, [closeDropdown]);
 
-  // Re-render highlighted HTML when cursor moves (for paren matching) or colors change
-  const prevParenMatchRef = React.useRef<string | null>(null);
-  const prevColorsRef = React.useRef(colors);
+  // Re-render highlighted HTML when the caret moves (paren match, active
+  // clause) or the colours / highlight options change
+  const prevRenderRef = React.useRef(renderHighlight);
   React.useEffect(() => {
-    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    if (!editor) return;
     const currentTokens = stateRef.current.tokens;
     if (currentTokens.length === 0) return;
 
-    // Skip re-render when text is selected — innerHTML replacement would
-    // collapse the selection. Paren matching is irrelevant while selecting.
+    // Skip while text is selected — an innerHTML rebuild collapses the
+    // selection. Check the DOM as well as state: state trails a programmatic
+    // selection (selectAllOnTabFocus, api.setSelection) by a render.
     if (isFocused && selectionEnd !== cursorOffset) return;
+    const sel = window.getSelection();
+    const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+    if (range && !range.collapsed && editor.contains(range.commonAncestorContainer)) return;
 
-    // When blurred, clear paren highlighting
-    const effectiveCursor = isFocused ? cursorOffset : -1;
+    // Force a rebuild when the colours or highlight options change (theme switch)
+    const optionsChanged = renderHighlight !== prevRenderRef.current;
+    prevRenderRef.current = renderHighlight;
 
-    // Force re-highlight when colors change (e.g. theme switch)
-    const colorsChanged = colors !== prevColorsRef.current;
-    prevColorsRef.current = colors;
+    // Gate on real DOM focus, not isFocused state. A spurious blur (window
+    // blur, an extension swallowing the refocus event) can leave isFocused
+    // false while the editor still has DOM focus and receives keystrokes;
+    // gating on state then rewrites innerHTML without restoring, the selection
+    // detaches, and Chrome re-seeds the caret at the removed token's slot —
+    // every subsequent character types in backwards. Gating on activeElement
+    // keeps the original protection too: no range is ever set on a genuinely
+    // blurred editor (which would re-focus it).
+    const domFocused = document.activeElement === editor;
 
-    // Compute new match and compare to previous to avoid unnecessary DOM updates
-    const match = findMatchingParen(currentTokens, effectiveCursor);
-    const matchKey = match ? `${match.openStart},${match.closeStart}` : null;
-    if (matchKey === prevParenMatchRef.current && !colorsChanged) return;
-    prevParenMatchRef.current = matchKey;
-
-    // Gate the caret save/restore on real DOM focus, not isFocused state.
-    // A spurious blur (window blur, an extension swallowing the refocus event)
-    // can leave isFocused false while the editor still has DOM focus and
-    // receives keystrokes; gating on state then rewrites innerHTML without
-    // restoring, the selection detaches, and Chrome re-seeds the caret at the
-    // removed token's slot — every subsequent character types in backwards.
-    // Gating on activeElement keeps the original protection too: no range is
-    // ever set on a genuinely blurred editor (which would re-focus it).
-    const domFocused = document.activeElement === editorRef.current;
-    const savedOffset = domFocused ? getCaretCharOffset(editorRef.current) : -1;
-    const html = buildHighlightedHTML(currentTokens, colors, { cursorOffset: effectiveCursor, tokenClassName: classNames?.token, fieldTypeMap });
-    editorRef.current.innerHTML = html;
-    if (domFocused && savedOffset >= 0) {
-      setCaretCharOffset(editorRef.current, savedOffset);
+    // Blurred: nothing is caret-dependent. Strip the marks in place — a rebuild
+    // would wipe the selection a blurred editor keeps, and with it the caret a
+    // refocus (Tab away and back) returns to.
+    if (!domFocused && !optionsChanged) {
+      if (highlightKeyRef.current !== EMPTY_HIGHLIGHT_KEY) {
+        clearCaretMarks(editor, classNames?.activeClause);
+        highlightKeyRef.current = EMPTY_HIGHLIGHT_KEY;
+      }
+      return;
     }
-  }, [cursorOffset, selectionEnd, isFocused, colors, classNames?.token, fieldTypeMap]);
+
+    // Skip when neither the paren match nor the active clause would change
+    const effectiveCursor = domFocused ? cursorOffset : -1;
+    const ast = stateRef.current.ast;
+    const key = highlightKey(findMatchingParen(currentTokens, effectiveCursor), getClauseNodeRangeAtOffset(ast, effectiveCursor));
+    if (key === highlightKeyRef.current && !optionsChanged) return;
+
+    const savedOffset = domFocused ? getCaretCharOffset(editor) : -1;
+    editor.innerHTML = renderHighlight(currentTokens, ast, effectiveCursor);
+    if (domFocused && savedOffset >= 0) {
+      setCaretCharOffset(editor, savedOffset);
+    }
+  }, [cursorOffset, selectionEnd, isFocused, renderHighlight, classNames?.activeClause]);
 
   // collapseOnBlur: swap <br> ↔ space when collapsed state changes
   const isCollapsed = collapseOnBlur && !isFocused;
@@ -1848,14 +1882,13 @@ export function ElasticInput(props: ElasticInputProps) {
         // keyboard focus survives this rebuild.
         const domFocused = document.activeElement === editorRef.current;
         const sel = domFocused ? getSelectionCharRange(editorRef.current) : null;
-        const html = buildHighlightedHTML(toks, colors, { cursorOffset: sel ? sel.start : -1, tokenClassName: classNames?.token, fieldTypeMap });
-        editorRef.current.innerHTML = html;
+        editorRef.current.innerHTML = renderHighlight(toks, stateRef.current.ast, sel ? sel.start : -1);
         if (sel) {
           setSelectionCharRange(editorRef.current, sel.start, sel.end);
         }
       }
     }
-  }, [isCollapsed, colors, classNames?.token, fieldTypeMap]);
+  }, [isCollapsed, renderHighlight]);
 
   // --- Event handlers ---
 
@@ -1941,8 +1974,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     const hasSelection = entry.selStart != null && entry.selStart !== entry.cursorPos;
     if (editorRef.current) {
-      const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: entry.cursorPos, tokenClassName: classNames?.token, fieldTypeMap });
-      editorRef.current.innerHTML = html;
+      editorRef.current.innerHTML = renderHighlight(newTokens, newAst, entry.cursorPos);
       if (hasSelection) {
         setSelectionCharRange(editorRef.current, entry.selStart!, entry.cursorPos);
       } else {
@@ -1963,7 +1995,7 @@ export function ElasticInput(props: ElasticInputProps) {
 
     if (onChange) onChange(entry.value, newAst);
     if (onValidationChange) onValidationChange(newErrors);
-  }, [lineNormalize, isPlainLength, applyPlainValue, colors, onChange, onValidationChange, closeDropdown, classNames?.token, defaultFieldName, fieldTypeMap, lexerOptions, parseDateProp, validatorRef]);
+  }, [lineNormalize, isPlainLength, applyPlainValue, renderHighlight, onChange, onValidationChange, closeDropdown, defaultFieldName, lexerOptions, parseDateProp, validatorRef]);
 
   const getDropdownPageSize = React.useCallback((): number => {
     const list = dropdownListRef.current;
@@ -2082,8 +2114,7 @@ export function ElasticInput(props: ElasticInputProps) {
         const syntaxErrors = parser.getErrors().map((err: ErrorNode) => ({ message: err.message, start: err.start, end: err.end, type: 'SYNTAX_ERROR' as const }));
         const newErrors = mergeExternalErrors(externalErrorsRef, newValue, deduplicateErrors([...syntaxErrors, ...validatorRef.current.validate(newAst, validateValueRef.current, parseDateProp, defaultFieldName)]));
 
-        const html = buildHighlightedHTML(newTokens, colors, { cursorOffset: newSelEnd, tokenClassName: classNames?.token, fieldTypeMap });
-        editorRef.current.innerHTML = html;
+        editorRef.current.innerHTML = renderHighlight(newTokens, newAst, newSelEnd);
         setSelectionCharRange(editorRef.current, newSelStart, newSelEnd);
 
         setTokens(newTokens);
@@ -2459,7 +2490,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, isPlainLength, applyPlainValue, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, classNames?.token, colors, defaultFieldName, fieldTypeMap, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, isPlainLength, applyPlainValue, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, renderHighlight, defaultFieldName, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move

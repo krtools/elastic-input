@@ -483,6 +483,7 @@ export function DemoApp() {
   const [vtDate, setVtDate] = React.useState(isDark ? '#d2a8ff' : '#8250df');
   const [vtBoolean, setVtBoolean] = React.useState(isDark ? '#ff7b72' : '#cf222e');
   const [vtIp, setVtIp] = React.useState(isDark ? '#7ee787' : '#116329');
+  const [highlightActiveClause, setHighlightActiveClause] = React.useState(false);
 
   // No-results message
   const [showNoResults, setShowNoResults] = React.useState(false);
@@ -1147,6 +1148,11 @@ export function DemoApp() {
               <OptionColor label="date" value={vtDate} onChange={setVtDate} theme={theme} />
               <OptionColor label="boolean" value={vtBoolean} onChange={setVtBoolean} theme={theme} />
               <OptionColor label="ip" value={vtIp} onChange={setVtIp} theme={theme} />
+            </OptionGroup>
+
+            <OptionGroup label="Active Clause" theme={theme}>
+              <OptionToggle label="Highlight the clause at the caret" checked={highlightActiveClause} onChange={setHighlightActiveClause} theme={theme} />
+              {highlightActiveClause && <style>{'.ei-clause--active { background: rgba(9, 105, 218, 0.14); }'}</style>}
             </OptionGroup>
           </div>
           </div>

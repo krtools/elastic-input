@@ -596,6 +596,14 @@ export interface ClassNamesConfig {
   sheet?: string;
   /** Each syntax-highlighted token span (in the HTML output). */
   token?: string;
+  /**
+   * Added to every span of the clause the caret is in — the `field:value`,
+   * `field:(…)` group, range or bare term being edited — next to
+   * `ei-clause--active`. Nothing is styled by default: give either class a
+   * rule in your stylesheet to show which filter a value belongs to (token
+   * spans carry inline `color` and `font-weight`, so those need `!important`).
+   */
+  activeClause?: string;
   /** Validation squiggly underline divs. */
   squiggly?: string;
   /** Error/warning tooltip div. */

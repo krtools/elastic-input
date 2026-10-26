@@ -54,12 +54,24 @@ const TOKEN_COLOR_MAP: Record<TokenType, ColorKey> = {
   [TokenType.UNKNOWN]: 'error',
 };
 
+/** On every span of the clause the caret is in (§9.5.7). */
+export const ACTIVE_CLAUSE_CLASS = 'ei-clause--active';
+/** On the two parens the caret's paren match highlights. */
+export const MATCHED_PAREN_CLASS = 'ei-paren--matched';
+
 export interface HighlightOptions {
   cursorOffset?: number;
   /** Custom class name appended to every token span. */
   tokenClassName?: string;
   /** Field lookup map for per-type value coloring (keyed by field name and aliases). */
   fieldTypeMap?: Map<string, FieldType>;
+  /**
+   * The clause the caret is in. Every span inside it (whitespace included,
+   * so a background reads as one block) gets `ei-clause--active` plus
+   * `activeClauseClassName`, for a stylesheet to style.
+   */
+  activeClause?: { start: number; end: number } | null;
+  activeClauseClassName?: string;
 }
 
 export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig, options?: HighlightOptions): string {
@@ -132,7 +144,11 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
     }
   }
 
+  const active = options?.activeClause ?? null;
+  const activeClass = active ? `${ACTIVE_CLAUSE_CLASS}${options?.activeClauseClassName ? ' ' + options.activeClauseClassName : ''}` : '';
+
   let html = tokens.map((token, tokenIndex) => {
+    const inActive = !!active && token.start >= active.start && token.end <= active.end;
     const colorKey = TOKEN_COLOR_MAP[token.type] || 'text';
     let color = colors[colorKey] || colors.text;
 
@@ -148,17 +164,18 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
 
     if (token.type === TokenType.WHITESPACE) {
       // Convert newlines to <br> for contentEditable rendering
-      return escapedValue.replace(/\n/g, '<br>');
+      const ws = escapedValue.replace(/\n/g, '<br>');
+      return inActive ? `<span class="${activeClass}">${ws}</span>` : ws;
     }
 
     // Regex tokens get sub-highlighted
     if (token.type === TokenType.REGEX) {
-      return buildRegexHTML(token, colors, options?.tokenClassName);
+      return buildRegexHTML(token, colors, options?.tokenClassName, inActive ? activeClass : '');
     }
 
     // Range tokens get sub-highlighted
     if (token.type === TokenType.RANGE) {
-      return buildRangeHTML(token, colors, options?.tokenClassName);
+      return buildRangeHTML(token, colors, options?.tokenClassName, inActive ? activeClass : '');
     }
 
     let fontWeight = 'normal';
@@ -175,14 +192,16 @@ export function buildHighlightedHTML(tokens: Token[], colorConfig?: ColorConfig,
 
     // Matched paren highlighting
     let extraStyle = '';
+    let matchedParen = false;
     if (parenMatch && (token.type === TokenType.LPAREN || token.type === TokenType.RPAREN)) {
       if (token.start === parenMatch.openStart || token.start === parenMatch.closeStart) {
+        matchedParen = true;
         fontWeight = '700';
         extraStyle = `background-color:${colors.matchedParenBg};border-radius:2px;`;
       }
     }
 
-    const tokenClass = `ei-token ei-token--${TOKEN_CLASS_MAP[token.type]}${options?.tokenClassName ? ' ' + options.tokenClassName : ''}`;
+    const tokenClass = `ei-token ei-token--${TOKEN_CLASS_MAP[token.type]}${options?.tokenClassName ? ' ' + options.tokenClassName : ''}${matchedParen ? ' ' + MATCHED_PAREN_CLASS : ''}${inActive ? ' ' + activeClass : ''}`;
     return `<span class="${tokenClass}" style="color:${color};font-weight:${fontWeight};${extraStyle}" data-token-start="${token.start}" data-token-end="${token.end}">${escapedValue}</span>`;
   }).join('');
 
@@ -203,4 +222,24 @@ function escapeHTML(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Removes the caret-dependent marks (matched parens, active clause) from the
+ * rendered spans in place. Used when the editor blurs: rebuilding the HTML
+ * would wipe the selection a blurred editor keeps — the caret a refocus (Tab
+ * away and back) returns to, and what `api.getSelection` reports once focus
+ * has moved to a button.
+ */
+export function clearCaretMarks(editor: HTMLElement, activeClassName?: string): void {
+  const extra = (activeClassName || '').split(/\s+/).filter(Boolean);
+  editor.querySelectorAll<HTMLElement>('.' + ACTIVE_CLAUSE_CLASS).forEach(el => {
+    el.classList.remove(ACTIVE_CLAUSE_CLASS, ...extra);
+  });
+  editor.querySelectorAll<HTMLElement>('.' + MATCHED_PAREN_CLASS).forEach(el => {
+    el.classList.remove(MATCHED_PAREN_CLASS);
+    el.style.backgroundColor = '';
+    el.style.borderRadius = '';
+    el.style.fontWeight = 'normal'; // what an unmatched paren is built with
+  });
 }

@@ -167,7 +167,7 @@ function escapeHTML(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-export function buildRegexHTML(token: Token, colors: Required<ColorConfig>, tokenClassName?: string): string {
+export function buildRegexHTML(token: Token, colors: Required<ColorConfig>, tokenClassName?: string, extraClass = ''): string {
   const parts = tokenizeRegexContent(token.value);
   const innerSpans = parts.map(part => {
     const colorKey = REGEX_COLOR_MAP[part.type];
@@ -177,5 +177,5 @@ export function buildRegexHTML(token: Token, colors: Required<ColorConfig>, toke
   }).join('');
 
   const cls = `ei-token ei-token--regex${tokenClassName ? ' ' + tokenClassName : ''}`;
-  return `<span class="${cls}" data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
+  return `<span class="${cls}${extraClass ? ' ' + extraClass : ''}" data-token-start="${token.start}" data-token-end="${token.end}">${innerSpans}</span>`;
 }

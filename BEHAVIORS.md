@@ -1547,6 +1547,12 @@ Every `innerHTML` rewrite detaches the live DOM selection, so each rewrite path 
 
 ---
 
+### 9.5.7 Active Clause Highlighting
+
+The clause the caret is in — the operand of the boolean expression at the caret: a `field:value`, a `field:(…)` group, a `(…)` group, a `NOT` expression, a range, a regex, a bare term, a `#`/`!` reference — is marked so a user can see which filter the value they are editing belongs to: in `name:john smi|th` only `smith` is marked (it does not apply to `name`); in `name:(john smith spring|field illinois)` the whole group is. Every span of the clause, whitespace included so a background reads as one block, gets `ei-clause--active` plus `classNames.activeClause`. Nothing is styled by default: unlike the rest of the component's inline styling, this mark is left to the consumer's stylesheet (`.ei-clause--active { background: … }`; `color` and `font-weight` are inline on token spans, so a rule for those needs `!important`). The clause's end is inclusive, so `name:john|` is still inside it; between clauses (whitespace, operators) nothing is active; while text is selected nothing changes. The mark rides the paren-match re-highlight: the editor's HTML is rebuilt only when the active clause or the paren match changes (`getClauseNodeRangeAtOffset`), so caret moves cost one AST walk. When the editor blurs, the active clause and the paren match are removed from the spans in place (`clearCaretMarks`) rather than by a rebuild, so the selection a blurred editor keeps survives: Tab away and back returns to the same caret, and `api.getSelection` still reports it after focus moved to a button. Plain mode has no highlighting, so no active clause.
+
+- **Tests:** `activeClause.test.ts` → "finds the operand the caret is in, end inclusive", "nothing between clauses, outside the text, or without an AST", "marks every span of the clause, whitespace included, with class and style", "leaves spans outside the clause alone"; `ActiveClause.browser.test.tsx` → "a bare term after a field value is its own clause", "the caret inside a field group marks the whole group", "nothing is active between clauses or when blurred", "classNames.activeClause reaches the spans for a stylesheet", "blur strips the marks in place and keeps the selection"
+
 ## 10. Configuration Options
 
 ### 10.1 Props
@@ -1893,6 +1899,8 @@ All elements receive static `ei-*` classes unconditionally. These are always pre
 | Loading spinner | `ei-dropdown-spinner` |
 | Match highlight | `ei-highlight-match` |
 | Token span | `ei-token ei-token--{type}` |
+| Active clause | `ei-clause--active` (+ `classNames.activeClause`) on every span of the clause the caret is in |
+| Matched parens | `ei-paren--matched` on the two parens the caret's paren match highlights |
 | Regex sub-part | `ei-regex-part ei-regex-part--{type}` |
 | Range sub-part | `ei-range-part ei-range-part--{type}` |
 | Validation squiggly | `ei-squiggly` + `ei-squiggly--error` or `ei-squiggly--warning` |

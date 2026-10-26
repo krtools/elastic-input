@@ -67,3 +67,14 @@ export function getClauseRangeAtOffset(
 
   return { start, end };
 }
+
+/**
+ * The clause the caret is in, as the operand's own range — no connector, no
+ * surrounding whitespace. The end is inclusive, so a caret right after a
+ * clause still counts as inside it. Null between clauses or outside the AST.
+ */
+export function getClauseNodeRangeAtOffset(ast: ASTNode | null, offset: number): { start: number; end: number } | null {
+  if (!ast || offset < 0) return null;
+  const clause = findClauseNode(ast, offset);
+  return clause ? { start: clause.start, end: clause.end } : null;
+}

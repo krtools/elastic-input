@@ -70,4 +70,5 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **parser** | Converts tokens into an AST |
 | **validator** | Checks the AST for semantic errors (unknown fields, type mismatches) |
 | **highlighter** | Converts tokens into colored HTML spans |
+| **active clause** | The clause (field:value, group, range, bare term, …) the caret is in; its spans carry `ei-clause--active` (and `classNames.activeClause`) for a stylesheet to style |
 | **autocomplete engine** | Generates suggestions based on cursor context |

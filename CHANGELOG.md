@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Features
+
+- **Active clause highlighting** — The spans of the clause the caret is in carry `ei-clause--active` (plus `classNames.activeClause`) for a stylesheet to style, so a user can see which filter a value belongs to.
+
 ## 0.25.0 — 2026-10-22
 
 ### Features

@@ -600,6 +600,14 @@ const myStyles: StyleConfig = {
 <ElasticInput fields={fields} styles={myStyles} />
 ```
 
+### Active Clause
+
+Users lose track of which filter a value belongs to: in `name:john smith` the `smith` is a separate term, while in `name:(john smith)` it is part of the name filter. The clause the caret is in carries `ei-clause--active` on all of its spans (whitespace included, so a background reads as one block), and `classNames.activeClause` adds your own class. Nothing is styled by default; give it a rule in your stylesheet. Token spans carry inline `color` and `font-weight`, so a rule for those two needs `!important`; background, outline and text-decoration apply directly.
+
+```css
+.ei-clause--active { background: rgba(9, 105, 218, 0.08); }
+```
+
 ### Full Dark Mode
 
 ```tsx

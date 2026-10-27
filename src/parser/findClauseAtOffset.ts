@@ -69,12 +69,41 @@ export function getClauseRangeAtOffset(
 }
 
 /**
- * The clause the caret is in, as the operand's own range — no connector, no
- * surrounding whitespace. The end is inclusive, so a caret right after a
- * clause still counts as inside it. Null between clauses or outside the AST.
+ * The innermost *filter* containing the offset, for active-clause highlighting
+ * (§9.5.7) — not the operand `findClauseNode` stops at. Descends through
+ * boolean operators, `(…)` groups and NOT to the node that owns a field: a
+ * field:value, a field group, a range, or (at the top level) a bare term,
+ * reference or error. Inside a field group everything belongs to the group's
+ * field, so the group is the filter — except a nested field:value or
+ * field:[range] with its own field, which overrides the group's in
+ * query_string and is its own filter. Null on a group's parens, on the NOT
+ * keyword, or between clauses.
  */
-export function getClauseNodeRangeAtOffset(ast: ASTNode | null, offset: number): { start: number; end: number } | null {
+function findFilterNode(node: ASTNode, offset: number, inFieldGroup: boolean): ASTNode | null {
+  if (offset < node.start || offset > node.end) return null;
+  switch (node.type) {
+    case 'BooleanExpr':
+      return findFilterNode(node.left, offset, inFieldGroup) ?? findFilterNode(node.right, offset, inFieldGroup);
+    case 'Group':
+    case 'Not':
+      return findFilterNode(node.expression, offset, inFieldGroup);
+    case 'FieldGroup':
+      return findFilterNode(node.expression, offset, true) ?? node;
+    case 'FieldValue':
+      return node;
+    case 'Range':
+      return node.field || !inFieldGroup ? node : null;
+    default:
+      return inFieldGroup ? null : node;
+  }
+}
+
+/**
+ * Range of the filter the caret is in (see `findFilterNode`). The end is
+ * inclusive, so a caret right after a filter still counts as inside it.
+ */
+export function getActiveClauseRangeAtOffset(ast: ASTNode | null, offset: number): { start: number; end: number } | null {
   if (!ast || offset < 0) return null;
-  const clause = findClauseNode(ast, offset);
-  return clause ? { start: clause.start, end: clause.end } : null;
+  const node = findFilterNode(ast, offset, false);
+  return node ? { start: node.start, end: node.end } : null;
 }

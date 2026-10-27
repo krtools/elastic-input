@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Active clause marks the filter, not the outer group** — Inside nested parentheses the mark lands on the innermost `field:value` or `field:(…)` group the caret is in; a caret on a group's parenthesis or on `NOT` marks nothing.
+
 ## 0.26.0 — 2026-10-26
 
 ### Features

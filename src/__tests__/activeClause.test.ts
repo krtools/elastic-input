@@ -1,34 +1,54 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { getClauseNodeRangeAtOffset } from '../parser/findClauseAtOffset';
+import { getActiveClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { buildHighlightedHTML } from '../components/HighlightedContent';
 
 const parse = (text: string) => {
   const tokens = new Lexer(text).tokenize();
   return { tokens, ast: new Parser(tokens).parse() };
 };
-const clauseText = (text: string, offset: number) => {
-  const r = getClauseNodeRangeAtOffset(parse(text).ast, offset);
+const at = (text: string, offset: number) => {
+  const r = getActiveClauseRangeAtOffset(parse(text).ast, offset);
   return r ? text.slice(r.start, r.end) : null;
 };
 
-describe('getClauseNodeRangeAtOffset', () => {
-  it('finds the operand the caret is in, end inclusive', () => {
-    expect(clauseText('name:john smith', 13)).toBe('smith'); // smi|th: not part of name
-    expect(clauseText('name:john smith', 2)).toBe('name:john');
-    expect(clauseText('name:john smith', 9)).toBe('name:john'); // right after the value
-    expect(clauseText('name:(john smith springfield illinois)', 22)).toBe('name:(john smith springfield illinois)');
-    expect(clauseText('age:[18 TO 65] AND x', 6)).toBe('age:[18 TO 65]');
-    expect(clauseText('NOT status:active', 1)).toBe('NOT status:active');
+describe('getActiveClauseRangeAtOffset', () => {
+  it('finds the filter the caret is in, end inclusive', () => {
+    expect(at('name:john smith', 13)).toBe('smith'); // smi|th: not part of name
+    expect(at('name:john smith', 2)).toBe('name:john');
+    expect(at('name:john smith', 9)).toBe('name:john'); // right after the value
+    expect(at('name:(john smith springfield illinois)', 22)).toBe('name:(john smith springfield illinois)');
+    expect(at('name:(john smith)', 10)).toBe('name:(john smith)'); // on the space inside the group
+    expect(at('age:[18 TO 65] AND x', 6)).toBe('age:[18 TO 65]');
+    expect(at('NOT status:active', 6)).toBe('status:active');
   });
 
-  it('nothing between clauses, outside the text, or without an AST', () => {
-    expect(clauseText('name:john   smith', 11)).toBeNull();
-    expect(clauseText('a:1 AND b:2', 5)).toBeNull();
-    expect(getClauseNodeRangeAtOffset(null, 0)).toBeNull();
-    expect(getClauseNodeRangeAtOffset(parse('a:1').ast, -1)).toBeNull();
-    expect(clauseText('a:1', 10)).toBeNull();
+  it('descends into groups and NOT, stops at the filter', () => {
+    const q = '(a:b AND c:(d OR e)) OR f:g';
+    expect(at(q, 3)).toBe('a:b');
+    expect(at(q, 17)).toBe('c:(d OR e)'); // in e: the field group, not the outer group
+    expect(at(q, 15)).toBe('c:(d OR e)'); // on the OR inside the field group
+    expect(at(q, 26)).toBe('f:g');
+    expect(at('NOT (a:b OR c:d)', 13)).toBe('c:d');
+  });
+
+  it('a nested field:value inside a field group is its own filter', () => {
+    const q = 'status:(status:inactive || active)';
+    expect(at(q, 18)).toBe('status:inactive');
+    expect(at(q, 30)).toBe(q); // a bare term belongs to the group's field
+    expect(at('age:(x:[1 TO 2] OR 5)', 9)).toBe('x:[1 TO 2]');
+  });
+
+  it("nothing on a group's parens, NOT, between clauses, outside the text, or without an AST", () => {
+    expect(at('(a:b AND c:(d OR e)) OR f:g', 0)).toBeNull(); // on (
+    expect(at('(a:b AND c:(d OR e)) OR f:g', 20)).toBeNull(); // after )
+    expect(at('NOT status:active', 1)).toBeNull();
+    expect(at('name:john   smith', 11)).toBeNull();
+    expect(at('a:1 AND b:2', 5)).toBeNull();
+    expect(getActiveClauseRangeAtOffset(null, 0)).toBeNull();
+    expect(getActiveClauseRangeAtOffset(parse('a:1').ast, -1)).toBeNull();
+    expect(at('a:1', 10)).toBeNull();
   });
 });
 
@@ -39,7 +59,7 @@ describe('buildHighlightedHTML activeClause', () => {
     const text = 'name:(john smith) x';
     const { tokens, ast } = parse(text);
     const html = buildHighlightedHTML(tokens, undefined, {
-      activeClause: getClauseNodeRangeAtOffset(ast, 12),
+      activeClause: getActiveClauseRangeAtOffset(ast, 12),
       activeClauseClassName: 'mine',
     });
     const marked = classes(html).filter(s => s.cls.includes('ei-clause--active'));
@@ -52,7 +72,7 @@ describe('buildHighlightedHTML activeClause', () => {
   it('leaves spans outside the clause alone', () => {
     const text = 'name:john smith';
     const { tokens, ast } = parse(text);
-    const html = buildHighlightedHTML(tokens, undefined, { activeClause: getClauseNodeRangeAtOffset(ast, 13) });
+    const html = buildHighlightedHTML(tokens, undefined, { activeClause: getActiveClauseRangeAtOffset(ast, 13) });
     const marked = classes(html).filter(s => s.cls.includes('ei-clause--active'));
     expect(marked.map(s => s.text)).toEqual(['smith']);
     expect(buildHighlightedHTML(tokens, undefined, { activeClause: null })).not.toContain('ei-clause--active');

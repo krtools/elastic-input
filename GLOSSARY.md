@@ -70,5 +70,6 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **parser** | Converts tokens into an AST |
 | **validator** | Checks the AST for semantic errors (unknown fields, type mismatches) |
 | **highlighter** | Converts tokens into colored HTML spans |
-| **active clause** | The clause (field:value, group, range, bare term, …) the caret is in; its spans carry `ei-clause--active` (and `classNames.activeClause`) for a stylesheet to style |
+| **clause** | An operand of a boolean expression at its own level — a field:value, a `(…)` group, a `NOT …`, a field group, a range, a bare term — as clause navigation, triple-click and expand-selection see it (`getClauseRangeAtOffset`) |
+| **active clause** (filter clause) | The innermost *filter* the caret is in — a field:value, a `field:(…)` group with its bare terms, a range, a top-level bare term — never the enclosing `(…)` group; its spans carry `ei-clause--active` (and `classNames.activeClause`) for a stylesheet to style (§9.5.7) |
 | **autocomplete engine** | Generates suggestions based on cursor context |

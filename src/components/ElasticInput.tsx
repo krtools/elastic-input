@@ -4,7 +4,7 @@ import { Lexer } from '../lexer/Lexer';
 import { Token, TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
-import { getClauseRangeAtOffset, getClauseNodeRangeAtOffset } from '../parser/findClauseAtOffset';
+import { getClauseRangeAtOffset, getActiveClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
@@ -625,12 +625,12 @@ export function ElasticInput(props: ElasticInputProps) {
   const HIGHLIGHT_DEBOUNCE_MS = 60;
 
   // The editor's HTML for a caret position: paren match, per-type colours and
-  // the clause the caret is in (§9.5.7). Remembers the caret-dependent parts
+  // the filter the caret is in (§9.5.7). Remembers the caret-dependent parts
   // so the caret-move effect can skip a rebuild that would change nothing.
   const highlightKeyRef = React.useRef<string | null>(null);
   const renderHighlight = React.useCallback((tokens: Token[], ast: ASTNode | null, offset: number): string => {
     const match = findMatchingParen(tokens, offset);
-    const clause = getClauseNodeRangeAtOffset(ast, offset);
+    const clause = getActiveClauseRangeAtOffset(ast, offset);
     highlightKeyRef.current = highlightKey(match, clause);
     return buildHighlightedHTML(tokens, colors, {
       cursorOffset: offset,
@@ -1852,7 +1852,7 @@ export function ElasticInput(props: ElasticInputProps) {
     // Skip when neither the paren match nor the active clause would change
     const effectiveCursor = domFocused ? cursorOffset : -1;
     const ast = stateRef.current.ast;
-    const key = highlightKey(findMatchingParen(currentTokens, effectiveCursor), getClauseNodeRangeAtOffset(ast, effectiveCursor));
+    const key = highlightKey(findMatchingParen(currentTokens, effectiveCursor), getActiveClauseRangeAtOffset(ast, effectiveCursor));
     if (key === highlightKeyRef.current && !optionsChanged) return;
 
     const savedOffset = domFocused ? getCaretCharOffset(editor) : -1;

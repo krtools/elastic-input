@@ -1,5 +1,5 @@
 /**
- * The clause the caret is in is marked in the editor so a user can see which
+ * The filter the caret is in is marked in the editor so a user can see which
  * filter a value belongs to. The mark is a class for a stylesheet to style.
  */
 import { describe, it, expect, afterEach } from 'vitest';
@@ -17,7 +17,7 @@ const sheet = document.createElement('style');
 sheet.textContent = '.ei-clause--active { font-weight: 700 !important } .mine { text-decoration: underline }';
 document.head.appendChild(sheet);
 
-const FIELDS: FieldConfig[] = [{ name: 'name', type: 'string' }];
+const FIELDS: FieldConfig[] = [{ name: 'name', type: 'string' }, { name: 'status', type: 'string' }];
 const active = () => qa('.ei-editor .ei-clause--active').map(el => el.textContent ?? '').join('');
 const matchedParens = () => qa('.ei-editor .ei-paren--matched');
 
@@ -48,6 +48,17 @@ describe('active clause', () => {
     api.setValue('name:(john smith springfield illinois) x');
     api.setSelection(22, 22); // spring|field
     expect(await waitFor(() => active() === 'name:(john smith springfield illinois)')).toBe(true);
+  });
+
+  it('inside nested parens the mark is the innermost filter, not the outer group', async () => {
+    const api = await mount();
+    api.setValue('(name:bob AND status:(active OR pending)) OR name:ann');
+    api.setSelection(35, 35); // pen|ding
+    expect(await waitFor(() => active() === 'status:(active OR pending)')).toBe(true);
+    api.setSelection(6, 6); // name|:bob
+    expect(await waitFor(() => active() === 'name:bob')).toBe(true);
+    api.setSelection(0, 0); // on the outer (
+    expect(await waitFor(() => active() === '')).toBe(true);
   });
 
   it('nothing is active between clauses or when blurred', async () => {

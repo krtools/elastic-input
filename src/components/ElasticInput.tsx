@@ -1419,6 +1419,11 @@ export function ElasticInput(props: ElasticInputProps) {
 
   // A pick in the sheet closes it, except a field marked `followUp` (its value
   // is picked next) and the `#`/`!` hints (their list is the point).
+  // Stable, so the memoized suggestion rows skip re-rendering on a selection change
+  const acceptFromDropdown = React.useCallback((suggestion: Suggestion, e: React.MouseEvent) => {
+    acceptSuggestion(suggestion, 'Tab', undefined, e);
+  }, [acceptSuggestion]);
+
   const acceptFromSheet = React.useCallback((suggestion: Suggestion, e: React.MouseEvent) => {
     const ctx = stateRef.current.autocompleteContext;
     const isTriggerHint = suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!');
@@ -2926,7 +2931,7 @@ export function ElasticInput(props: ElasticInputProps) {
           datePicker={showDatePicker}
           idle={!showDropdown && !showDatePicker}
           sheetOpen={sheetOpen}
-          onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
+          onSelect={acceptFromDropdown}
           onToggleSheet={toggleSheet}
           menuOpen={menuOpen}
           onToggleMenu={toggleMenu}
@@ -2944,7 +2949,7 @@ export function ElasticInput(props: ElasticInputProps) {
       <AutocompleteDropdown
         suggestions={suggestions}
         selectedIndex={selectedSuggestionIndex}
-        onSelect={(s: Suggestion, e: React.MouseEvent) => acceptSuggestion(s, 'Tab', undefined, e)}
+        onSelect={acceptFromDropdown}
         position={dropdownPosition}
         colors={mergedColors}
         styles={mergedStyleConfig}

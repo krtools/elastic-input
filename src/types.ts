@@ -359,10 +359,14 @@ export interface DropdownConfig {
    *  or null/undefined for the default hint. */
   renderFieldHint?: (field: FieldConfig, partial: string) => React.ReactNode | null | undefined;
   /** Custom renderer for history suggestion items. Return a React element to replace
-   *  the default layout, or null/undefined for the default. */
+   *  the default layout, or null/undefined for the default. Give it a stable identity (define it outside render or in `useCallback`):
+   *  rows are memoized on their props, and a new callback every render re-renders all of them
+   *  on each selection change. */
   renderHistoryItem?: (entry: HistoryEntry, isSelected: boolean) => React.ReactNode | null | undefined;
   /** Custom renderer for saved search suggestion items. Return a React element to replace
-   *  the default layout, or null/undefined for the default. */
+   *  the default layout, or null/undefined for the default. Give it a stable identity (define it outside render or in `useCallback`):
+   *  rows are memoized on their props, and a new callback every render re-renders all of them
+   *  on each selection change. */
   renderSavedSearchItem?: (search: SavedSearch, isSelected: boolean) => React.ReactNode | null | undefined;
   /** Custom renderer for a header above the suggestion list. Return a React element,
    *  or null/undefined for no header. */
@@ -390,6 +394,10 @@ export interface DropdownConfig {
    *  - `false` — hide the badge entirely
    *  - `true` (default) — show the raw `suggestion.type` string
    *  - callback `(type, suggestion) => ReactNode` — custom render per item; return null to hide
+   *
+   *  A callback should have a stable identity (defined outside render or in `useCallback`):
+   *  rows are memoized on their props, and a new one every render re-renders all of them on
+   *  each selection change.
    */
   renderType?: boolean | ((type: string, suggestion: SuggestionItem) => React.ReactNode | null | undefined);
 }

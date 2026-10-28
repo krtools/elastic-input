@@ -59,7 +59,8 @@ export function SuggestionSheet({
     setViewport(v => (sameViewport(v, next) ? v : next));
   });
 
-  React.useEffect(() => {
+  // Layout effect: the scroll lands in the same commit as the highlight (§7.10)
+  React.useLayoutEffect(() => {
     if (selectedChildIndex == null || !bodyElRef.current) return;
     const item = bodyElRef.current.children[selectedChildIndex] as HTMLElement | undefined;
     item?.scrollIntoView({ block: 'nearest' });

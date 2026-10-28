@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Highlight and scroll move together** — The dropdown and the sheet scroll the highlighted row into view in the same commit that moves the highlight, so no frame between two key presses shows the highlight off screen.
+
+### Performance
+
+- **Suggestion rows re-render only when their highlight changes** — Each row is memoized, so moving the highlight re-renders two rows instead of the whole list (custom `renderType`, `renderHistoryItem` and `renderSavedSearchItem` callbacks need a stable identity to benefit).
+
 ## 0.26.1 — 2026-10-27
 
 ### Fixes

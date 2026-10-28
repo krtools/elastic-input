@@ -65,8 +65,11 @@ export function AutocompleteDropdown({
     : null;
   const hasHeader = headerContent != null;
 
-  // Scroll selected item into view (offset by 1 if header is present)
-  React.useEffect(() => {
+  // Scroll the selected item into view (offset by 1 if a header is present).
+  // A layout effect: the scroll lands in the same commit as the highlight, so
+  // a frame painted between two key repeats never shows the list a page behind
+  // the highlighted row (§7.10).
+  React.useLayoutEffect(() => {
     if (listRef.current) {
       const childIdx = hasHeader ? selectedIndex + 1 : selectedIndex;
       const item = listRef.current.children[childIdx] as HTMLElement;

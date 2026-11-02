@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Enter and Tab on a hint no longer split the value** — With a field's informational hint showing, Enter submits the query exactly as typed and Tab exits at the end of the value token, so a caret inside the value (`age:*|abc`) no longer gets a space inserted there.
+
 ## 0.26.2 — 2026-10-30
 
 ### Fixes

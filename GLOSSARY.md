@@ -47,7 +47,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **sheet** | Sheet presentation: the bottom sheet the bar's button opens, holding the full suggestion list or the date picker (`.ei-sheet`) |
 | **actions menu** | Sheet presentation: the short list the bar's ⋯ button opens in the sheet — Saved searches, History, Clear and the consumer's `barActions` (`.ei-action`) |
 | **suggestion** | A single item in the dropdown |
-| **hint** | A non-selectable dropdown item (e.g. `#saved-search`, `!history`, type placeholders) |
+| **hint** | A dropdown item that is information, not a pick: a type placeholder such as "Enter a number" or a `renderFieldHint` hint (Enter submits the query as typed, Tab exits the value), or the `#saved-search` / `!history` trigger (accepting it inserts the character) |
 | **selected index** | Which dropdown item is highlighted for keyboard accept (Enter/Tab). `-1` means nothing selected. |
 | **date picker** | The calendar popup for date-type fields: mode toggle + calendar + presets (internal `DateRangePicker`) |
 | **calendar** | The pure, fully-controlled date grid (exported `Calendar`): Dates in/out, no toggle/presets/serialization |

@@ -29,6 +29,7 @@ import { getSmartSelectRange } from '../utils/smartSelect';
 import { getExpansionRanges, SelectionRange } from '../utils/expandSelection';
 import { formatQuery } from '../utils/formatQuery';
 import { collectClauseStops, findNextClauseStop } from '../utils/clauseNavigation';
+import { exitSpace } from '../utils/trailingSpace';
 import {
   mergeColors,
   mergeStyles,
@@ -1392,16 +1393,7 @@ export function ElasticInput(props: ElasticInputProps) {
       return;
     }
 
-    let trailingSpace = '';
-    let finalAfter = after;
-    if (isCompleteTerm && trailingSpaceOnAccept) {
-      if (after.length === 0) {
-        trailingSpace = ' ';
-      } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
-        trailingSpace = ' ';
-        finalAfter = '';
-      }
-    }
+    const { space: trailingSpace, after: finalAfter } = exitSpace(after, isCompleteTerm && trailingSpaceOnAccept);
     const newValue = before + suggestion.text + trailingSpace + finalAfter;
     const newCursorPos = before.length + suggestion.text.length + trailingSpace.length;
 
@@ -1417,13 +1409,13 @@ export function ElasticInput(props: ElasticInputProps) {
     });
   }, [applyNewValue, updateSuggestionsFromTokens, onSearch, onAcceptSuggestion, trailingSpaceOnAccept]);
 
-  // A pick in the sheet closes it, except a field marked `followUp` (its value
-  // is picked next) and the `#`/`!` hints (their list is the point).
   // Stable, so the memoized suggestion rows skip re-rendering on a selection change
   const acceptFromDropdown = React.useCallback((suggestion: Suggestion, e: React.MouseEvent) => {
     acceptSuggestion(suggestion, 'Tab', undefined, e);
   }, [acceptSuggestion]);
 
+  // A pick in the sheet closes it, except a field marked `followUp` (its value
+  // is picked next) and the `#`/`!` hints (their list is the point).
   const acceptFromSheet = React.useCallback((suggestion: Suggestion, e: React.MouseEvent) => {
     const ctx = stateRef.current.autocompleteContext;
     const isTriggerHint = suggestion.type === 'hint' && (suggestion.text === '#' || suggestion.text === '!');
@@ -2346,30 +2338,12 @@ export function ElasticInput(props: ElasticInputProps) {
         case 'Enter':
           if (s.selectedSuggestionIndex >= 0) {
             const selected = s.suggestions[s.selectedSuggestionIndex];
-            if (isInertSuggestion(selected)) {
-              // Inert items (spinner/error/no-results): treat as no selection
-              // — close and submit
+            if (!isAcceptableSuggestion(selected)) {
+              // Inert items (spinner/error/no-results) and informational hints
+              // are not picks: close and submit the query as typed (§7.10)
               e.preventDefault();
               closeDropdown();
               if (onSearch) onSearch(currentValueRef.current, s.ast, e);
-              return;
-            }
-            if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
-              e.preventDefault();
-              closeDropdown();
-              const text = currentValueRef.current;
-              const offset = s.cursorOffset;
-              if (offset <= text.length && text[offset] !== ' ') {
-                const before = text.slice(0, offset);
-                const after = text.slice(offset);
-                const newValue = before + ' ' + after;
-                const newPos = offset + 1;
-                applyNewValue(newValue, newPos, () => {
-                  if (onSearch) onSearch(newValue, s.ast, e);
-                });
-              } else {
-                if (onSearch) onSearch(text, s.ast, e);
-              }
               return;
             }
             e.preventDefault();
@@ -2414,15 +2388,16 @@ export function ElasticInput(props: ElasticInputProps) {
               break;
             }
             if (selected.type === 'hint' && selected.text !== '#' && selected.text !== '!') {
+              // Exit the value: caret to the end of its token, then the same
+              // trailing space an accept adds — never a space inside the token (§7.10)
               e.preventDefault();
               closeDropdown();
               const text = currentValueRef.current;
-              const offset = s.cursorOffset;
-              if (offset <= text.length && text[offset] !== ' ') {
-                const before = text.slice(0, offset);
-                const after = text.slice(offset);
-                const newValue = before + ' ' + after;
-                const newPos = offset + 1;
+              const end = Math.min(Math.max(selected.replaceEnd, s.cursorOffset), text.length);
+              const { space, after } = exitSpace(text.slice(end), trailingSpaceOnAccept);
+              const newValue = text.slice(0, end) + space + after;
+              const newPos = end + space.length;
+              if (newValue !== text || newPos !== s.cursorOffset) {
                 applyNewValue(newValue, newPos, (newTokens) => {
                   updateSuggestionsFromTokens(newTokens, newPos);
                 });
@@ -2495,7 +2470,7 @@ export function ElasticInput(props: ElasticInputProps) {
       if (onSearch) onSearch(currentValueRef.current, s.ast, e);
       return;
     }
-  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, isPlainLength, applyPlainValue, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, renderHighlight, defaultFieldName, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap]);
+  }, [onSearch, closeDropdown, acceptSuggestion, applyNewValue, restoreUndoEntry, isPlainLength, applyPlainValue, multiline, requestSuggestions, updateSuggestionsFromTokens, onKeyDownProp, onTabProp, smartSelectAll, expandSelection, clauseNavigation, homeEndKeys, getDropdownPageSize, enableFormatQuery, renderHighlight, defaultFieldName, formatQueryOptions, lexerOptions, onChange, onValidationChange, parseDateProp, processInput, validatorRef, wildcardWrap, trailingSpaceOnAccept]);
 
   const handleKeyUp = React.useCallback((e: React.KeyboardEvent) => {
     // If the keydown was consumed by dropdown navigation, don't treat keyup as a text cursor move
@@ -2771,20 +2746,8 @@ export function ElasticInput(props: ElasticInputProps) {
     const before = currentValueRef.current.slice(0, start);
     const after = currentValueRef.current.slice(end);
 
-    // Add trailing space when cursor would end up at or near the end of input
-    // Skip trailing space when the date string is empty (e.g. a "clear" preset)
-    let trailingSpace = '';
-    let finalAfter = after;
-    if (trailingSpaceOnAccept && dateStr.length > 0) {
-      if (after.length === 0) {
-        // Nothing after — add space
-        trailingSpace = ' ';
-      } else if (/^[ \t\r\n]+$/.test(after) && !after.startsWith('\\ ')) {
-        // Only unescaped whitespace after — trim and add single space
-        trailingSpace = ' ';
-        finalAfter = '';
-      }
-    }
+    // No trailing space after an empty date string (a "clear" preset)
+    const { space: trailingSpace, after: finalAfter } = exitSpace(after, trailingSpaceOnAccept && dateStr.length > 0);
 
     const newValue = before + dateStr + trailingSpace + finalAfter;
     const newCursorPos = before.length + dateStr.length + trailingSpace.length;

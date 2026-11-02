@@ -2675,6 +2675,25 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, [interceptPaste, doPaste]);
 
+  // Copy and cut write the selected query text alone, as text/plain. The
+  // browser's own copy adds a text/html flavour with the spans' colours and
+  // the active clause's stylesheet styles inlined, which rich-text targets
+  // (Outlook, Word) keep on paste (§7.16).
+  const copySelection = React.useCallback((e: React.ClipboardEvent): boolean => {
+    const editor = editorRef.current;
+    if (!editor) return false;
+    const { start, end } = getSelectionCharRange(editor);
+    if (start === end) return false;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', currentValueRef.current.slice(start, end));
+    return true;
+  }, []);
+  const handleCopy = React.useCallback((e: React.ClipboardEvent) => { copySelection(e); }, [copySelection]);
+  // The deletion goes through the paste path: one undo step, dropdown re-evaluated
+  const handleCut = React.useCallback((e: React.ClipboardEvent) => {
+    if (copySelection(e)) doPaste('');
+  }, [copySelection, doPaste]);
+
   // The bar menu's editing row. Phones have no Ctrl+X/C/A, and the native
   // selection toolbar is easy to miss. No Paste: reading the clipboard needs
   // a permission prompt on Android, and the keyboard pastes already.
@@ -2854,6 +2873,8 @@ export function ElasticInput(props: ElasticInputProps) {
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onClick={handleClick}
+          onCopy={handleCopy}
+          onCut={handleCut}
           onPaste={handlePaste}
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}

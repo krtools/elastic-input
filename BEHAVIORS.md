@@ -978,6 +978,12 @@ Modality detection: document-level `keydown` and `pointerdown` timestamps — fo
 
 ---
 
+### 7.16 Copy and Cut
+
+Copy and cut (Ctrl+C / Ctrl+X, the context menu, the bar menu's fallback) put only the selected query text on the clipboard, as `text/plain`, taken from the value by the selection's character range. The browser's own copy would add a `text/html` flavour with the spans' colours and the active clause's stylesheet styles inlined, which rich-text targets such as Outlook or Word keep when pasting. Cut then deletes the selection through the paste path, so it is one undo step and the dropdown re-evaluates as after any edit. With nothing selected the event is left to the browser. Drag-and-drop out of the editor is left to the browser too.
+
+- **Tests:** `CopyCut.browser.test.tsx` → "puts only the selected query text on the clipboard", "keeps the line breaks of a multiline value", "leaves the event to the browser with nothing selected", "copies the selection and removes it as one undo step"
+
 ## 8. Dropdown Positioning
 
 The autocomplete dropdown and date picker are rendered via `ReactDOM.createPortal` to `document.body` with fixed positioning based on the caret's `getBoundingClientRect()`.

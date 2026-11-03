@@ -180,6 +180,38 @@ describe('real pointer input', () => {
   });
 });
 
+describe('scrollable editor', () => {
+  it('scrolls the editor and extends the selection when dragged past its bottom edge', async () => {
+    const text = Array.from({ length: 12 }, (_, i) => `line${i + 1} alpha beta`).join('\n');
+    const handle: { api: ElasticInputAPI | null } = { api: null };
+    renderInto(React.createElement(ElasticInput, {
+      fields: FIELDS,
+      features: { multiline: true },
+      styles: { inputMaxHeight: '60px', lineHeight: '20px' },
+      inputRef: (a: ElasticInputAPI) => { handle.api = a; },
+    }));
+    const editorEl = document.querySelector('.ei-editor') as HTMLElement;
+    await page.elementLocator(editorEl).click();
+    handle.api!.set({ value: text, selection: 0 });
+    expect(await waitFor(() => handle.api?.getValue() === text)).toBe(true);
+    editorEl.scrollTop = 0;
+    const x = pointAt(editorEl, 6).x; // "alpha" on line 1
+    click(editorEl, 6, 1);
+    press(editorEl, 6, 2);
+    expect(selected()).toBe('alpha');
+
+    const box = editorEl.getBoundingClientRect();
+    mouseAt(document, 'mousemove', { x, y: box.bottom + 60 }, { buttons: 1 });
+    expect(await waitFor(() => editorEl.scrollTop > 0 && selected().includes('line6'))).toBe(true);
+
+    mouseAt(document, 'mousemove', { x, y: box.top + 20 }, { buttons: 1 });
+    const stopped = editorEl.scrollTop;
+    await pause(150);
+    expect(editorEl.scrollTop).toBe(stopped);
+    mouseAt(editorEl, 'mouseup', { x, y: box.top + 20 }, { detail: 2 });
+  });
+});
+
 describe('interruptions', () => {
   it('a keystroke ends the extension, as in native inputs', async () => {
     const { editorEl, api } = await setup('status:active lead now');

@@ -6,6 +6,7 @@
  * element, a span function and an end callback are all it needs.
  */
 import { offsetAtPoint, setSelectionCharRange } from './cursorUtils';
+import { createEdgeScroller } from './edgeAutoScroll';
 
 export interface CharRange { start: number; end: number }
 
@@ -28,8 +29,10 @@ export interface RangeDragOptions {
  * re-selects spanBetween(anchor, pointer) as the pointer moves, so the anchor's
  * unit stays selected and the selection grows by whole units. The focus end
  * follows the pointer, so a Shift+Arrow afterwards extends the end the user
- * dragged. The pointer is clamped to the editor's box: dragging past an edge
- * selects to that end of the nearest line. Ends on mouseup (its default
+ * dragged. The pointer is clamped to the editor's box: dragging past a side
+ * selects to that end of the nearest line, and while it is held past the top
+ * or bottom the editor scrolls toward it (edgeAutoScroll), the selection
+ * extending as lines come into view. Ends on mouseup (its default
  * prevented, or the browser would clear a selection it did not start), on a
  * new mousedown anywhere (a release that never arrived), when the window
  * loses focus, or on a move with the button already up (a release outside the
@@ -43,12 +46,21 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
   let current = initial;
   let backward = false;
   setSelectionCharRange(editor, current.start, current.end);
+  let lastX = 0;
+  let lastY = 0;
+  const scroller = createEdgeScroller(editor, () => extend(lastX, lastY));
 
   function onMove(e: MouseEvent) {
     if (!(e.buttons & 1)) { end(false); return; }
+    lastX = e.clientX;
+    lastY = e.clientY;
+    scroller.update(e.clientY);
+    extend(e.clientX, e.clientY);
+  }
+  function extend(clientX: number, clientY: number) {
     const box = editor.getBoundingClientRect();
-    const x = Math.min(Math.max(e.clientX, box.left + 1), box.right - 1);
-    const y = Math.min(Math.max(e.clientY, box.top + 1), box.bottom - 1);
+    const x = Math.min(Math.max(clientX, box.left + 1), box.right - 1);
+    const y = Math.min(Math.max(clientY, box.top + 1), box.bottom - 1);
     const pointer = offsetAtPoint(editor, x, y);
     if (pointer == null) return;
     const span = options.spanBetween(anchor, pointer);
@@ -66,6 +78,7 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
   function onDown() { end(false); }
   function onBlur() { end(false); }
   function cancel() {
+    scroller.stop();
     document.removeEventListener('mousemove', onMove, true);
     document.removeEventListener('mouseup', onUp, true);
     document.removeEventListener('mousedown', onDown, true);

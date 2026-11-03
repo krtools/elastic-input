@@ -4,7 +4,7 @@
 
 ### Features
 
-- **Dragging after a double- or triple-click extends the selection** — The selection grows by whole words or clauses as the pointer moves, as the browser's own double-click drag does; the intercepted gesture used to end at the click.
+- **Dragging after a double- or triple-click extends the selection** — The selection grows by whole words or clauses as the pointer moves, and a scrolling editor scrolls when the pointer is held past its edge, as the browser's own double-click drag does; the intercepted gesture used to end at the click.
 
 ### Fixes
 

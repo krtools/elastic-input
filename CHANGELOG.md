@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Features
+
+- **Dragging after a double- or triple-click extends the selection** — The selection grows by whole words or clauses as the pointer moves, as the browser's own double-click drag does; the intercepted gesture used to end at the click.
+
 ### Fixes
 
 - **Double-click word selection no longer depends on `caretRangeFromPoint`** — The pointer lookup uses the standard `caretPositionFromPoint` where it exists, so Firefox, which has only that method, selects the word instead of throwing.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Lexer } from '../lexer/Lexer';
 import { Parser } from '../parser/Parser';
-import { getClauseRangeAtOffset } from '../parser/findClauseAtOffset';
+import { getClauseRangeAtOffset, getClauseSpanBetween } from '../parser/findClauseAtOffset';
 
 function parse(input: string) {
   const tokens = new Lexer(input).tokenize();
@@ -219,5 +219,46 @@ describe('getClauseRangeAtOffset', () => {
       const input = '!1 AND status:active';
       expect(selectedText(input, 1)).toBe('!1 AND ');
     });
+  });
+});
+
+describe('getClauseSpanBetween', () => {
+  function spanText(input: string, anchor: number, pointer: number): string | null {
+    const range = getClauseSpanBetween(parse(input), input, anchor, pointer);
+    return range ? input.slice(range.start, range.end) : null;
+  }
+  const Q = 'a:1 AND b:2 AND c:3';
+
+  it('equals getClauseRangeAtOffset with anchor and pointer equal', () => {
+    expect(getClauseSpanBetween(parse(Q), Q, 9, 9)).toEqual(getClauseRangeAtOffset(parse(Q), Q, 9));
+  });
+
+  it('spans the clauses from anchor through pointer plus one trailing connector', () => {
+    expect(spanText(Q, 1, 9)).toBe('a:1 AND b:2 AND ');
+  });
+
+  it('takes the leading connector when the span ends the query, in either direction', () => {
+    expect(spanText(Q, 9, 17)).toBe(' AND b:2 AND c:3');
+    expect(spanText(Q, 17, 9)).toBe(' AND b:2 AND c:3');
+  });
+
+  it('spans the whole query from the first clause to the last', () => {
+    expect(spanText(Q, 1, 17)).toBe(Q);
+  });
+
+  it('extends nothing for a pointer between clauses or outside the query', () => {
+    expect(spanText(Q, 9, 5)).toBe('b:2 AND ');
+    expect(spanText(Q, 9, 100)).toBe('b:2 AND ');
+  });
+
+  it('treats a group as one clause', () => {
+    const G = '(a:1 OR b:2) AND c:3';
+    expect(spanText(G, 2, 18)).toBe(G);
+    expect(spanText(G, 18, 2)).toBe(G);
+  });
+
+  it('is null with no clause at the anchor', () => {
+    expect(spanText(Q, 5, 9)).toBeNull();
+    expect(getClauseSpanBetween(null, Q, 1, 9)).toBeNull();
   });
 });

@@ -71,5 +71,7 @@ Common terminology for discussing the ElasticInput component. Use these terms fo
 | **validator** | Checks the AST for semantic errors (unknown fields, type mismatches) |
 | **highlighter** | Converts tokens into colored HTML spans |
 | **clause** | An operand of a boolean expression at its own level — a field:value, a `(…)` group, a `NOT …`, a field group, a range, a bare term — as clause navigation, triple-click and expand-selection see it (`getClauseRangeAtOffset`) |
+| **word** | A run of characters that are neither whitespace nor query syntax, as double-click selection sees it (`getWordRangeAt`): "status:active" is two words |
+| **range drag** | The drag that extends a double- or triple-click selection by words or clauses (`startRangeDrag`): the clicked unit stays selected and the selection grows to the unit under the pointer |
 | **active clause** (filter clause) | The innermost *filter* the caret is in — a field:value, a `field:(…)` group with its bare terms, a range, a top-level bare term — never the enclosing `(…)` group; its spans carry `ei-clause--active` (and `classNames.activeClause`) for a stylesheet to style (§9.5.7) |
 | **autocomplete engine** | Generates suggestions based on cursor context |

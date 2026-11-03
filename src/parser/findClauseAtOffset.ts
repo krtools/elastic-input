@@ -38,13 +38,30 @@ export function getClauseRangeAtOffset(
   text: string,
   offset: number,
 ): { start: number; end: number } | null {
+  return getClauseSpanBetween(ast, text, offset, offset);
+}
+
+/**
+ * The range a clause drag selects (§5.3.1): the clause at `anchor` through the
+ * clause at `pointer`, plus one adjacent connector by the rule above applied
+ * once to the merged span. A pointer between clauses or outside the query
+ * extends nothing. Null when there is no clause at the anchor.
+ */
+export function getClauseSpanBetween(
+  ast: ASTNode | null,
+  text: string,
+  anchor: number,
+  pointer: number,
+): { start: number; end: number } | null {
   if (!ast) return null;
-  const clause = findClauseNode(ast, offset);
-  if (!clause) return null;
+  const a = findClauseNode(ast, anchor);
+  if (!a) return null;
+  const b = findClauseNode(ast, pointer) ?? a;
+  return withConnector(text, Math.min(a.start, b.start), Math.max(a.end, b.end));
+}
 
-  let start = clause.start;
-  let end = clause.end;
-
+/** Extends [start, end) by one adjacent boolean connector, trailing preferred. */
+function withConnector(text: string, start: number, end: number): { start: number; end: number } {
   // Match trailing: whitespace + explicit binary op + whitespace, OR just whitespace
   // (implicit AND). Require real content after so we don't consume trailing-edge
   // whitespace when the clause is last.

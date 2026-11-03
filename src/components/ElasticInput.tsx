@@ -4,7 +4,7 @@ import { Lexer } from '../lexer/Lexer';
 import { Token, TokenType } from '../lexer/tokens';
 import { Parser, CursorContext } from '../parser/Parser';
 import { ASTNode, ErrorNode } from '../parser/ast';
-import { getClauseRangeAtOffset, getActiveClauseRangeAtOffset } from '../parser/findClauseAtOffset';
+import { getClauseSpanBetween, getActiveClauseRangeAtOffset } from '../parser/findClauseAtOffset';
 import { AutocompleteEngine } from '../autocomplete/AutocompleteEngine';
 import { Suggestion, isInertSuggestion, isAcceptableSuggestion, hasPendingSuggestion, completionTaskKey, hasSyncSuggestionSource } from '../autocomplete/suggestionTypes';
 import { Validator, ValidationError, deduplicateErrors, isQueryValid, normalizeExternalErrors, errorsEqual } from '../validation/Validator';
@@ -23,6 +23,8 @@ import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
 import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, offsetAtPoint } from '../utils/cursorUtils';
+import { getWordSpanBetween } from '../utils/wordRange';
+import { startRangeDrag } from '../utils/rangeDrag';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret, DropdownPosition } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary, isOnOperatorToken } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
@@ -2566,70 +2568,15 @@ export function ElasticInput(props: ElasticInputProps) {
     }
   }, []);
 
-  // Double-click word selection: prevent the browser's default which includes
-  // trailing whitespace. We compute word boundaries ourselves and set a clean selection.
-  // Triple-click clause selection: select the whole operand (including modifiers)
-  // plus one adjacent boolean connector so deletion leaves a valid query.
-  // We must also preventDefault on the subsequent mouseup, otherwise the browser's
-  // mouseup handler clears our selection (it sees no selection-in-progress since we
-  // prevented the mousedown from initiating one).
-  const mouseSelectHandledRef = React.useRef(false);
-
-  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
-    if (!editorRef.current) return;
-    if (e.detail !== 2 && e.detail !== 3) return;
-
-    if (e.detail === 3) {
-      // Plain mode skips parsing (ast is null), so there's no clause to select —
-      // fall through to browser default (typically selects the whole line).
-      if (!stateRef.current.ast) return;
-
-      const offset = offsetAtPoint(editorRef.current, e.clientX, e.clientY);
-      if (offset == null) return;
-      const clauseRange = getClauseRangeAtOffset(stateRef.current.ast, currentValueRef.current, offset);
-      if (!clauseRange || clauseRange.start >= clauseRange.end) return;
-
-      e.preventDefault();
-      mouseSelectHandledRef.current = true;
-      setSelectionCharRange(editorRef.current, clauseRange.start, clauseRange.end);
-      return;
-    }
-
-    e.preventDefault();
-    mouseSelectHandledRef.current = true;
-
-    const offset = offsetAtPoint(editorRef.current, e.clientX, e.clientY);
-    if (offset == null) return;
-    const text = currentValueRef.current;
-    const isWordChar = (ch: string) => !/[\s:()[\]{}"<>!,;|&=~^+\-*/\\]/.test(ch);
-
-    let start = offset;
-    while (start > 0 && isWordChar(text[start - 1])) start--;
-
-    let end = offset;
-    while (end < text.length && isWordChar(text[end])) end++;
-
-    if (start < end) {
-      setSelectionCharRange(editorRef.current, start, end);
-    }
-  }, []);
-
-  const handleMouseUp = React.useCallback((e: React.MouseEvent) => {
-    if (mouseSelectHandledRef.current) {
-      e.preventDefault();
-      mouseSelectHandledRef.current = false;
-    }
-  }, []);
-
-  const handleClick = React.useCallback(() => {
+  // After a click or a drag: caret and selection state from the DOM, then the
+  // dropdown for the new position. A selection spanning several tokens (a
+  // triple-click's `field:value`) has no one context, so the dropdown closes;
+  // one within a token (a double-clicked field name or value) proceeds (§5.5).
+  const syncSelectionState = React.useCallback(() => {
     if (!editorRef.current) return;
     const selRange = getSelectionCharRange(editorRef.current);
     setCursorOffset(selRange.start);
     setSelectionEnd(selRange.end);
-
-    // If selection spans multiple tokens (e.g. triple-click selecting "field:value"),
-    // suppress the dropdown — context is ambiguous.
-    // Single-token selections (e.g. double-click on field name) proceed normally.
     if (selRange.start !== selRange.end) {
       const [si, ei] = getTokenIndexRange(stateRef.current.tokens, selRange.start, selRange.end);
       if (si !== ei) {
@@ -2637,9 +2584,43 @@ export function ElasticInput(props: ElasticInputProps) {
         return;
       }
     }
-
     triggerSuggestionsFromNavigation(stateRef.current.tokens, selRange.start, selRange.end);
   }, [triggerSuggestionsFromNavigation, closeDropdown]);
+
+  // Double-click selects a word and triple-click a clause (§5.3, §5.3.1). The
+  // browser's own double-click takes the trailing space along and reads
+  // "status:active" as one word, so the gesture is handled from the mousedown
+  // on, and a drag then extends the selection by the same unit.
+  const dragCancelRef = React.useRef<(() => void) | null>(null);
+  React.useEffect(() => {
+    const ref = dragCancelRef;
+    return () => { ref.current?.(); };
+  }, []);
+
+  const handleMouseDown = React.useCallback((e: React.MouseEvent) => {
+    const editor = editorRef.current;
+    if (!editor || (e.detail !== 2 && e.detail !== 3)) return;
+    const text = currentValueRef.current;
+    const ast = stateRef.current.ast;
+    // Plain mode skips parsing, so there is no clause: the browser's own triple-click
+    if (e.detail === 3 && !ast) return;
+    const anchor = offsetAtPoint(editor, e.clientX, e.clientY);
+    if (anchor == null) return;
+    const spanBetween = e.detail === 3
+      ? (a: number, b: number) => getClauseSpanBetween(ast, text, a, b)
+      : (a: number, b: number) => getWordSpanBetween(text, a, b);
+    const cancel = startRangeDrag(editor, anchor, {
+      spanBetween,
+      onEnd: (_range, clickFollows) => {
+        dragCancelRef.current = null;
+        // A release over the editor is followed by a click, which syncs
+        if (!clickFollows) syncSelectionState();
+      },
+    });
+    if (!cancel) return; // no clause there: the browser's own triple-click
+    dragCancelRef.current = cancel;
+    e.preventDefault();
+  }, [syncSelectionState]);
 
   const doPaste = React.useCallback((text: string) => {
     // Break typing group so paste is its own undo entry
@@ -2869,8 +2850,7 @@ export function ElasticInput(props: ElasticInputProps) {
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onMouseDown={handleMouseDown}
-          onMouseUp={handleMouseUp}
-          onClick={handleClick}
+          onClick={syncSelectionState}
           onCopy={handleCopy}
           onCut={handleCut}
           onPaste={handlePaste}

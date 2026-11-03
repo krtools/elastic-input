@@ -88,13 +88,15 @@ function getOffsetRects(
   const clientRects = range.getClientRects();
   if (clientRects.length === 0) return [];
 
+  // In the editor's content space (its box plus its scroll offsets), so the
+  // rects stay valid as it scrolls
   const results: { left: number; top: number; width: number; height: number }[] = [];
   for (let i = 0; i < clientRects.length; i++) {
     const r = clientRects[i];
     if (r.width < 1) continue; // skip zero-width rects
     results.push({
-      left: r.left - editorRect.left,
-      top: r.top - editorRect.top,
+      left: r.left - editorRect.left + editor.scrollLeft,
+      top: r.top - editorRect.top + editor.scrollTop,
       width: Math.max(r.width, 6),
       height: r.height,
     });
@@ -161,6 +163,15 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
   const rectsRef = React.useRef<SquigglyRect[]>([]);
   const tooltipRef = React.useRef<HTMLDivElement | null>(null);
   const measureTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The rects are in the editor's content space; the layer shows them shifted by its scroll
+  const [scroll, setScroll] = React.useState({ top: 0, left: 0 });
+  React.useEffect(() => {
+    if (!editorRef) return;
+    const onScroll = () => setScroll(prev =>
+      prev.top === editorRef.scrollTop && prev.left === editorRef.scrollLeft ? prev : { top: editorRef.scrollTop, left: editorRef.scrollLeft });
+    editorRef.addEventListener('scroll', onScroll);
+    return () => editorRef.removeEventListener('scroll', onScroll);
+  }, [editorRef]);
 
   // Debounce DOM measurements: schedule after a pause in input changes
   React.useEffect(() => {
@@ -202,8 +213,9 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
     // area below the text for fingers
     const hitTest = (clientX: number, clientY: number, slop: number) => {
       const editorRect = editorRef.getBoundingClientRect();
-      const mx = clientX - editorRect.left;
-      const my = clientY - editorRect.top;
+      // Content space, like the rects
+      const mx = clientX - editorRect.left + editorRef.scrollLeft;
+      const my = clientY - editorRect.top + editorRef.scrollTop;
       for (let i = 0; i < rectsRef.current.length; i++) {
         const r = rectsRef.current[i];
         // Hit test against the text area + wave area below it
@@ -257,45 +269,53 @@ export function ValidationSquiggles({ errors, editorRef, cursorOffset, colors, s
 
   if (rects.length === 0) return null;
 
+  // A line scrolled out of the box has no squiggle and no tooltip
+  const visibleHeight = editorRef?.clientHeight ?? Infinity;
+  const inView = (r: SquigglyRect) => r.top + r.height - scroll.top > 0 && r.top - scroll.top < visibleHeight;
 
   const hoveredRect = hover ? rects.find(r => r.error === hover.error) ?? null : null;
 
   return (
     <>
-      {rects.map((r, i) => {
-        const isWarning = r.error.severity === 'warning';
-        const squigglyColor = isWarning ? colors.warning : colors.error;
-        const svgBg = squigglyBgForColor(squigglyColor);
-        const waveTop = r.top + r.height - 2;
+      {/* Clipped to the editor's box, like the text */}
+      <div
+        className="ei-squiggles"
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden', zIndex: 1, pointerEvents: 'none' }}
+      >
+        {rects.map((r, i) => {
+          if (!inView(r)) return null;
+          const isWarning = r.error.severity === 'warning';
+          const squigglyColor = isWarning ? colors.warning : colors.error;
+          const svgBg = squigglyBgForColor(squigglyColor);
+          const waveTop = r.top + r.height - 2 - scroll.top;
 
-        return (
-          <div
-            key={`wave-${i}`}
-            className={cx('ei-squiggly', isWarning ? 'ei-squiggly--warning' : 'ei-squiggly--error', classNames?.squiggly)}
-            style={{
-              position: 'absolute',
-              left: `${r.left}px`,
-              top: `${waveTop}px`,
-              width: `${r.width}px`,
-              height: '4px',
-              zIndex: 1,
-              backgroundImage: svgBg,
-              backgroundRepeat: 'repeat-x',
-              backgroundPosition: 'left top',
-              backgroundSize: 'auto 4px',
-              pointerEvents: 'none',
-            }}
-          />
-        );
-      })}
-      {hoveredRect != null && (() => {
+          return (
+            <div
+              key={`wave-${i}`}
+              className={cx('ei-squiggly', isWarning ? 'ei-squiggly--warning' : 'ei-squiggly--error', classNames?.squiggly)}
+              style={{
+                position: 'absolute',
+                left: `${r.left - scroll.left}px`,
+                top: `${waveTop}px`,
+                width: `${r.width}px`,
+                height: '4px',
+                backgroundImage: svgBg,
+                backgroundRepeat: 'repeat-x',
+                backgroundPosition: 'left top',
+                backgroundSize: 'auto 4px',
+              }}
+            />
+          );
+        })}
+      </div>
+      {hoveredRect != null && inView(hoveredRect) && (() => {
         const isWarning = hoveredRect.error.severity === 'warning';
         const squigglyColor = isWarning ? colors.warning : colors.error;
-        // Convert editor-relative coords to viewport-fixed for the portal
+        // Convert content coords to viewport-fixed for the portal
         const editorRect = editorRef?.getBoundingClientRect();
-        const fixedLeft = (editorRect?.left ?? 0) + mousePos.x;
-        const waveBottomFixed = (editorRect?.top ?? 0) + hoveredRect.top + hoveredRect.height + 2;
-        const lineTopFixed = (editorRect?.top ?? 0) + hoveredRect.top;
+        const fixedLeft = (editorRect?.left ?? 0) + mousePos.x - scroll.left;
+        const waveBottomFixed = (editorRect?.top ?? 0) + hoveredRect.top - scroll.top + hoveredRect.height + 2;
+        const lineTopFixed = (editorRect?.top ?? 0) + hoveredRect.top - scroll.top;
         const vp = getVisibleViewport();
         const spaceBelow = vp.top + vp.height - mousePos.clientY;
         const spaceAbove = lineTopFixed - vp.top;

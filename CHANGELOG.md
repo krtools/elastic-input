@@ -9,6 +9,7 @@
 ### Fixes
 
 - **Double-click word selection no longer depends on `caretRangeFromPoint`** — The pointer lookup uses the standard `caretPositionFromPoint` where it exists, so Firefox, which has only that method, selects the word instead of throwing.
+- **Squiggles follow a scrolling editor** — In an editor with `inputMaxHeight`, the underlines move with the text as it scrolls and are clipped to the box; they used to stay put and be drawn beyond its edges.
 
 ### Demo
 

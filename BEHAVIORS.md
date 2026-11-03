@@ -1189,7 +1189,9 @@ Validation runs on the AST and produces errors with character offsets for squigg
 
 Validation errors are rendered as red wavy underlines beneath the invalid text. The wave pattern uses an SVG-based `background-image` with a smooth sinusoidal curve (8px wavelength) for a clear, readable underline.
 
-The squigglies are absolutely positioned relative to the input container, with positions computed from DOM `Range.getClientRects()` measurements. For errors spanning multiple lines, each line gets its own squiggly underline (one rect per line), preventing the single-bounding-box problem where a multi-line range would produce a squiggly covering the entire width of the input.
+The squigglies are measured with DOM `Range.getClientRects()` in the editor's **content space** (its box plus its scroll offsets) and rendered in a layer (`ei-squiggles`) that is clipped to the editor's box and offsets them by the current scroll, so in an editor with `inputMaxHeight` they move with the text as it scrolls and are never drawn beyond the box. A squiggle whose line is scrolled out of view is not rendered, and neither is the tooltip of a hovered error once its line scrolls out; the hover hit test works in the same content space. For errors spanning multiple lines, each line gets its own squiggly underline (one rect per line), preventing the single-bounding-box problem where a multi-line range would produce a squiggly covering the entire width of the input.
+
+- **Tests:** `SquiggleScroll.browser.test.tsx` → "draws only the squiggles whose lines are in view, inside the box", "moves the squiggles with the text as the editor scrolls", "hovering a scrolled-in error shows its tooltip, which goes once the line scrolls out"
 
 DOM measurements for squiggly positions are **debounced** (150ms) to avoid layout thrashing during rapid input. A maximum of 30 errors are measured per cycle to cap the cost of large queries with many validation errors. When errors clear entirely (e.g., deleting all text), squigglies are removed immediately without waiting for the debounce.
 
@@ -1918,6 +1920,7 @@ All elements receive static `ei-*` classes unconditionally. These are always pre
 | Matched parens | `ei-paren--matched` on the two parens the caret's paren match highlights |
 | Regex sub-part | `ei-regex-part ei-regex-part--{type}` |
 | Range sub-part | `ei-range-part ei-range-part--{type}` |
+| Squiggle layer (clipped to the editor box) | `ei-squiggles` |
 | Validation squiggly | `ei-squiggly` + `ei-squiggly--error` or `ei-squiggly--warning` |
 | Validation tooltip | `ei-tooltip` |
 | Date picker portal | `ei-datepicker-portal` |

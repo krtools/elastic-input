@@ -453,6 +453,10 @@ export function DemoApp() {
 
   // Feature options
   const [multiline, setMultiline] = React.useState(true);
+  const [inputMaxHeight, setInputMaxHeight] = React.useState<'none' | '80px' | '160px'>(() => {
+    const h = hashParams.get('maxHeight');
+    return h === '80px' || h === '160px' ? h : 'none';
+  });
   const [collapseOnBlur, setCollapseOnBlur] = React.useState(false);
   const [embeddedSearchButton, setEmbeddedSearchButton] = React.useState(false);
   const [smartSelectAll, setSmartSelectAll] = React.useState(true);
@@ -714,6 +718,7 @@ export function DemoApp() {
                 <ElasticInput
                   fields={tab.fields}
                   colors={colors}
+                  styles={inputMaxHeight === 'none' ? undefined : { inputMaxHeight }}
                   placeholder={tab.placeholder}
                   value={controlledValue}
                   onSearch={handleSearch}
@@ -1072,6 +1077,17 @@ export function DemoApp() {
 
             <OptionGroup label="Features" theme={theme}>
               <OptionToggle label="Multiline" checked={multiline} onChange={setMultiline} theme={theme} />
+              <OptionSelect
+                label="Max height"
+                value={inputMaxHeight}
+                options={[
+                  { value: 'none', label: 'None' },
+                  { value: '80px', label: '80px (scrolls)' },
+                  { value: '160px', label: '160px (scrolls)' },
+                ]}
+                onChange={setInputMaxHeight}
+                theme={theme}
+              />
               <OptionToggle label="Collapse on blur" checked={collapseOnBlur} onChange={setCollapseOnBlur} theme={theme} />
               <OptionToggle label="Embedded search button" checked={embeddedSearchButton} onChange={setEmbeddedSearchButton} theme={theme} />
               <OptionToggle label="Smart Ctrl+A" checked={smartSelectAll} onChange={setSmartSelectAll} theme={theme} />

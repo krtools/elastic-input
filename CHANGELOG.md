@@ -10,6 +10,10 @@
 
 - **Double-click word selection no longer depends on `caretRangeFromPoint`** — The pointer lookup uses the standard `caretPositionFromPoint` where it exists, so Firefox, which has only that method, selects the word instead of throwing.
 
+### Demo
+
+- **Max height option** — The Features group gains a max-height select (also `#maxHeight=80px|160px`), so a scrolling editor and a drag past its edge can be tried.
+
 ## 0.26.3 — 2026-11-02
 
 ### Fixes

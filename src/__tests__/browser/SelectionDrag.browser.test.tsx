@@ -82,7 +82,7 @@ describe('double-click drag', () => {
     expect(selected()).toBe('active lead');
   });
 
-  it('closes the dropdown once the selection spans several tokens', async () => {
+  it('closes the dropdown as soon as the selection spans several tokens', async () => {
     const { editorEl } = await setup('status:active lead now');
     click(editorEl, 9, 1);
     click(editorEl, 9, 2); // value suggestions for the one selected token
@@ -90,8 +90,10 @@ describe('double-click drag', () => {
 
     press(editorEl, 9, 2);
     drag(editorEl, 15);
+    expect(await waitFor(() => !isOpen())).toBe(true); // before the release
     release(editorEl, 15, 2);
-    expect(await waitFor(() => !isOpen())).toBe(true);
+    await pause(100);
+    expect(isOpen()).toBe(false);
   });
 
   it('puts the selection focus at the left end when dragging leftwards', async () => {

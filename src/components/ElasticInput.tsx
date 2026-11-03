@@ -2615,6 +2615,13 @@ export function ElasticInput(props: ElasticInputProps) {
     };
     const cancel = startRangeDrag(editor, anchor, {
       spanBetween,
+      // The dropdown's suggestions are for one token; once the selection
+      // spans more it has no context and closes now, not at the release (§5.5)
+      onExtend: (range) => {
+        if (!stateRef.current.showDropdown) return;
+        const [si, ei] = getTokenIndexRange(stateRef.current.tokens, range.start, range.end);
+        if (si !== ei) closeDropdown();
+      },
       onEnd: (_range, clickFollows) => {
         dragCancelRef.current = null;
         // A release over the editor is followed by a click, which syncs; a
@@ -2625,7 +2632,7 @@ export function ElasticInput(props: ElasticInputProps) {
     if (!cancel) return; // no clause there: the browser's own triple-click
     dragCancelRef.current = cancel;
     e.preventDefault();
-  }, [syncSelectionState]);
+  }, [syncSelectionState, closeDropdown]);
 
   const doPaste = React.useCallback((text: string) => {
     // Break typing group so paste is its own undo entry

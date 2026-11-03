@@ -17,6 +17,8 @@ export interface RangeDragOptions {
    * anchor and no drag; null later keeps the previous range.
    */
   spanBetween: (anchor: number, pointer: number) => CharRange | null;
+  /** Runs whenever the drag sets the selection, with the range it set. */
+  onExtend?: (range: CharRange) => void;
   /**
    * Runs once when the drag ends. `clickFollows` is true when the button was
    * released over the editor, which the browser follows with a click.
@@ -46,6 +48,7 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
   let current = initial;
   let backward = false;
   setSelectionCharRange(editor, current.start, current.end);
+  options.onExtend?.(current);
   let lastX = 0;
   let lastY = 0;
   const scroller = createEdgeScroller(editor, () => extend(lastX, lastY));
@@ -70,6 +73,7 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
     current = span;
     backward = back;
     setSelectionCharRange(editor, span.start, span.end, back);
+    options.onExtend?.(span);
   }
   function onUp(e: MouseEvent) {
     e.preventDefault();

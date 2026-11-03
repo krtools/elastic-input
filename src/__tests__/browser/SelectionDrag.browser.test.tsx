@@ -10,7 +10,7 @@ import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, FieldConfig, SuggestionItem } from '../../types';
 import { countOffsetTo } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
-import { waitFor, pointAt, mouseAt, q } from './helpers';
+import { waitFor, pointAt, mouseAt, q, realMultiClickDrag } from './helpers';
 
 afterEach(cleanup);
 
@@ -154,5 +154,28 @@ describe('triple-click drag', () => {
     drag(editorEl, 13); // on the second AND
     expect(selected()).toBe('b:2 AND ');
     release(editorEl, 13, 3);
+  });
+});
+
+// Trusted events with real click counts, so the browser's own default
+// actions (its drag, its mouseup) are in play too
+describe('real pointer input', () => {
+  it('a double-click drag selects whole words', async () => {
+    const { editorEl } = await setup('status:active lead now');
+    await realMultiClickDrag(editorEl, 9, 20, 2);
+    expect(selected()).toBe('active lead now');
+    expect(await waitFor(() => !isOpen())).toBe(true);
+  });
+
+  it('a triple-click drag selects whole clauses', async () => {
+    const { editorEl } = await setup('a:1 AND b:2 AND c:3');
+    await realMultiClickDrag(editorEl, 10, 17, 3);
+    expect(selected()).toBe(' AND b:2 AND c:3');
+  });
+
+  it('a single-click drag is still the browser\'s, character by character', async () => {
+    const { editorEl } = await setup('status:active lead now');
+    await realMultiClickDrag(editorEl, 9, 15, 1);
+    expect(selected()).toBe('tive l');
   });
 });

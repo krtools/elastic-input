@@ -1,7 +1,7 @@
 /**
  * createEdgeScroller scrolls an element toward a pointer held past its top or
- * bottom edge, on a timer, and stops at the limit or once the pointer is back
- * inside (§5.3).
+ * bottom edge, by the overshoot every frame, and stops at the limit or once
+ * the pointer is back inside (§5.3).
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import { createEdgeScroller, EdgeScroller } from '../../utils/edgeAutoScroll';
@@ -20,21 +20,20 @@ function mount(lines: number): HTMLElement {
 }
 
 describe('createEdgeScroller', () => {
-  it('scrolls toward a pointer held below the box until the limit, then stops', async () => {
+  it('scrolls by the overshoot at once, then every frame until the limit, then stops', async () => {
     const el = mount(12);
     let steps = 0;
     scroller = createEdgeScroller(el, () => { steps++; });
     const box = el.getBoundingClientRect();
-    scroller.update(box.bottom + 90);
-    expect(el.scrollTop).toBeGreaterThan(0); // the first step is immediate
+    scroller.update(box.bottom + 30);
+    expect(el.scrollTop).toBe(30); // the first step is immediate
     expect(steps).toBe(1);
-    const first = el.scrollTop;
     await pause(120);
-    expect(el.scrollTop).toBeGreaterThan(first);
-    await pause(600);
+    expect(el.scrollTop).toBeGreaterThan(30);
+    await pause(300);
     expect(el.scrollTop).toBe(el.scrollHeight - el.clientHeight);
     const atLimit = steps;
-    await pause(150);
+    await pause(100);
     expect(steps).toBe(atLimit);
   });
 

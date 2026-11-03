@@ -30,9 +30,10 @@ export interface RangeDragOptions {
  * follows the pointer, so a Shift+Arrow afterwards extends the end the user
  * dragged. The pointer is clamped to the editor's box: dragging past an edge
  * selects to that end of the nearest line. Ends on mouseup (its default
- * prevented, or the browser would clear a selection it did not start), when
- * the window loses focus, or on a move with the button already up (a release
- * outside the window). Returns a function that cancels the drag without onEnd
+ * prevented, or the browser would clear a selection it did not start), on a
+ * new mousedown anywhere (a release that never arrived), when the window
+ * loses focus, or on a move with the button already up (a release outside the
+ * window). Returns a function that cancels the drag without onEnd
  * (for unmount), or null when there is no unit at the anchor.
  */
 export function startRangeDrag(editor: HTMLElement, anchor: number, options: RangeDragOptions): (() => void) | null {
@@ -62,10 +63,12 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
     e.preventDefault();
     end(editor.contains(e.target as Node));
   }
+  function onDown() { end(false); }
   function onBlur() { end(false); }
   function cancel() {
     document.removeEventListener('mousemove', onMove, true);
     document.removeEventListener('mouseup', onUp, true);
+    document.removeEventListener('mousedown', onDown, true);
     window.removeEventListener('blur', onBlur);
   }
   function end(clickFollows: boolean) {
@@ -74,6 +77,9 @@ export function startRangeDrag(editor: HTMLElement, anchor: number, options: Ran
   }
   document.addEventListener('mousemove', onMove, true);
   document.addEventListener('mouseup', onUp, true);
+  // Added during the press's own dispatch, after its capture phase, so it
+  // sees only the next press
+  document.addEventListener('mousedown', onDown, true);
   window.addEventListener('blur', onBlur);
   return cancel;
 }

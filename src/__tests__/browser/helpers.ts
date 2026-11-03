@@ -39,7 +39,7 @@ export function mouseAt(target: EventTarget, type: string, point: { x: number; y
   }));
 }
 
-export type MouseStep = { type: 'move'; x: number; y: number } | { type: 'down' | 'up'; clickCount?: number } | { type: 'wait'; ms: number };
+export type MouseStep = { type: 'move'; x: number; y: number } | { type: 'down' | 'up'; clickCount?: number } | { type: 'wait'; ms: number } | { type: 'key'; key: string };
 
 declare module 'vitest/browser' {
   interface BrowserCommands {

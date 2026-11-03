@@ -3,7 +3,7 @@ import type { BrowserCommand } from 'vitest/node';
 import { playwright } from '@vitest/browser-playwright';
 import path from 'path';
 
-type MouseStep = { type: 'move'; x: number; y: number } | { type: 'down' | 'up'; clickCount?: number } | { type: 'wait'; ms: number };
+type MouseStep = { type: 'move'; x: number; y: number } | { type: 'down' | 'up'; clickCount?: number } | { type: 'wait'; ms: number } | { type: 'key'; key: string };
 
 /**
  * Real pointer input for the selection-drag tests: a press with a click count
@@ -18,6 +18,7 @@ const mouseGesture: BrowserCommand<[steps: MouseStep[]]> = async ({ page, frame 
   const scale = box.width / await testFrame.evaluate(() => window.innerWidth);
   for (const step of steps) {
     if (step.type === 'wait') { await new Promise(r => setTimeout(r, step.ms)); continue; }
+    if (step.type === 'key') { await page.keyboard.press(step.key); continue; }
     if (step.type === 'move') await page.mouse.move(box.x + step.x * scale, box.y + step.y * scale);
     else if (step.type === 'down') await page.mouse.down({ clickCount: step.clickCount });
     else await page.mouse.up({ clickCount: step.clickCount });

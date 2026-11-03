@@ -4,13 +4,13 @@
  * §5.3.1). The gesture itself is covered in RangeDrag.browser.test.tsx.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { page, userEvent, commands } from 'vitest/browser';
 import * as React from 'react';
 import { ElasticInput } from '../../components/ElasticInput';
 import { ElasticInputAPI, FieldConfig, SuggestionItem } from '../../types';
 import { countOffsetTo } from '../../utils/cursorUtils';
 import { renderInto, cleanup } from './renderHelper';
-import { waitFor, pointAt, mouseAt, q, realMultiClickDrag } from './helpers';
+import { waitFor, pause, pointAt, mouseAt, q, realMultiClickDrag } from './helpers';
 
 afterEach(cleanup);
 
@@ -177,5 +177,36 @@ describe('real pointer input', () => {
     const { editorEl } = await setup('status:active lead now');
     await realMultiClickDrag(editorEl, 9, 15, 1);
     expect(selected()).toBe('tive l');
+  });
+});
+
+describe('interruptions', () => {
+  it('a keystroke ends the extension, as in native inputs', async () => {
+    const { editorEl, api } = await setup('status:active lead now');
+    const a = pointAt(editorEl, 9);
+    const b = pointAt(editorEl, 15);
+    const c = pointAt(editorEl, 20);
+    await commands.mouseGesture([
+      { type: 'move', x: a.x, y: a.y }, { type: 'down', clickCount: 1 }, { type: 'up', clickCount: 1 }, { type: 'wait', ms: 50 },
+      { type: 'down', clickCount: 2 }, { type: 'move', x: b.x, y: b.y },
+    ]);
+    expect(selected()).toBe('active lead');
+    await commands.mouseGesture([{ type: 'key', key: 'x' }, { type: 'move', x: c.x, y: c.y }]);
+    expect(await waitFor(() => api().getValue() === 'status:x now')).toBe(true);
+    expect(selected()).toBe('');
+    await commands.mouseGesture([{ type: 'up', clickCount: 2 }]);
+    expect(selected()).toBe('');
+    expect(api().getSelection()).toMatchObject({ start: 8, end: 8 });
+  });
+
+  it('a drag ended by a blur leaves the dropdown closed', async () => {
+    const { editorEl } = await setup('status:active lead now');
+    click(editorEl, 9, 1);
+    press(editorEl, 9, 2); // one token selected: a sync here would ask for suggestions
+    editorEl.blur();
+    window.dispatchEvent(new Event('blur'));
+    await pause(300);
+    expect(isOpen()).toBe(false);
+    expect(document.activeElement).not.toBe(editorEl);
   });
 });

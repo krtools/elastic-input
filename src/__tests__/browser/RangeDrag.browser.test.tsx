@@ -104,6 +104,18 @@ describe('startRangeDrag', () => {
     expect(ends).toBe(2);
   });
 
+  it('a new press anywhere ends the drag (a release that never arrived)', () => {
+    const el = mount();
+    const ends: boolean[] = [];
+    startRangeDrag(el, 9, { spanBetween: words, onEnd: (_r, clickFollows) => { ends.push(clickFollows); } });
+    mouseAt(document.body, 'mousedown', { x: 0, y: 0 });
+    expect(ends).toEqual([false]);
+    move(el, 15);
+    expect(selected()).toBe('active');
+    mouseAt(document.body, 'mouseup', { x: 0, y: 0 });
+    expect(ends).toEqual([false]);
+  });
+
   it('returns null and selects nothing when there is no unit at the anchor', () => {
     const el = mount();
     expect(startRangeDrag(el, 6, { spanBetween: () => null })).toBeNull();

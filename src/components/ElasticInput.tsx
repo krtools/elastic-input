@@ -2606,15 +2606,20 @@ export function ElasticInput(props: ElasticInputProps) {
     if (e.detail === 3 && !ast) return;
     const anchor = offsetAtPoint(editor, e.clientX, e.clientY);
     if (anchor == null) return;
-    const spanBetween = e.detail === 3
-      ? (a: number, b: number) => getClauseSpanBetween(ast, text, a, b)
-      : (a: number, b: number) => getWordSpanBetween(text, a, b);
+    const clauses = e.detail === 3; // read now: the pooled event is gone by the first move
+    const spanBetween = (a: number, b: number) => {
+      // Once the text changes under the drag (a keystroke replaced the
+      // selection), it extends no further, as in native inputs
+      if (currentValueRef.current !== text) return null;
+      return clauses ? getClauseSpanBetween(ast, text, a, b) : getWordSpanBetween(text, a, b);
+    };
     const cancel = startRangeDrag(editor, anchor, {
       spanBetween,
       onEnd: (_range, clickFollows) => {
         dragCancelRef.current = null;
-        // A release over the editor is followed by a click, which syncs
-        if (!clickFollows) syncSelectionState();
+        // A release over the editor is followed by a click, which syncs; a
+        // drag ended by a blur leaves the blur handler's state alone
+        if (!clickFollows && document.hasFocus() && document.activeElement === editor) syncSelectionState();
       },
     });
     if (!cancel) return; // no clause there: the browser's own triple-click

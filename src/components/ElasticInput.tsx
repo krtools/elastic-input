@@ -22,7 +22,7 @@ import { useMatchMedia } from '../utils/useMatchMedia';
 import { DateRangePicker } from './DateRangePicker';
 import { ValidationSquiggles } from './ValidationSquiggles';
 import { parseDate } from '../utils/dateUtils';
-import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, countOffsetTo } from '../utils/cursorUtils';
+import { getCaretCharOffset, setCaretCharOffset, getSelectionCharRange, setSelectionCharRange, offsetAtPoint } from '../utils/cursorUtils';
 import { getCaretRect, getDropdownPosition, capDropdownHeight, adjustFlippedPosition, insertTextAtCursor, insertLineBreakAtCursor, scrollEditorToCaret, DropdownPosition } from '../utils/domUtils';
 import { getPlainText, WRAP_PAIRS, wrapSelection, normalizeTypographicChars, getTokenIndexRange, toSingleLine, atTermBoundary, isOnOperatorToken } from '../utils/textUtils';
 import { getSmartSelectRange } from '../utils/smartSelect';
@@ -2584,9 +2584,8 @@ export function ElasticInput(props: ElasticInputProps) {
       // fall through to browser default (typically selects the whole line).
       if (!stateRef.current.ast) return;
 
-      const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-      if (!range) return;
-      const offset = countOffsetTo(editorRef.current, range.startContainer, range.startOffset);
+      const offset = offsetAtPoint(editorRef.current, e.clientX, e.clientY);
+      if (offset == null) return;
       const clauseRange = getClauseRangeAtOffset(stateRef.current.ast, currentValueRef.current, offset);
       if (!clauseRange || clauseRange.start >= clauseRange.end) return;
 
@@ -2599,9 +2598,8 @@ export function ElasticInput(props: ElasticInputProps) {
     e.preventDefault();
     mouseSelectHandledRef.current = true;
 
-    const range = document.caretRangeFromPoint(e.clientX, e.clientY);
-    if (!range) return;
-    const offset = countOffsetTo(editorRef.current, range.startContainer, range.startOffset);
+    const offset = offsetAtPoint(editorRef.current, e.clientX, e.clientY);
+    if (offset == null) return;
     const text = currentValueRef.current;
     const isWordChar = (ch: string) => !/[\s:()[\]{}"<>!,;|&=~^+\-*/\\]/.test(ch);
 

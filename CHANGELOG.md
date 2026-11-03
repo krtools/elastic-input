@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Double-click word selection no longer depends on `caretRangeFromPoint`** — The pointer lookup uses the standard `caretPositionFromPoint` where it exists, so Firefox, which has only that method, selects the word instead of throwing.
+
 ## 0.26.3 — 2026-11-02
 
 ### Fixes

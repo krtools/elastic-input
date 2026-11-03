@@ -637,7 +637,8 @@ Double-clicking a word in the editor selects the word without trailing whitespac
 - Double-click "value" in `filter:value abc` → selects "value" (not "value ")
 - Backspace after → `filter: abc` (space preserved)
 - Double-click "filter" in `filter:value` → selects "filter" (stops at `:`)
-- **Tests:** `ElasticInput.browser.test.tsx` → "double-click selects word without trailing whitespace", "double-click + backspace preserves adjacent space"
+- The offset under the pointer comes from `offsetAtPoint` (`cursorUtils.ts`): the standard `caretPositionFromPoint` where it exists, else the older `caretRangeFromPoint`, so the gesture works in Firefox (which has only the standard method) and Safari (only the older one).
+- **Tests:** `ElasticInput.browser.test.tsx` → "double-click selects word without trailing whitespace", "double-click + backspace preserves adjacent space", "selects the word without caretRangeFromPoint (Firefox has only caretPositionFromPoint)"; `OffsetAtPoint.browser.test.tsx`
 
 ### 5.3.1 Triple-Click Clause Selection
 

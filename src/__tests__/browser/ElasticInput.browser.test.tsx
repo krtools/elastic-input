@@ -534,6 +534,24 @@ describe('ElasticInput browser tests', () => {
 
       expect(getSelectedText()).toBe('active');
     });
+
+    it('selects the word without caretRangeFromPoint (Firefox has only caretPositionFromPoint)', async () => {
+      renderInto(React.createElement(ElasticInput, { fields: FIELDS }));
+      const editorEl = document.querySelector(EDITOR) as HTMLElement;
+      const editor = page.elementLocator(editorEl);
+      await editor.click();
+      await userEvent.type(editor, 'filter:value abc');
+      await new Promise(r => setTimeout(r, 100));
+
+      const desc = Object.getOwnPropertyDescriptor(Document.prototype, 'caretRangeFromPoint')!;
+      Object.defineProperty(Document.prototype, 'caretRangeFromPoint', { value: undefined, configurable: true });
+      try {
+        clickAtOffset(editorEl, 9, 2);
+      } finally {
+        Object.defineProperty(Document.prototype, 'caretRangeFromPoint', desc);
+      }
+      expect(getSelectedText()).toBe('value');
+    });
   });
 
   describe('triple-click clause selection', () => {

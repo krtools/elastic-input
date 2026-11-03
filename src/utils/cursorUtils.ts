@@ -162,3 +162,26 @@ function getLastTextNode(node: Node): Node | null {
   }
   return null;
 }
+
+/**
+ * The character offset in root nearest to a viewport point, or null when the
+ * point is outside the box of root (browsers otherwise resolve a point beside
+ * text to the nearest position in it) or over something else. Uses the
+ * standard caretPositionFromPoint where it exists (Firefox has only that) and
+ * the older caretRangeFromPoint otherwise (Safari has only that).
+ */
+export function offsetAtPoint(root: HTMLElement, x: number, y: number): number | null {
+  const box = root.getBoundingClientRect();
+  if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+  let node: Node | null = null;
+  let offset = 0;
+  if (typeof document.caretPositionFromPoint === 'function') {
+    const pos = document.caretPositionFromPoint(x, y);
+    if (pos) { node = pos.offsetNode; offset = pos.offset; }
+  } else if (typeof document.caretRangeFromPoint === 'function') {
+    const range = document.caretRangeFromPoint(x, y);
+    if (range) { node = range.startContainer; offset = range.startOffset; }
+  }
+  if (!node || !root.contains(node)) return null;
+  return countOffsetTo(root, node, offset);
+}
